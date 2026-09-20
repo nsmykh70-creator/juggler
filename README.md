@@ -145,6 +145,23 @@ python grpc_client.py          # /api → 127.0.0.1:7001 + 127.0.0.1:7002
 }
 ```
 
+### Статика: docroot `www/`
+
+Как `htdocs` у Apache: при старте Juggler создаёт `www/` и автоматически
+регистрирует каждый подкаталог как маршрут — каталог `www/sample_sites1/`
+отвечает на `https://<host>/sample_sites1/` (файл по умолчанию — `index.html`).
+Положите свой сайт в `www/<имя>/` — маршрут появится без правки конфигов.
+
+- MIME определяется по расширению (html/css/js/png/svg/json/woff2 и др.),
+- каталог-объекты (`DirectoryListing`) выключены, отсутствующий файл → 404,
+- traversal-атаки (`..%2f`, `%2e%2e`) блокируются на резолвере,
+- маршрутом можно управлять и явно: `"static_dir": "www/mysite"` в `routes.json`
+  (перезаписывает автоподстановку и живёт в hot-reload наравне с прокси-маршрутами).
+
+```bash
+python grpc_client.py routes.json
+```
+
 ### Вариант C: из Python-кода
 
 ```python
@@ -440,7 +457,8 @@ Caddy/OpenLiteSpeed по RPS, латентности и памяти.
 ├── Cargo.toml              # juggler v0.6.0 (tokio, h2, tonic, rustls, prometheus, mimalloc…)
 ├── build.rs                # компиляция .proto через вендоренный protoc
 ├── proto/control_plane.proto   # package juggler.control (+SecurityConfig)
-├── third_party/protoc/     # вендоренный protoc 32.1 (win64)
+├── third_party/protoc/     # вендоренный protoc 32.1 (win64; linux-сборки CI
+│                             качают protoc из protobuf releases — см. ci.yml)
 ├── src/main.rs             # весь сервер: шардированный data plane (SO_REUSEPORT
 │                             на Linux / forecast hand-off на Windows,
 │                             thread-per-core), control plane, security layer,
