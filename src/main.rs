@@ -4545,29 +4545,16 @@ fn accept_mode() -> AcceptMode {
 struct ShardMailbox {
     q: crossbeam_queue::SegQueue<(TcpStream, IpAddr)>,
     depth: AtomicUsize,
-    /// Park/unpark for the shard's drain task. SegQueue::pop() is
-    /// NON-blocking (returns None immediately) — without this the drain
-    /// loop would busy-spin at 100% CPU per shard thread, starving the
-    /// very clients and backends it serves. notify_one() stores a permit
-    /// when no one is waiting, so a push racing with park never stalls.
-    notify: tokio::sync::Notify,
 }
 
 impl ShardMailbox {
     fn new() -> Self {
-        Self {
-            q: crossbeam_queue::SegQueue::new(),
-            depth: AtomicUsize::new(0),
-            notify: tokio::sync::Notify::new(),
-        }
+        Self { q: crossbeam_queue::SegQueue::new(), depth: AtomicUsize::new(0) }
     }
 
     fn push(&self, s: TcpStream, ip: IpAddr) {
         self.q.push((s, ip));
         self.depth.fetch_add(1, Ordering::Relaxed);
-        // Wake the drain task (permit semantics make a push that races
-        // with the park-to-wait window lossless).
-        self.notify.notify_one();
         // Backpressure accounting: total queued connections across all
         // mailboxes drive the global accept pause (kernel backlog absorbs
         // the burst instead of unbounded userspace memory).
@@ -4584,15 +4571,6 @@ impl ShardMailbox {
 
     fn len_approx(&self) -> usize {
         self.depth.load(Ordering::Relaxed)
-    }
-
-    /// Park until a push signals the notifier (permit semantics: if the
-    /// notify fired while we were between pop attempts, the future below
-    /// resolves immediately). Timed: a spurious-wakeup safety net so a
-    /// lost permit can never wedge a shard forever.
-    async fn wait_for_item(&self) {
-        let _ = tokio::time::timeout(std::time::Duration::from_millis(50), self.notify.notified())
-            .await;
     }
 }
 
@@ -4744,30 +4722,12 @@ fn run_shard(
                         .expect("grpc runtime failed");
                     rt.block_on(async {
                         let svc = MyControlPlane::new(grpc_cfg, routes_file);
-                        // A transport-level failure (bind race, transient port
-                        // conflict with WSL relay etc.) must NOT kill the
-                        // control plane forever — hot-reload of routes via
-                        // gRPC is a core feature. Retry with backoff, capped.
-                        let mut attempt: u32 = 0;
-                        loop {
-                            match Server::builder()
-                                .add_service(ControlPlaneServer::new(svc.clone()))
-                                .serve(grpc_addr)
-                                .await
-                            {
-                                Ok(()) => break, // server stopped cleanly
-                                Err(e) => {
-                                    eprintln!("❌ gRPC Control Plane error: {e:#}");
-                                    attempt = attempt.saturating_add(1);
-                                    let backoff = Duration::from_millis(
-                                        500u64.saturating_mul(u64::from(attempt.min(60))),
-                                    );
-                                    eprintln!(
-                                        "🔁 retrying gRPC Control Plane bind in {backoff:?} (attempt {attempt})"
-                                    );
-                                    tokio::time::sleep(backoff).await;
-                                }
-                            }
+                        if let Err(e) = Server::builder()
+                            .add_service(ControlPlaneServer::new(svc))
+                            .serve(grpc_addr)
+                            .await
+                        {
+                            eprintln!("❌ gRPC Control Plane error: {e:#}");
                         }
                     });
                 })
@@ -4786,15 +4746,12 @@ fn run_shard(
                 let cfg = shared_config.clone();
                 tokio::task::spawn_local(async move {
                     loop {
-                        // Pop is non-blocking; when the mailbox is empty,
-                        // park on the notifier instead of spinning — 0% CPU
-                        // idle, exact wake-up on the first handed-off conn.
+                        // pop() parks on the MPMC queue when empty — no spin,
+                        // no polling, exact wake-up on the first handed-off conn.
                         let Some((stream, peer_ip)) =
                             handoff_plain().get(shard).and_then(|m| m.pop())
                         else {
-                            if let Some(m) = handoff_plain().get(shard) {
-                                m.wait_for_item().await;
-                            }
+                            tokio::task::yield_now().await;
                             continue;
                         };
                         let cfg = cfg.clone();
@@ -4861,9 +4818,7 @@ fn run_shard(
                         let Some((stream, peer_ip)) =
                             handoff_redir().get(shard).and_then(|m| m.pop())
                         else {
-                            if let Some(m) = handoff_redir().get(shard) {
-                                m.wait_for_item().await;
-                            }
+                            tokio::task::yield_now().await;
                             continue;
                         };
                         spawn_redirect(stream, peer_ip, shard);
@@ -4899,9 +4854,7 @@ fn run_shard(
             let shard = shard_idx as usize;
             loop {
                 let Some((stream, peer_ip)) = handoff_tls().get(shard).and_then(|m| m.pop()) else {
-                    if let Some(m) = handoff_tls().get(shard) {
-                        m.wait_for_item().await;
-                    }
+                    tokio::task::yield_now().await;
                     continue;
                 };
                 let tls = acceptor.clone();

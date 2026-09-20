@@ -98,36 +98,6 @@
 </table>
 <p class="note"><b>Interpretation — v0.8.0 vs v0.9.0, apples to apples:</b> Juggler holds #1 in memory efficiency at every concurrency (c=100: 63 vs nginx 110 MiB; c=10k: 429 vs nginx 204 MiB — second lightest) and is the only server besides nginx with <b>0 errors at c=1000</b> (nginx had 972, OpenLiteSpeed-like outliers cleaned up). <b>But RPS regressed vs its own v0.8.0 run</b> (−35% at c=1k, −21% at 10k) while the whole bench drifted (nginx −12% at 1k, OLS −28% at c=100), so this is a noisy session, not a verdict. Tracked root cause: the v0.9.0 image caps adaptive prewarm at 64 sockets/upstream (v0.8.0 image had 256) — container logs show ramping targets 32 → 4 096 during the 10k warm-up, i.e. part of the cold-burst penalty is back. Accept-path sharding is confirmed active (SO_REUSEPORT on Linux; hand-off is Windows-only). <b>Action: A/B re-run with prewarm cap = 256 before declaring Pythia's performance impact.</b> Parser micro-benchmark (release): 909 → 692 ns/request, 12–14 → 1 alloc.</p>
 
-<h2>Matrix charts — RPS &amp; memory, eight servers</h2>
-<p class="sub">Pure CSS bars, data inlined from <code>bench/results.json</code> (v0.9.0 re-check snapshot: c=100, wrk 15 s × 4 threads, Docker Desktop WSL2 · 12 cores). Bar lengths are scaled to the best server; a colour identifies the same server across both charts.</p>
-
-<div class="chart">
-  <h3>Throughput — fastest first</h3>
-  <div class="src">requests/sec at c=100; the warn-coloured suffix is the wrk error count from the same run</div>
-  <div class="crow"><span class="nm">nginx</span><div class="cbar c-nginx" style="width:100%"></div><span class="cval">7 135 <span class="w">14 err</span></span></div>
-  <div class="crow"><span class="nm">openlitespeed</span><div class="cbar c-openlitespeed" style="width:95.9%"></div><span class="cval">6 839</span></div>
-  <div class="crow"><span class="nm"><span class="tag j">juggler</span></span><div class="cbar c-juggler" style="width:79.1%"></div><span class="cval">5 646</span></div>
-  <div class="crow"><span class="nm">traefik</span><div class="cbar c-traefik" style="width:76.8%"></div><span class="cval">5 479 <span class="w">20 err</span></span></div>
-  <div class="crow"><span class="nm">envoy</span><div class="cbar c-envoy" style="width:72%"></div><span class="cval">5 135</span></div>
-  <div class="crow"><span class="nm">caddy</span><div class="cbar c-caddy" style="width:55.2%"></div><span class="cval">3 938</span></div>
-  <div class="crow"><span class="nm">haproxy</span><div class="cbar c-haproxy" style="width:49.1%"></div><span class="cval">3 501</span></div>
-  <div class="crow"><span class="nm">apache (event)</span><div class="cbar c-apache" style="width:43.6%"></div><span class="cval">3 111 <span class="w">9 err</span></span></div>
-</div>
-
-<div class="chart">
-  <h3>Memory — lightest first</h3>
-  <div class="src">resident set size, median of the run's samples in MiB; run max shown after the dot</div>
-  <div class="crow"><span class="nm">apache (event)</span><div class="cbar c-apache" style="width:11.5%"></div><span class="cval">51.8 · max 53.6</span></div>
-  <div class="crow"><span class="nm">haproxy</span><div class="cbar c-haproxy" style="width:17.3%"></div><span class="cval">77.8 · max 150.7</span></div>
-  <div class="crow"><span class="nm">nginx</span><div class="cbar c-nginx" style="width:24.7%"></div><span class="cval">111.4 · max 111.9</span></div>
-  <div class="crow"><span class="nm">caddy</span><div class="cbar c-caddy" style="width:30.3%"></div><span class="cval">136.7 · max 148.8</span></div>
-  <div class="crow"><span class="nm"><span class="tag j">juggler</span></span><div class="cbar c-juggler" style="width:34.4%"></div><span class="cval">155.1 · max 161.7</span></div>
-  <div class="crow"><span class="nm">openlitespeed</span><div class="cbar c-openlitespeed" style="width:39.2%"></div><span class="cval">176.6 · max 176.9</span></div>
-  <div class="crow"><span class="nm">traefik</span><div class="cbar c-traefik" style="width:46.4%"></div><span class="cval">209.1 · max 215.7</span></div>
-  <div class="crow"><span class="nm">envoy</span><div class="cbar c-envoy" style="width:100%"></div><span class="cval">450.5 · max 451.0</span></div>
-</div>
-<p class="note">Reading the snapshot: this c=100 re-check caught the whole bench drifted and Juggler on the prewarm-cap-64 build (see the A/B note above), so its RPS here under-represents the v0.8.0-shape build. Memory medians are the stable story: Juggler sits mid-pack at c=100, Envoy's ~450 MiB baseline dominates the scale, Apache stays featherweight. Full c=1k/10k sessions live in the two tables above.</p>
-
 <h2>Juggler vs nginx — dedicated comparison (v0.6.0 series)</h2>
 <p class="sub">Earlier focused series: sharded-accept revision, warm runs, sticky probe.</p>
 
