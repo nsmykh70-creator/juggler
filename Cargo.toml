@@ -1,0 +1,48 @@
+[package]
+name = "juggler"
+version = "0.9.0"
+edition = "2021"
+description = "Juggler — thread-per-core HTTPS web server / reverse proxy with HTTP/1.1 + HTTP/2, a gRPC Control Plane, Least-Connections balancing, keep-alive, upstream failover, token-bucket rate limiting, sandboxed WASM request filters (wasmtime) and Prometheus metrics"
+license = "MIT OR Apache-2.0"
+
+[[bin]]
+name = "juggler"
+path = "src/main.rs"
+
+[dependencies]
+mimalloc = "0.1"
+crossbeam-queue = "0.3"
+socket2 = "0.5"
+tokio = { version = "1", features = ["rt-multi-thread", "net", "io-util", "time", "macros", "sync", "signal"] }
+core_affinity = "0.8"
+bytes = "1"
+arc-swap = "1"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+prometheus = { version = "0.13", default-features = false }
+lazy_static = "1"
+anyhow = "1"
+tonic = { version = "0.12", default-features = false, features = ["transport", "codegen", "prost"] }
+prost = "0.13"
+rustls = { version = "0.23", default-features = false, features = ["ring", "logging", "std", "tls12"] }
+tokio-rustls = { version = "0.26", default-features = false, features = ["ring"] }
+rustls-pki-types = "1"
+rustls-pemfile = "2"
+rcgen = { version = "0.13", default-features = false, features = ["pem", "ring"] }
+ring = "0.17"
+rand = "0.8"
+h2 = "0.4"
+http = "1"
+wasmtime = { version = "44", default-features = false, features = ["runtime", "cranelift", "demangle"] }
+
+[dev-dependencies]
+wat = "1"
+
+[build-dependencies]
+tonic-build = { version = "0.12", default-features = false, features = ["prost", "transport"] }
+
+[profile.release]
+opt-level = 3
+lto = "thin"
+codegen-units = 1
+strip = true

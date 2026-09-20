@@ -1,0 +1,37 @@
+syntax = "proto3";
+
+package juggler.control;
+
+service ControlPlane {
+  // Atomically swap the whole routing table.
+  rpc UpdateConfig (UpdateConfigRequest) returns (UpdateConfigResponse);
+}
+
+// Per-route security policy (populated by htaccess_import.py or manually).
+// This is the .htaccess replacement: deny rules, security response headers
+// and a CMS front-controller fallback, enforced in the Data Plane.
+message SecurityConfig {
+  // Case-insensitive substrings; a matching request path gets 403.
+  repeated string deny_substrings = 1;
+  // Response headers injected into proxied responses. Values must not
+  // contain CRLF. Keys are sent as-is (title-cased by the h2 path).
+  map<string, string> response_headers = 2;
+  // Front-controller rewrite (WordPress `RewriteRule ^(.*)$ index.php [L]`):
+  // unknown paths are proxied to this route's upstreams.
+  optional string cms_fallback_path = 3;
+}
+
+message RouteConfig {
+  repeated string upstream_addrs = 1;
+  optional string wasm_plugin = 2;
+  SecurityConfig security = 3;
+}
+
+message UpdateConfigRequest {
+  map<string, RouteConfig> routes = 1;
+}
+
+message UpdateConfigResponse {
+  bool success = 1;
+  string message = 2;
+}

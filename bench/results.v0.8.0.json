@@ -1,0 +1,629 @@
+{
+  "meta": {
+    "duration": "15s",
+    "threads": 4,
+    "concurrency": [
+      100,
+      1000,
+      10000
+    ],
+    "host": "Docker Desktop (WSL2), 12 cores / 15.9 GiB"
+  },
+  "runs": [
+    {
+      "scenario": "proxy",
+      "server": "nginx",
+      "concurrency": 100,
+      "rps": 6219.32,
+      "latency_avg_ms": 19.76,
+      "percentiles_ms": {
+        "50": 14.36,
+        "75": 29.36,
+        "90": 47.72,
+        "99": 93.1
+      },
+      "errors": 0,
+      "wall_s": 15.8,
+      "mem_samples_mib": [
+        114.1,
+        114.5,
+        114.2,
+        114.3,
+        111.9
+      ],
+      "mem_median_mib": 114.2,
+      "mem_max_mib": 114.5
+    },
+    {
+      "scenario": "proxy",
+      "server": "juggler",
+      "concurrency": 100,
+      "rps": 6129.17,
+      "latency_avg_ms": 19.37,
+      "percentiles_ms": {
+        "50": 14.35,
+        "75": 28.87,
+        "90": 46.37,
+        "99": 90.2
+      },
+      "errors": 6,
+      "wall_s": 15.7,
+      "mem_samples_mib": [
+        55.05,
+        55.0,
+        55.35,
+        55.95,
+        54.39,
+        53.84
+      ],
+      "mem_median_mib": 55.0,
+      "mem_max_mib": 56.0
+    },
+    {
+      "scenario": "proxy",
+      "server": "apache",
+      "concurrency": 100,
+      "rps": 2994.53,
+      "latency_avg_ms": 36.46,
+      "percentiles_ms": {
+        "50": 29.59,
+        "75": 49.16,
+        "90": 75.07,
+        "99": 138.49
+      },
+      "errors": 0,
+      "wall_s": 15.6,
+      "mem_samples_mib": [
+        23.77,
+        25.44,
+        31.36,
+        32.96,
+        34.15,
+        32.52
+      ],
+      "mem_median_mib": 31.4,
+      "mem_max_mib": 34.1
+    },
+    {
+      "scenario": "proxy",
+      "server": "caddy",
+      "concurrency": 100,
+      "rps": 4927.64,
+      "latency_avg_ms": 24.49,
+      "percentiles_ms": {
+        "50": 17.69,
+        "75": 34.23,
+        "90": 55.64,
+        "99": 110.45
+      },
+      "errors": 0,
+      "wall_s": 15.6,
+      "mem_samples_mib": [
+        42.64,
+        41.69,
+        42.76,
+        42.43,
+        44.73,
+        46.68,
+        42.18
+      ],
+      "mem_median_mib": 42.7,
+      "mem_max_mib": 46.7
+    },
+    {
+      "scenario": "proxy",
+      "server": "haproxy",
+      "concurrency": 100,
+      "rps": 4623.93,
+      "latency_avg_ms": 22.12,
+      "percentiles_ms": {
+        "50": 19.22,
+        "75": 26.86,
+        "90": 37.92,
+        "99": 63.05
+      },
+      "errors": 0,
+      "wall_s": 16.1,
+      "mem_samples_mib": [
+        19.25,
+        19.25,
+        19.32,
+        19.09,
+        19.14,
+        19.5,
+        18.89
+      ],
+      "mem_median_mib": 19.2,
+      "mem_max_mib": 19.5
+    },
+    {
+      "scenario": "proxy",
+      "server": "envoy",
+      "concurrency": 100,
+      "rps": 6035.48,
+      "latency_avg_ms": 19.2,
+      "percentiles_ms": {
+        "50": 14.85,
+        "75": 26.89,
+        "90": 42.17,
+        "99": 81.91
+      },
+      "errors": 89,
+      "wall_s": 15.7,
+      "mem_samples_mib": [
+        22.11,
+        22.09,
+        22.14,
+        22.05,
+        22.21,
+        20.76
+      ],
+      "mem_median_mib": 22.1,
+      "mem_max_mib": 22.2
+    },
+    {
+      "scenario": "proxy",
+      "server": "traefik",
+      "concurrency": 100,
+      "rps": 5392.93,
+      "latency_avg_ms": 21.2,
+      "percentiles_ms": {
+        "50": 16.57,
+        "75": 30.12,
+        "90": 46.93,
+        "99": 87.21
+      },
+      "errors": 68,
+      "wall_s": 15.5,
+      "mem_samples_mib": [
+        90.38,
+        115.3,
+        115.3,
+        114.8,
+        112.1,
+        111.6
+      ],
+      "mem_median_mib": 114.8,
+      "mem_max_mib": 115.3
+    },
+    {
+      "scenario": "proxy",
+      "server": "openlitespeed",
+      "concurrency": 100,
+      "rps": 9506.78,
+      "latency_avg_ms": 13.04,
+      "percentiles_ms": {
+        "50": 8.54,
+        "75": 17.93,
+        "90": 31.61,
+        "99": 65.3
+      },
+      "errors": 0,
+      "wall_s": 15.6,
+      "mem_samples_mib": [
+        14.38,
+        15.01,
+        15.04,
+        15.36,
+        15.47,
+        15.38,
+        14.66
+      ],
+      "mem_median_mib": 15.2,
+      "mem_max_mib": 15.5
+    },
+    {
+      "scenario": "proxy",
+      "server": "nginx",
+      "concurrency": 1000,
+      "rps": 12014.76,
+      "latency_avg_ms": 80.39,
+      "percentiles_ms": {
+        "50": 68.5,
+        "75": 109.48,
+        "90": 154.13,
+        "99": 262.98
+      },
+      "errors": 22,
+      "wall_s": 15.7,
+      "mem_samples_mib": [
+        132.0,
+        132.8,
+        130.4,
+        130.4,
+        130.1,
+        116.2
+      ],
+      "mem_median_mib": 130.4,
+      "mem_max_mib": 132.8
+    },
+    {
+      "scenario": "proxy",
+      "server": "juggler",
+      "concurrency": 1000,
+      "rps": 12498.65,
+      "latency_avg_ms": 73.53,
+      "percentiles_ms": {
+        "50": 60.44,
+        "75": 99.08,
+        "90": 145.34,
+        "99": 260.37
+      },
+      "errors": 0,
+      "wall_s": 15.9,
+      "mem_samples_mib": [
+        85.05,
+        88.06,
+        88.66,
+        91.55,
+        92.54,
+        92.97,
+        77.46
+      ],
+      "mem_median_mib": 90.1,
+      "mem_max_mib": 93.0
+    },
+    {
+      "scenario": "proxy",
+      "server": "apache",
+      "concurrency": 1000,
+      "rps": 3593.35,
+      "latency_avg_ms": 255.15,
+      "percentiles_ms": {
+        "50": 165.84,
+        "75": 313.62,
+        "90": 559.46,
+        "99": 1220.0
+      },
+      "errors": 8862,
+      "wall_s": 15.7,
+      "mem_samples_mib": [
+        48.34,
+        75.11,
+        179.2,
+        188.3,
+        181.4,
+        169.5,
+        152.7
+      ],
+      "mem_median_mib": 174.3,
+      "mem_max_mib": 188.3
+    },
+    {
+      "scenario": "proxy",
+      "server": "caddy",
+      "concurrency": 1000,
+      "rps": 2509.77,
+      "latency_avg_ms": 532.32,
+      "percentiles_ms": {
+        "50": 292.39,
+        "75": 711.77,
+        "90": 1350.0,
+        "99": 2660.0
+      },
+      "errors": 0,
+      "wall_s": 16.0,
+      "mem_samples_mib": [
+        115.5,
+        167.8,
+        183.4,
+        211.6,
+        200.3,
+        199.8,
+        199.7
+      ],
+      "mem_median_mib": 191.6,
+      "mem_max_mib": 211.6
+    },
+    {
+      "scenario": "proxy",
+      "server": "haproxy",
+      "concurrency": 1000,
+      "rps": 5044.8,
+      "latency_avg_ms": 198.97,
+      "percentiles_ms": {
+        "50": 180.25,
+        "75": 212.34,
+        "90": 261.31,
+        "99": 637.37
+      },
+      "errors": 0,
+      "wall_s": 16.1,
+      "mem_samples_mib": [
+        38.21,
+        38.32,
+        38.16,
+        39.04,
+        38.29,
+        38.84,
+        34.86
+      ],
+      "mem_median_mib": 38.3,
+      "mem_max_mib": 39.0
+    },
+    {
+      "scenario": "proxy",
+      "server": "envoy",
+      "concurrency": 1000,
+      "rps": 7373.41,
+      "latency_avg_ms": 134.63,
+      "percentiles_ms": {
+        "50": 117.74,
+        "75": 171.41,
+        "90": 234.33,
+        "99": 381.45
+      },
+      "errors": 0,
+      "wall_s": 15.6,
+      "mem_samples_mib": [
+        69.8,
+        71.26,
+        71.7,
+        72.39,
+        71.36,
+        66.56
+      ],
+      "mem_median_mib": 71.4,
+      "mem_max_mib": 72.4
+    },
+    {
+      "scenario": "proxy",
+      "server": "traefik",
+      "concurrency": 1000,
+      "rps": 5120.86,
+      "latency_avg_ms": 219.89,
+      "percentiles_ms": {
+        "50": 167.75,
+        "75": 274.4,
+        "90": 422.69,
+        "99": 1100.0
+      },
+      "errors": 0,
+      "wall_s": 15.8,
+      "mem_samples_mib": [
+        210.1,
+        334.1,
+        392.9,
+        376.9,
+        362.6
+      ],
+      "mem_median_mib": 362.6,
+      "mem_max_mib": 392.9
+    },
+    {
+      "scenario": "proxy",
+      "server": "openlitespeed",
+      "concurrency": 1000,
+      "rps": 107.13,
+      "latency_avg_ms": 133.91,
+      "percentiles_ms": {
+        "50": 117.0,
+        "75": 173.41,
+        "90": 298.46,
+        "99": 372.25
+      },
+      "errors": 130781,
+      "wall_s": 15.6,
+      "mem_samples_mib": [
+        26.54,
+        26.64,
+        26.34,
+        26.77,
+        26.45,
+        26.23,
+        26.25
+      ],
+      "mem_median_mib": 26.4,
+      "mem_max_mib": 26.8
+    },
+    {
+      "scenario": "proxy",
+      "server": "nginx",
+      "concurrency": 10000,
+      "rps": 10529.75,
+      "latency_avg_ms": 799.65,
+      "percentiles_ms": {
+        "50": 632.2,
+        "75": 1100.0,
+        "90": 1680.0,
+        "99": 2890.0
+      },
+      "errors": 0,
+      "wall_s": 16.7,
+      "mem_samples_mib": [
+        152.6,
+        278.8,
+        257.9,
+        268.4,
+        287.4,
+        272.9,
+        140.1
+      ],
+      "mem_median_mib": 270.6,
+      "mem_max_mib": 287.4
+    },
+    {
+      "scenario": "proxy",
+      "server": "juggler",
+      "concurrency": 10000,
+      "rps": 10666.23,
+      "latency_avg_ms": 631.07,
+      "percentiles_ms": {
+        "50": 467.1,
+        "75": 757.68,
+        "90": 1260.0,
+        "99": 3330.0
+      },
+      "errors": 3617,
+      "wall_s": 16.9,
+      "mem_samples_mib": [
+        279.8,
+        322.7,
+        355.3,
+        381.9,
+        398.1,
+        301.6
+      ],
+      "mem_median_mib": 339.0,
+      "mem_max_mib": 398.1
+    },
+    {
+      "scenario": "proxy",
+      "server": "apache",
+      "concurrency": 10000,
+      "rps": 2750.52,
+      "latency_avg_ms": 618.56,
+      "percentiles_ms": {
+        "50": 405.38,
+        "75": 731.1,
+        "90": 1300.0,
+        "99": 4210.0
+      },
+      "errors": 18015,
+      "wall_s": 17.7,
+      "mem_samples_mib": [
+        67.76,
+        163.4,
+        195.7,
+        213.6,
+        254.3,
+        277.4,
+        247.1
+      ],
+      "mem_median_mib": 204.6,
+      "mem_max_mib": 277.4
+    },
+    {
+      "scenario": "proxy",
+      "server": "caddy",
+      "concurrency": 10000,
+      "rps": 3138.81,
+      "latency_avg_ms": 1110.0,
+      "percentiles_ms": {
+        "50": 617.93,
+        "75": 1780.0,
+        "90": 3170.0,
+        "99": 4410.0
+      },
+      "errors": 33399,
+      "wall_s": 17.0,
+      "mem_samples_mib": [
+        211.2,
+        502.0,
+        725.8,
+        935.0,
+        1014.0,
+        1137.664,
+        1134.592
+      ],
+      "mem_median_mib": 935.0,
+      "mem_max_mib": 1137.7
+    },
+    {
+      "scenario": "proxy",
+      "server": "haproxy",
+      "concurrency": 10000,
+      "rps": 3411.85,
+      "latency_avg_ms": 2240.0,
+      "percentiles_ms": {
+        "50": 2100.0,
+        "75": 2250.0,
+        "90": 3840.0,
+        "99": 4830.0
+      },
+      "errors": 3946,
+      "wall_s": 17.1,
+      "mem_samples_mib": [
+        134.4,
+        200.7,
+        207.6,
+        215.4,
+        218.3,
+        218.0,
+        226.5,
+        181.4
+      ],
+      "mem_median_mib": 215.4,
+      "mem_max_mib": 226.5
+    },
+    {
+      "scenario": "proxy",
+      "server": "envoy",
+      "concurrency": 10000,
+      "rps": 11193.2,
+      "latency_avg_ms": 704.82,
+      "percentiles_ms": {
+        "50": 618.93,
+        "75": 861.15,
+        "90": 1140.0,
+        "99": 1830.0
+      },
+      "errors": 144670,
+      "wall_s": 17.3,
+      "mem_samples_mib": [
+        178.2,
+        324.1,
+        334.5,
+        331.9,
+        338.6,
+        336.8,
+        331.9,
+        288.6
+      ],
+      "mem_median_mib": 331.9,
+      "mem_max_mib": 338.6
+    },
+    {
+      "scenario": "proxy",
+      "server": "traefik",
+      "concurrency": 10000,
+      "rps": 1208.22,
+      "latency_avg_ms": 1610.0,
+      "percentiles_ms": {
+        "50": 1260.0,
+        "75": 2240.0,
+        "90": 3660.0,
+        "99": 4920.0
+      },
+      "errors": 8498,
+      "wall_s": 17.2,
+      "mem_samples_mib": [
+        277.7,
+        571.4,
+        756.1,
+        817.7,
+        945.4,
+        1076.224,
+        1142.784,
+        1081.344
+      ],
+      "mem_median_mib": 817.7,
+      "mem_max_mib": 1142.8
+    },
+    {
+      "scenario": "proxy",
+      "server": "openlitespeed",
+      "concurrency": 10000,
+      "rps": 81.2,
+      "latency_avg_ms": 342.09,
+      "percentiles_ms": {
+        "50": 406.37,
+        "75": 496.99,
+        "90": 510.96,
+        "99": 518.39
+      },
+      "errors": 123947,
+      "wall_s": 16.5,
+      "mem_samples_mib": [
+        30.18,
+        28.05,
+        28.44,
+        29.95,
+        28.14,
+        29.15
+      ],
+      "mem_median_mib": 28.8,
+      "mem_max_mib": 30.2
+    }
+  ]
+}

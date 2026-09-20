@@ -1,0 +1,12 @@
+/target
+**/*.rs.bk
+*.log
+__pycache__/
+control_plane_pb2.py
+control_plane_pb2_grpc.py
+.freebuff/
+
+# TLS material: never commit private keys
+cert.pem
+key.pem
+dev-certs/

@@ -1,0 +1,12 @@
+{
+  "balancer": 0,
+  "rate_limit_tokens": 10,
+  "rate_limit_refill": 5,
+  "pool_cap_per_upstream": 64,
+  "max_keepalive_requests": 1000,
+  "pool_idle_timeout_secs": 300,
+  "prewarm_floor": 4,
+  "health_max_failures": 3,
+  "health_cooldown_secs": 5,
+  "adaptive_prewarm": false
+}

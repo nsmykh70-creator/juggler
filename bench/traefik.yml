@@ -1,0 +1,21 @@
+# Traefik v3 benchmark config (static, YAML): entrypoint :8086 ->
+# backend:9000 with keep-alive. Dynamic part: traefik-dynamic.yml.
+entryPoints:
+  http:
+    address: ":8086"
+
+api:
+  dashboard: false
+
+log:
+  level: "ERROR"
+
+providers:
+  file:
+    filename: "/etc/traefik/dynamic.yml"
+
+serversTransport:
+  forwardingTimeouts:
+    dialTimeout: "5s"
+    responseHeaderTimeout: "30s"
+  # keepAlive defaults to 90s (upstream reuse) — leave as is.

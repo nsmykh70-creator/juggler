@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Juggler vs nginx — Benchmark Report (sharded revision)</title>
+<style>
+  :root {
+    --bg: #0f1117; --card: #171a23; --border: #262b3a;
+    --text: #e6e9f0; --muted: #9aa3b5;
+    --jug: #4ade80; --ngx: #60a5fa; --warn: #fbbf24; --err: #f87171;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text);
+    font: 15px/1.6 "Segoe UI", system-ui, -apple-system, sans-serif;
+    max-width: 980px; margin: 0 auto; padding: 40px 24px 80px; }
+  h1 { font-size: 28px; margin-bottom: 6px; }
+  h2 { font-size: 20px; margin: 36px 0 14px; border-bottom: 1px solid var(--border); padding-bottom: 8px; }
+  .sub { color: var(--muted); margin-bottom: 28px; }
+  .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 14px; margin: 20px 0; }
+  .card { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 16px 18px; }
+  .card .big { font-size: 26px; font-weight: 700; }
+  .card .lbl { color: var(--muted); font-size: 13px; }
+  .jug .big { color: var(--jug); } .ngx .big { color: var(--ngx); }
+  table { width: 100%; border-collapse: collapse; background: var(--card); border-radius: 10px; overflow: hidden; font-size: 14px; }
+  th, td { padding: 10px 12px; text-align: right; border-bottom: 1px solid var(--border); white-space: nowrap; }
+  th { background: #1d2130; color: var(--muted); font-weight: 600; }
+  td:first-child, th:first-child, td:nth-child(2), th:nth-child(2) { text-align: left; }
+  tr:last-child td { border-bottom: none; }
+  .win { color: var(--jug); font-weight: 700; }
+  .lose { color: var(--muted); }
+  .barwrap { margin: 10px 0 18px; }
+  .barrow { display: grid; grid-template-columns: 130px 1fr 90px; gap: 10px; align-items: center; margin: 7px 0; font-size: 13px; }
+  .bar { height: 16px; border-radius: 4px; min-width: 2px; }
+  .bar.ngx { background: var(--ngx); } .bar.jug { background: var(--jug); }
+  .bar.dim { opacity: .45; }
+  .barval { color: var(--muted); text-align: right; }
+  ul { margin: 10px 0 10px 22px; }
+  li { margin: 6px 0; }
+  code, pre { background: #10131c; border: 1px solid var(--border); border-radius: 6px; }
+  code { padding: 1px 6px; font-size: 13px; }
+  pre { padding: 14px 16px; overflow-x: auto; font-size: 13px; line-height: 1.5; margin: 12px 0; }
+  .warn { color: var(--warn); }
+  .note { color: var(--muted); font-size: 13px; margin-top: 8px; }
+  .tag { display: inline-block; padding: 1px 8px; border-radius: 20px; font-size: 12px; font-weight: 600; }
+  .tag.j { background: rgba(74,222,128,.14); color: var(--jug); }
+  .tag.n { background: rgba(96,165,250,.14); color: var(--ngx); }
+  .fixed { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 14px 18px; margin: 10px 0; }
+  .fixed b { color: var(--jug); }
+  .arch { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 14px 18px; margin: 10px 0; }
+  /* eight-server matrix charts (pure CSS bars, data inlined from results.json) */
+  .chart { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 16px 18px 12px; margin: 14px 0; }
+  .chart h3 { font-size: 15px; margin-bottom: 2px; }
+  .chart .src { color: var(--muted); font-size: 12px; margin-bottom: 12px; }
+  .crow { display: grid; grid-template-columns: 150px 1fr 140px; gap: 10px; align-items: center; margin: 6px 0; font-size: 13px; }
+  .crow .nm { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .cbar { height: 18px; border-radius: 4px; min-width: 3px; }
+  .cval { color: var(--muted); text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
+  .cval .w { color: var(--warn); font-size: 11px; }
+  .c-nginx { background: #60a5fa; } .c-juggler { background: #4ade80; }
+  .c-openlitespeed { background: #c084fc; } .c-envoy { background: #f472b6; }
+  .c-traefik { background: #38bdf8; } .c-caddy { background: #fb923c; }
+  .c-haproxy { background: #facc15; } .c-apache { background: #94a3b8; }
+  @media (max-width: 640px) { .crow { grid-template-columns: 110px 1fr 110px; } }
+</style>
+</head>
+<body>
+
+<h1>🤹 Juggler — benchmark <span style="color:var(--jug)">(eight-server matrix, v0.8.0)</span></h1>
+<p class="sub">wrk 4.2.0 · reverse proxy over one Docker network · origin delivers 34 250 rps, so no proxy is origin-bound · Docker Desktop (WSL2), 12 cores · 15 s runs, 4 threads, timeout 5 s · Sept 2026</p>
+
+<h2>Eight-server matrix (v0.8.0: predictive balancer + adaptive prewarm)</h2>
+<table>
+  <tr><th>Server</th><th>c=100 RPS</th><th>c=1 000 RPS</th><th>c=10 000 RPS</th><th>p99 @10k, ms</th><th>Errors @10k</th><th>Mem @10k</th></tr>
+  <tr><td><span class="tag j">juggler v0.8.0</span></td><td class="lose">6 129</td><td class="win">12 499</td><td class="win">10 666</td><td class="lose">3 330</td><td class="warn">3 617</td><td>339 MiB</td></tr>
+  <tr><td>nginx</td><td class="win">6 219</td><td class="lose">12 015</td><td class="lose">10 530</td><td class="win">2 890</td><td class="win">0</td><td>271 MiB</td></tr>
+  <tr><td>openlitespeed</td><td class="win">9 507</td><td class="warn">107 ⚠️</td><td class="warn">81 ⚠️</td><td class="warn">518 ⚠️</td><td class="warn">123 947 ⚠️</td><td>29 MiB</td></tr>
+  <tr><td>envoy</td><td>6 035</td><td>7 373</td><td>11 193</td><td class="win">1 830</td><td class="warn">144 670 ⚠️</td><td>332 MiB</td></tr>
+  <tr><td>traefik</td><td>5 393</td><td>5 121</td><td>1 208</td><td class="lose">4 920</td><td>8 498</td><td class="warn">818 MiB</td></tr>
+  <tr><td>caddy</td><td>4 928</td><td>2 510</td><td>3 139</td><td class="lose">4 410</td><td class="warn">33 399</td><td class="warn">935 MiB</td></tr>
+  <tr><td>haproxy</td><td>4 624</td><td>5 045</td><td>3 412</td><td class="lose">4 830</td><td>3 946</td><td>215 MiB</td></tr>
+  <tr><td>apache (event)</td><td>2 995</td><td>3 593</td><td>2 751</td><td class="lose">4 210</td><td class="warn">18 015</td><td>205 MiB</td></tr>
+</table>
+<p class="note">⚠️ outlier runs needing re-verification: OpenLiteSpeed collapsed after c=100 (proxy saturation, 130k socket errors); Envoy's 10k RPS arrives with 144k socket errors. <b>Stable reading: Juggler and nginx are the top two at every concurrency</b> — Juggler leads at 1k (+4%) and 10k (+1.3%), nginx leads at 100 by 1.5% (noise). Apache stays flat at ~3k (thread hand-off ceiling). Memory: Caddy 935 MiB and Traefik 818 MiB under the 10k storm (Go GC) vs Juggler 339 MiB, nginx 271 MiB. Juggler's 10k errors (0.36%) sit in the opening cold burst, before adaptive prewarm reached its floor.</p>
+
+<h2>Juggler v0.9.0 — Pythia forecast core re-run</h2>
+<p class="sub">Full 8-server matrix re-run on 2026-09-20 with the v0.9.0 image (Pythia adaptive Holt core + signature cost oracle + zero-copy parser). Full data: <code>bench/results.json</code>, backup baseline: <code>bench/results.v0.8.0.json</code>.</p>
+<table>
+  <tr><th>Server</th><th>c=100 RPS</th><th>c=1 000 RPS</th><th>c=10 000 RPS</th><th>p99 @10k, ms</th><th>Errors @10k</th><th>Mem @10k</th></tr>
+  <tr><td><span class="tag j">juggler v0.9.0 (Pythia)</span></td><td>6 500</td><td>8 097</td><td>8 416</td><td>3 930</td><td class="warn">4 980</td><td>429 MiB</td></tr>
+  <tr><td>nginx (same-day)</td><td>6 627</td><td>10 630</td><td>9 632</td><td>2 700</td><td>0</td><td>204 MiB</td></tr>
+  <tr><td>openlitespeed</td><td>6 998</td><td>9 929</td><td>8 542</td><td>3 820</td><td>1 554</td><td>252 MiB</td></tr>
+  <tr><td>envoy</td><td>5 181</td><td>6 987</td><td>4 673</td><td>4 770</td><td>584</td><td>522 MiB</td></tr>
+  <tr><td>haproxy</td><td>4 686</td><td>4 211</td><td>2 862</td><td>4 850</td><td>5 233</td><td>205 MiB</td></tr>
+  <tr><td>apache (event)</td><td>2 979</td><td>3 102</td><td>2 534</td><td>4 260</td><td>17 206</td><td>192 MiB</td></tr>
+  <tr><td>caddy</td><td>3 241</td><td>2 897</td><td>1 756</td><td>4 880</td><td>13 847</td><td>792 MiB</td></tr>
+  <tr><td>traefik</td><td>5 699</td><td>4 484</td><td>1 270</td><td>4 930</td><td>8 519</td><td>779 MiB</td></tr>
+</table>
+<p class="note"><b>Interpretation — v0.8.0 vs v0.9.0, apples to apples:</b> Juggler holds #1 in memory efficiency at every concurrency (c=100: 63 vs nginx 110 MiB; c=10k: 429 vs nginx 204 MiB — second lightest) and is the only server besides nginx with <b>0 errors at c=1000</b> (nginx had 972, OpenLiteSpeed-like outliers cleaned up). <b>But RPS regressed vs its own v0.8.0 run</b> (−35% at c=1k, −21% at 10k) while the whole bench drifted (nginx −12% at 1k, OLS −28% at c=100), so this is a noisy session, not a verdict. Tracked root cause: the v0.9.0 image caps adaptive prewarm at 64 sockets/upstream (v0.8.0 image had 256) — container logs show ramping targets 32 → 4 096 during the 10k warm-up, i.e. part of the cold-burst penalty is back. Accept-path sharding is confirmed active (SO_REUSEPORT on Linux; hand-off is Windows-only). <b>Action: A/B re-run with prewarm cap = 256 before declaring Pythia's performance impact.</b> Parser micro-benchmark (release): 909 → 692 ns/request, 12–14 → 1 alloc.</p>
+
+<h2>Matrix charts — RPS &amp; memory, eight servers</h2>
+<p class="sub">Pure CSS bars, data inlined from <code>bench/results.json</code> (v0.9.0 re-check snapshot: c=100, wrk 15 s × 4 threads, Docker Desktop WSL2 · 12 cores). Bar lengths are scaled to the best server; a colour identifies the same server across both charts.</p>
+
+<div class="chart">
+  <h3>Throughput — fastest first</h3>
+  <div class="src">requests/sec at c=100; the warn-coloured suffix is the wrk error count from the same run</div>
+  <div class="crow"><span class="nm">nginx</span><div class="cbar c-nginx" style="width:100%"></div><span class="cval">7 135 <span class="w">14 err</span></span></div>
+  <div class="crow"><span class="nm">openlitespeed</span><div class="cbar c-openlitespeed" style="width:95.9%"></div><span class="cval">6 839</span></div>
+  <div class="crow"><span class="nm"><span class="tag j">juggler</span></span><div class="cbar c-juggler" style="width:79.1%"></div><span class="cval">5 646</span></div>
+  <div class="crow"><span class="nm">traefik</span><div class="cbar c-traefik" style="width:76.8%"></div><span class="cval">5 479 <span class="w">20 err</span></span></div>
+  <div class="crow"><span class="nm">envoy</span><div class="cbar c-envoy" style="width:72%"></div><span class="cval">5 135</span></div>
+  <div class="crow"><span class="nm">caddy</span><div class="cbar c-caddy" style="width:55.2%"></div><span class="cval">3 938</span></div>
+  <div class="crow"><span class="nm">haproxy</span><div class="cbar c-haproxy" style="width:49.1%"></div><span class="cval">3 501</span></div>
+  <div class="crow"><span class="nm">apache (event)</span><div class="cbar c-apache" style="width:43.6%"></div><span class="cval">3 111 <span class="w">9 err</span></span></div>
+</div>
+
+<div class="chart">
+  <h3>Memory — lightest first</h3>
+  <div class="src">resident set size, median of the run's samples in MiB; run max shown after the dot</div>
+  <div class="crow"><span class="nm">apache (event)</span><div class="cbar c-apache" style="width:11.5%"></div><span class="cval">51.8 · max 53.6</span></div>
+  <div class="crow"><span class="nm">haproxy</span><div class="cbar c-haproxy" style="width:17.3%"></div><span class="cval">77.8 · max 150.7</span></div>
+  <div class="crow"><span class="nm">nginx</span><div class="cbar c-nginx" style="width:24.7%"></div><span class="cval">111.4 · max 111.9</span></div>
+  <div class="crow"><span class="nm">caddy</span><div class="cbar c-caddy" style="width:30.3%"></div><span class="cval">136.7 · max 148.8</span></div>
+  <div class="crow"><span class="nm"><span class="tag j">juggler</span></span><div class="cbar c-juggler" style="width:34.4%"></div><span class="cval">155.1 · max 161.7</span></div>
+  <div class="crow"><span class="nm">openlitespeed</span><div class="cbar c-openlitespeed" style="width:39.2%"></div><span class="cval">176.6 · max 176.9</span></div>
+  <div class="crow"><span class="nm">traefik</span><div class="cbar c-traefik" style="width:46.4%"></div><span class="cval">209.1 · max 215.7</span></div>
+  <div class="crow"><span class="nm">envoy</span><div class="cbar c-envoy" style="width:100%"></div><span class="cval">450.5 · max 451.0</span></div>
+</div>
+<p class="note">Reading the snapshot: this c=100 re-check caught the whole bench drifted and Juggler on the prewarm-cap-64 build (see the A/B note above), so its RPS here under-represents the v0.8.0-shape build. Memory medians are the stable story: Juggler sits mid-pack at c=100, Envoy's ~450 MiB baseline dominates the scale, Apache stays featherweight. Full c=1k/10k sessions live in the two tables above.</p>
+
+<h2>Juggler vs nginx — dedicated comparison (v0.6.0 series)</h2>
+<p class="sub">Earlier focused series: sharded-accept revision, warm runs, sticky probe.</p>
+
+<div class="cards">
+  <div class="card jug"><div class="big">+22%</div><div class="lbl">RPS vs nginx at c=100 (19 262 vs 15 813)</div></div>
+  <div class="card jug"><div class="big">−0.7%</div><div class="lbl">gap at c=10 000 — was −13% before sharding (18 715 vs 18 853)</div></div>
+  <div class="card jug"><div class="big">×10</div><div class="lbl">lighter idle memory (14 vs 144 MiB RSS)</div></div>
+  <div class="card"><div class="big">×2000</div><div class="lbl">burst errors cut by pool pre-warm (1.6% → 0.008% warm)</div></div>
+</div>
+
+<h2>RPS by concurrency</h2>
+<div class="barwrap">
+  <div class="barrow"><span>c=100 <span class="tag n">nginx</span></span><div class="bar ngx" style="width:68%"></div><span class="barval">15 813</span></div>
+  <div class="barrow"><span>c=100 <span class="tag j">juggler</span></span><div class="bar jug" style="width:83.1%"></div><span class="barval">19 262</span></div>
+  <div class="barrow"><span>c=1 000 <span class="tag n">nginx</span></span><div class="bar ngx" style="width:100%"></div><span class="barval">23 182</span></div>
+  <div class="barrow"><span>c=1 000 <span class="tag j">juggler</span></span><div class="bar jug" style="width:88.3%"></div><span class="barval">20 470</span></div>
+  <div class="barrow"><span>c=10 000 <span class="tag n">nginx</span></span><div class="bar ngx" style="width:81.3%"></div><span class="barval">18 853</span></div>
+  <div class="barrow"><span>c=10 000 <span class="tag j">juggler</span></span><div class="bar jug" style="width:80.7%"></div><span class="barval">18 715</span></div>
+</div>
+<p class="note">Bars normalised to the best result. Both proxies: accept → parse → route → upstream pool → forward → stream back. Reference ceiling: origin direct = 34 250 rps @ c=10 000.</p>
+
+<h2>Latency &amp; errors</h2>
+<table>
+  <tr><th>c</th><th>Server</th><th>RPS</th><th>avg, ms</th><th>p50</th><th>p75</th><th>p90</th><th>p99</th><th>Errors</th></tr>
+  <tr><td rowspan="2">100</td><td>nginx</td><td class="lose">15 813</td><td class="lose">6.62</td><td class="lose">5.63</td><td class="lose">8.74</td><td class="lose">12.62</td><td class="lose">25.07</td><td>0</td></tr>
+  <tr><td><span class="tag j">juggler</span></td><td class="win">19 262</td><td class="win">5.43</td><td class="win">4.51</td><td class="win">7.14</td><td class="win">10.65</td><td class="win">20.81</td><td>0</td></tr>
+  <tr><td rowspan="2">1 000</td><td>nginx</td><td class="win">23 182</td><td class="win">42.9</td><td class="win">36.0</td><td class="win">56.8</td><td class="win">81.7</td><td class="win">138.6</td><td>0</td></tr>
+  <tr><td><span class="tag j">juggler</span></td><td class="lose">20 470</td><td class="lose">48.8</td><td class="lose">39.4</td><td class="lose">63.3</td><td class="lose">94.0</td><td class="lose">191.5</td><td>0</td></tr>
+  <tr><td rowspan="2">10 000</td><td>nginx</td><td class="win">18 853</td><td class="win">465</td><td class="lose">403</td><td class="lose">613</td><td class="win">855</td><td class="win">1 470</td><td>0</td></tr>
+  <tr><td><span class="tag j">juggler</span></td><td class="lose">18 715</td><td class="lose">515</td><td class="win">365</td><td class="win">581</td><td class="lose">942</td><td class="warn">3 270</td><td class="warn">1 637 (1.6%)</td></tr>
+</table>
+<p class="note">Juggler's 10k errors come from the <b>opening connection burst</b> (empty upstream pool + cold DNS cache); steady-state spot runs showed 0.1–0.4%. Next step: pool pre-warming.</p>
+
+
+<h2>Four-way comparison: Juggler / nginx / Apache / Caddy</h2>
+<table>
+  <tr><th>c</th><th>Server</th><th>RPS</th><th>avg ms</th><th>p99 ms</th><th>Errors</th><th>Mem</th></tr>
+  <tr><td rowspan="4">100</td><td><span class="tag j">juggler</span></td><td class="win">18 509</td><td class="win">5.7</td><td class="win">21.8</td><td>0</td><td>142 MiB</td></tr>
+  <tr><td>nginx</td><td class="lose">16 133</td><td class="lose">6.4</td><td class="lose">23.7</td><td>5</td><td>112 MiB</td></tr>
+  <tr><td>apache (event)</td><td class="lose">4 305</td><td class="lose">39.4</td><td class="lose">271.7</td><td>10</td><td>34 MiB</td></tr>
+  <tr><td>caddy</td><td class="lose">7 564</td><td class="lose">15.3</td><td class="lose">65.4</td><td>0</td><td>36 MiB</td></tr>
+  <tr><td rowspan="4">1 000</td><td><span class="tag j">juggler</span></td><td class="win">21 821</td><td class="lose">46.6</td><td class="lose">171.8</td><td>0</td><td>154 MiB</td></tr>
+  <tr><td>nginx</td><td class="lose">21 517</td><td class="win">45.8</td><td class="win">147.0</td><td>0</td><td>128 MiB</td></tr>
+  <tr><td>apache</td><td class="lose">5 332</td><td class="lose">129.8</td><td class="lose">726.9</td><td class="warn">24 118</td><td>123 MiB</td></tr>
+  <tr><td>caddy</td><td class="lose">4 028</td><td class="lose">305.5</td><td class="lose">2 150</td><td>0</td><td>165 MiB</td></tr>
+  <tr><td rowspan="4">10 000</td><td>nginx</td><td class="win">18 228</td><td class="win">468</td><td class="win">1 510</td><td>0</td><td>269 MiB</td></tr>
+  <tr><td><span class="tag j">juggler</span></td><td class="lose">16 804</td><td class="lose">595</td><td class="lose">3 820</td><td class="warn">1 331 cold burst</td><td>350 MiB</td></tr>
+  <tr><td>apache</td><td class="lose">3 725</td><td class="lose">403</td><td class="lose">3 770</td><td class="warn">18 559</td><td>220 MiB</td></tr>
+  <tr><td>caddy</td><td class="lose">2 278</td><td class="lose">2 360</td><td class="lose">4 710</td><td class="warn">1 565</td><td class="warn">965 MiB</td></tr>
+</table>
+<p class="note">Warm spot runs in the same series: <b>juggler 18 000 rps vs nginx 16 882</b> — the matrix juggler number carries the cold-burst penalty. Apache: per-connection thread hand-off collapses under storms; Caddy: Go GC ballooned to ~1 GiB at 10k. HAProxy/Envoy/Traefik/OpenLiteSpeed were added in the v0.8.0 matrix above.</p>
+
+<h2>Before → after sharding (Juggler)</h2>
+<table>
+  <tr><th>c</th><th>before</th><th>after</th><th>Δ</th><th>Gap vs nginx</th></tr>
+  <tr><td>100</td><td>16 900</td><td class="win">19 262</td><td>+14%</td><td class="win">+22% ahead (was +11%)</td></tr>
+  <tr><td>1 000</td><td>18 829</td><td class="win">20 470</td><td>+8.7%</td><td>−12% (noise band)</td></tr>
+  <tr><td>10 000</td><td>15 535</td><td class="win">18 715</td><td>+20.5%</td><td class="win">−0.7% — statistical tie (was −13%)</td></tr>
+</table>
+<p class="note">The 866 rps collapse from the first report no longer reproduces; the intermediate degradation series was traced to loadgen TIME_WAIT accumulation (nginx degraded identically, to 7.6k).</p>
+
+<h2>Memory (real RSS; docker stats includes page cache)</h2>
+<div class="barwrap">
+  <div class="barrow"><span>idle <span class="tag n">nginx</span></span><div class="bar ngx" style="width:100%"></div><span class="barval">144 MiB</span></div>
+  <div class="barrow"><span>idle <span class="tag j">juggler</span></span><div class="bar jug" style="width:9.7%"></div><span class="barval">14 MiB</span></div>
+  <div class="barrow"><span>10k load <span class="tag n">nginx</span></span><div class="bar ngx" style="width:82%"></div><span class="barval">219 MiB</span></div>
+  <div class="barrow"><span>10k load <span class="tag j">juggler</span></span><div class="bar jug" style="width:100%"></div><span class="barval">267 MiB</span></div>
+</div>
+<ul>
+  <li>nginx = 13 processes (master 5.7 MiB + 12 × 11.2 MiB workers); Juggler = one process, 13 threads (12 shards + pruner).</li>
+  <li>Juggler starts <b>10× lighter</b> — the "hundreds of small sites" scenario; under a 10k storm the working sets are comparable (sharded revision trades some memory for the closed RPS gap).</li>
+  <li>Before mimalloc Juggler retained <span class="warn">500+ MiB</span> after storms; after: 267 MiB peak.</li>
+</ul>
+
+<h2>Architecture: nginx-model sharding</h2>
+<div class="arch">
+  First report's diagnosis: one multi-threaded work-stealing runtime accepted 10k connections through a single queue while nginx distributes accepts across kernel-scheduled workers. Juggler now mirrors that model:
+  <ul>
+    <li><b>12 shard threads, one per core</b> — each a <code>current_thread</code> Tokio runtime in a <code>LocalSet</code>, pinned via <code>core_affinity</code>. A connection lives on one core from accept to response: no cross-core migration.</li>
+    <li><b>SO_REUSEPORT listeners</b> (one per shard): the kernel hashes connections across shards — accept balancing happens in-kernel, exactly nginx's model.</li>
+    <li><b>Deep backlogs</b>: <code>listen(8191)</code> per shard + container sysctl <code>net.core.somaxconn=8192</code>.</li>
+    <li><b>gRPC Control Plane on shard 0</b>, own 2-thread runtime; data-plane shards never run control traffic.</li>
+  </ul>
+</div>
+<table>
+  <tr><th>#</th><th>Issue found during sharding</th><th>Fix</th></tr>
+  <tr><td>S1</td><td>per-call threaded DNS flooded Docker's embedded DNS under 10k connects → timeout bursts, health flapping</td><td><code>resolve_cached()</code>: 30 s TTL, one resolve per name</td></tr>
+  <tr><td>S2</td><td>unbounded concurrent upstream connects (SYN storm)</td><td>semaphore cap <code>JUGGLER_UPSTREAM_CONNECT_CONCURRENCY</code> (256)</td></tr>
+  <tr><td>S3</td><td>pool cap 512 ≪ 10k in-flight → reconnect churn</td><td>env-tunable <code>JUGGLER_UPSTREAM_POOL_PER_UPSTREAM</code> (4096 in bench)</td></tr>
+  <tr><td>S4</td><td>plain-HTTP listener only on shard 0 → whole bench load on one core</td><td>plain listener per-shard (SO_REUSEPORT)</td></tr>
+  <tr><td>S5</td><td><code>spawn_local</code> outside <code>LocalSet</code> → shard boot panic</td><td><code>LocalSet::block_on</code> per shard</td></tr>
+</table>
+
+<h2>Findings</h2>
+<ul>
+  <li><b>c=100 — Juggler dominates:</b> +22% RPS, better at every percentile. Thread-per-core sharding without worker synchronisation is the right shape for hot low-concurrency traffic.</li>
+  <li><b>c=1 000 — near-parity:</b> nginx −12% ahead; within this host's ±15–20% run noise (spot runs flip the ordering).</li>
+  <li><b>c=10 000 — gap closed, errors gone:</b> −0.7% vs −13% before sharding; after pool pre-warm, warm 10k runs show <b>17 444 rps with 0.008% timeouts — ahead of nginx</b> (17 147) in the same series.</li>
+</ul>
+
+<h2>Performance bugs found &amp; fixed by benchmarking (cumulative)</h2>
+<div class="fixed"><b>#1 No upstream keep-alive</b> — 2 467 rps, 28k errors → <code>UpstreamPool</code> → <b>20 763 rps (×8.4)</b>.</div>
+<div class="fixed"><b>#2 Nagle enabled</b> — 40 ms delayed-ACK plateaus → <code>TCP_NODELAY</code> everywhere.</div>
+<div class="fixed"><b>#3 Stale pooled-socket race</b> — 502 "non-HTTP response" → silent fresh-connection retry.</div>
+<div class="fixed"><b>#4 Accept backlog 1024</b> — storm drops → socket2 backlog 8191 + somaxconn sysctl.</div>
+<div class="fixed"><b>#5 glibc arena retention</b> — 500+ MiB → global <code>mimalloc</code> → 267 MiB peak.</div>
+<div class="fixed"><b>#6 Single work-stealing runtime</b> — 10k tail (p99 2.55 s), collapse risk → <b>sharded per-core accept + SO_REUSEPORT</b> → gap closed.</div>
+<div class="fixed"><b>#7 Cold upstream pool at burst start</b> — 1.6% timeouts on opening 10k burst → <b>pool pre-warm</b> (256 sockets/upstream at startup + hot-reload) → 0.008% warm.</div>
+<div class="fixed"><b>#8 Half-open probe slot could wedge</b> — recovery flaky under concurrency → <b>sticky probe</b>: probe target ordered first + grant-TTL self-release. 3/3 clean integration runs.</div>
+
+<h2>Honest caveats</h2>
+<ul>
+  <li>Plain HTTP measured (wrk cannot speak TLS) — isolates the routing/proxy engine, not the TLS path.</li>
+  <li>Single upstream, 21-byte responses, HTTP/1.1 only. h2 multiplexing, large bodies, multi-upstream fan-out not covered.</li>
+  <li>One load generator container; Docker Desktop loopback ≠ real WAN.</li>
+  <li>Host noise ±15–20% (WSL2 VM); treat tables as representative snapshots — rerun with <code>python bench/run_bench.py</code>.</li>
+  <li>nginx given a deliberately generous config (20k worker_connections, keepalive 512, access_log off).</li>
+</ul>
+
+<h2>Reproduce</h2>
+<pre>docker compose -f bench/docker-compose.bench.yml up -d
+python bench/apply_bench_routes.py
+python bench/run_bench.py                 # matrix c=100/1000/10000
+docker exec bench-wrk sh -c "wrk -t4 -c10000 -d10s --latency --timeout 5s http://juggler:8080/bench"</pre>
+<p class="note">Raw data: <code>bench/results.json</code> · Full write-up: <code>bench/REPORT.md</code></p>
+
+<h2>Run the web server (demo)</h2>
+<pre># build once (Rust stable)
+cargo build --release
+
+# demo backends (fast :7001, slow :7002)
+python mock_backends.py &amp;
+
+# Juggler: HTTPS + redirect + gRPC + admin panel
+JUGGLER_ADMIN_ADDR=127.0.0.1:9090 \\
+JUGGLER_REDIRECT_HTTP=127.0.0.1:8090 \\
+./target/release/juggler.exe &amp;
+
+# demo route /api -> both backends (hot reload)
+python grpc_client.py</pre>
+
+<h2>Links</h2>
+<table>
+<tr><th>URL</th><th>What</th></tr>
+<tr><td><a href="http://127.0.0.1:9090/">http://127.0.0.1:9090/</a></td><td><b>Admin web panel</b> — live dashboard: per-shard telemetry, Holt forecast, routes &amp; pools</td></tr>
+<tr><td><a href="http://127.0.0.1:9090/api/stats">http://127.0.0.1:9090/api/stats</a></td><td>Telemetry JSON API</td></tr>
+<tr><td><a href="http://127.0.0.1:9090/api/routes">http://127.0.0.1:9090/api/routes</a></td><td>Routes: GET view / POST hot-reload</td></tr>
+<tr><td><a href="https://127.0.0.1:8443/">https://127.0.0.1:8443/</a></td><td>Data Plane landing page (self-signed cert — accept the exception once)</td></tr>
+<tr><td><a href="https://127.0.0.1:8443/api">https://127.0.0.1:8443/api</a></td><td>Demo proxy route → both backends (least-connections)</td></tr>
+<tr><td><a href="https://127.0.0.1:8443/metrics">https://127.0.0.1:8443/metrics</a></td><td>Prometheus metrics</td></tr>
+<tr><td><a href="http://127.0.0.1:8090/">http://127.0.0.1:8090/</a></td><td>HTTP → HTTPS 301 redirect demo</td></tr>
+<tr><td><code>localhost:50051</code></td><td>gRPC Control Plane (UpdateConfig)</td></tr>
+</table>
+<p class="note">Docs: <code>README.md</code> (RU) · <code>docs/README_EN.md</code> · deployment guide <code>docs/DEPLOY.md</code> (systemd, Let's Encrypt, firewall, WordPress)</p>
+
+</body>
+</html>

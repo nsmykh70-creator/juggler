@@ -1,0 +1,15 @@
+global:
+  scrape_interval: 5s
+  evaluation_interval: 5s
+
+scrape_configs:
+  - job_name: "juggler"
+    metrics_path: "/metrics"
+    scheme: "https"            # Data Plane is HTTPS-only
+    tls_config:
+      insecure_skip_verify: true  # self-signed bootstrap certificate
+    static_configs:
+      # docker host gateway: server on the host machine
+      - targets: ["host.docker.internal:8443"]
+      # uncomment when the server runs as a compose service:
+      # - targets: ["juggler:8443"]

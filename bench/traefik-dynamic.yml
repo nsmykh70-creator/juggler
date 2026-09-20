@@ -1,0 +1,15 @@
+# Traefik v3 dynamic config: forward everything to the static origin.
+http:
+  routers:
+    to-origin:
+      rule: "PathPrefix(`/`)"
+      entryPoints:
+        - http
+      service: origin
+
+  services:
+    origin:
+      loadBalancer:
+        passHostHeader: false
+        servers:
+          - url: "http://backend:9000"

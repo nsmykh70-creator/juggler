@@ -1,0 +1,47 @@
+{
+  "routes": {
+    "/sample_sites1": {
+      "upstream_addrs": [],
+      "wasm_plugin": null,
+      "security": {
+        "deny_substrings": [],
+        "response_headers": [],
+        "cms_fallback_path": null
+      },
+      "static_dir": "www\\sample_sites1"
+    },
+    "/sample_sites3": {
+      "upstream_addrs": [],
+      "wasm_plugin": null,
+      "security": {
+        "deny_substrings": [],
+        "response_headers": [],
+        "cms_fallback_path": null
+      },
+      "static_dir": "www\\sample_sites3"
+    },
+    "/sample_sites2": {
+      "upstream_addrs": [],
+      "wasm_plugin": null,
+      "security": {
+        "deny_substrings": [],
+        "response_headers": [],
+        "cms_fallback_path": null
+      },
+      "static_dir": "www\\sample_sites2"
+    },
+    "/api": {
+      "upstream_addrs": [
+        "127.0.0.1:7001",
+        "127.0.0.1:7002"
+      ],
+      "wasm_plugin": null,
+      "security": {
+        "deny_substrings": [],
+        "response_headers": [],
+        "cms_fallback_path": null
+      },
+      "static_dir": null
+    }
+  }
+}
