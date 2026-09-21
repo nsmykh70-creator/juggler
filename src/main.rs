@@ -4744,12 +4744,30 @@ fn run_shard(
                         .expect("grpc runtime failed");
                     rt.block_on(async {
                         let svc = MyControlPlane::new(grpc_cfg, routes_file);
-                        if let Err(e) = Server::builder()
-                            .add_service(ControlPlaneServer::new(svc))
-                            .serve(grpc_addr)
-                            .await
-                        {
-                            eprintln!("❌ gRPC Control Plane error: {e:#}");
+                        // A transport-level failure (bind race, transient port
+                        // conflict with WSL relay etc.) must NOT kill the
+                        // control plane forever — hot-reload of routes via
+                        // gRPC is a core feature. Retry with backoff, capped.
+                        let mut attempt: u32 = 0;
+                        loop {
+                            match Server::builder()
+                                .add_service(ControlPlaneServer::new(svc.clone()))
+                                .serve(grpc_addr)
+                                .await
+                            {
+                                Ok(()) => break, // server stopped cleanly
+                                Err(e) => {
+                                    eprintln!("❌ gRPC Control Plane error: {e:#}");
+                                    attempt = attempt.saturating_add(1);
+                                    let backoff = Duration::from_millis(
+                                        500u64.saturating_mul(u64::from(attempt.min(60))),
+                                    );
+                                    eprintln!(
+                                        "🔁 retrying gRPC Control Plane bind in {backoff:?} (attempt {attempt})"
+                                    );
+                                    tokio::time::sleep(backoff).await;
+                                }
+                            }
                         }
                     });
                 })
