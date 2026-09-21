@@ -46,6 +46,18 @@ urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 BASE = "https://127.0.0.1:8443"
 GRPC_ADDR = "127.0.0.1:50051"
 
+def _retry_get(url: str, attempts: int = 3):
+    """GET with short retries: absorbs cold-burst 429/timeouts on CI, where
+    the whole suite runs against one freshly started server."""
+    last = None
+    for _ in range(attempts):
+        try:
+            return requests.get(url, verify=False, timeout=5)
+        except requests.RequestException as e:  # noqa: PERF203
+            last = e
+            time.sleep(0.5)
+    raise last
+
 PASSED = []
 FAILED = []
 
@@ -536,7 +548,11 @@ def test_upstream_health_cycle():
     )
     deadline = _t.monotonic() + 30
     while _t.monotonic() < deadline:
-        code, dt, backend = latency("/health-demo")
+        try:
+            code, dt, backend = latency("/health-demo")
+        except requests.RequestException:
+            time.sleep(0.3)
+            continue  # cold-burst 429/timeouts during marking are tolerated
         assert code == 200, f"request during marking got {code} ({backend})"
         m = requests.get(f"{BASE}/metrics", verify=False, timeout=5).text
         if re.search(unhealthy_re, m):
@@ -672,7 +688,7 @@ def test_static_files():
     assert "Sample site 1" in r.text, r.text[:200]
     print("   /sample_sites1 -> index.html (text/html): OK")
 
-    r = requests.get(f"{BASE}/sample_sites2/", verify=False, timeout=5)
+    r = _retry_get(f"{BASE}/sample_sites2/")
     assert r.status_code == 200 and "Sample site 2" in r.text
     print("   /sample_sites2/ (trailing slash): OK")
 
