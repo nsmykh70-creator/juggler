@@ -3390,6 +3390,11 @@ fn title_case_header(name: &str) -> String {
 const MAX_UPSTREAM_RESPONSE: usize = 64 * 1024 * 1024;
 const UPSTREAM_READ_TIMEOUT: Duration = Duration::from_secs(30);
 const UPSTREAM_CONNECT_TIMEOUT: Duration = Duration::from_secs(3);
+/// Writes to an upstream share the read budget: a never-writable socket
+/// (zero-window backend, black-holed peer) must not park the dispatch
+/// future forever — at 10k concurrency such parked futures pinned hundreds
+/// of in-flight slots minutes after the burst ended.
+const UPSTREAM_WRITE_TIMEOUT: Duration = Duration::from_secs(30);
 /// Idle keep-alive sockets older than this are discarded on pruning.
 // (idle socket lifetime is the live knob settings().pool_idle_timeout_secs)
 /// How often the pruning task walks the pool.
@@ -3793,6 +3798,26 @@ async fn read_upstream_response_reusable(
     }
 }
 
+/// RAII guard for the in-flight upstream gauge: increments on creation,
+/// decrements on drop — including early `?` returns and future cancellation
+/// (e.g. a dispatch timeout dropping the in-progress future). The previous
+/// manual inc/dec scheme leaked on every error path and drifted the gauge
+/// permanently upward, poisoning the adaptive-prewarm HWM.
+struct InFlightGuard;
+
+impl InFlightGuard {
+    fn new() -> Self {
+        ACTIVE_UPSTREAM_CONNECTIONS.inc();
+        InFlightGuard
+    }
+}
+
+impl Drop for InFlightGuard {
+    fn drop(&mut self) {
+        ACTIVE_UPSTREAM_CONNECTIONS.dec();
+    }
+}
+
 /// One upstream attempt over the keep-alive pool. `request_is_reusable`
 /// tells whether the request body is fully framed (Content-Length present
 /// or empty body), which is a precondition for connection reuse.
@@ -3806,7 +3831,16 @@ async fn try_upstream_attempt(
     // connection is made — a single silent retry, invisible to the caller.
     if request_is_reusable {
         if let Some(mut conn) = UPSTREAM_POOL.pop(addr) {
-            match conn.write_all(raw_request).await {
+            // A never-writable pooled socket (zero-window upstream) must
+            // surface as a stale retry, not park this dispatch forever.
+            match tokio::time::timeout(UPSTREAM_WRITE_TIMEOUT, conn.write_all(raw_request))
+                .await
+                .unwrap_or_else(|_| {
+                    Err(std::io::Error::new(
+                        std::io::ErrorKind::TimedOut,
+                        "pooled upstream write timed out",
+                    ))
+                }) {
                 Ok(_) => match read_upstream_response_reusable(&mut conn).await {
                     // A healthy upstream always writes at least the head;
                     // zero bytes means the socket was closed before the
@@ -3821,7 +3855,6 @@ async fn try_upstream_attempt(
                         return finish_outcome(response);
                     }
                     Ok(_) => {
-                        ACTIVE_UPSTREAM_CONNECTIONS.dec();
                         UPSTREAM_STALE_RETRIES_TOTAL.inc();
                         eprintln!(
                             "⚠️ pooled conn to {addr} closed before responding, retrying fresh"
@@ -3829,14 +3862,12 @@ async fn try_upstream_attempt(
                         // fall through to the fresh-connection path
                     }
                     Err(e) => {
-                        ACTIVE_UPSTREAM_CONNECTIONS.dec();
                         UPSTREAM_STALE_RETRIES_TOTAL.inc();
                         eprintln!("⚠️ pooled conn to {addr} broke, retrying fresh: {e:#}");
                         // fall through to the fresh-connection path
                     }
                 },
                 Err(e) => {
-                    ACTIVE_UPSTREAM_CONNECTIONS.dec();
                     UPSTREAM_STALE_RETRIES_TOTAL.inc();
                     eprintln!("⚠️ pooled conn to {addr} write failed, retrying fresh: {e}");
                     // fall through to the fresh-connection path
@@ -3845,13 +3876,19 @@ async fn try_upstream_attempt(
         }
     }
 
-    // Slow path: brand-new connection.
+    // Slow path: brand-new connection. The guard keeps the in-flight gauge
+    // exact across every exit path (success, any error via `?`, and future
+    // cancellation when the dispatch timeout drops this future).
+    let _inflight = InFlightGuard::new();
     let mut upstream = connect_upstream(addr)
         .await
         .map_err(|e| anyhow::anyhow!(e))?;
-    ACTIVE_UPSTREAM_CONNECTIONS.inc();
-    upstream.write_all(raw_request).await?;
-    upstream.flush().await?;
+    tokio::time::timeout(UPSTREAM_WRITE_TIMEOUT, upstream.write_all(raw_request))
+        .await
+        .map_err(|_| anyhow::anyhow!("upstream write timed out"))??;
+    tokio::time::timeout(UPSTREAM_WRITE_TIMEOUT, upstream.flush())
+        .await
+        .map_err(|_| anyhow::anyhow!("upstream flush timed out"))??;
     let (response, reusable) = read_upstream_response_reusable(&mut upstream).await?;
     if reusable && request_is_reusable {
         UPSTREAM_POOL.push(addr, upstream);
@@ -5368,18 +5405,13 @@ where
                 // prediction is available to the balancer and the observed
                 // cost is fed back after dispatch.
                 let sig = request_signature_hash(req.method(&buf).as_bytes(), path, body.len());
-                let (result, used_upstream) =
+                let (result, _used_upstream) =
                     dispatch_to_upstreams(&forwarded, &upstreams, sig).await;
                 record_stage(shard_idx, STAGE_UPSTREAM, started);
                 let elapsed = started.elapsed().as_secs_f64();
                 HTTP_RESPONSE_SECONDS
                     .with_label_values(&[path])
                     .observe(elapsed);
-                if let Some(addr) = &used_upstream {
-                    UPSTREAM_REQUESTS_TOTAL
-                        .with_label_values(&[addr, "ok"])
-                        .inc();
-                }
 
                 let resp_t0 = Instant::now();
                 let final_status = match result {
@@ -5424,12 +5456,34 @@ where
         // Slow-request watchdog: >1 s wall time for the whole request.
         let req_wall = parse_t0.elapsed();
         if req_wall.as_millis() > 1000 {
-            eprintln!(
-                "🐢 slow request on shard {shard_idx}: {} took {:.3}s (conn age {:.1}s)",
-                path,
-                req_wall.as_secs_f64(),
-                conn_t0.elapsed().as_secs_f64()
-            );
+            // Rate-limited watchdog: under a 10k burst nearly every request
+            // is slow for a while, and unbounded 🐢 logging itself became a
+            // datapath cost (15k lines per bench run). One line per second
+            // keeps the signal without the spam.
+            static LAST_SLOW_LOG_MS: std::sync::atomic::AtomicU64 =
+                std::sync::atomic::AtomicU64::new(0);
+            let now_ms = std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .map(|d| d.as_millis() as u64)
+                .unwrap_or(0);
+            let last = LAST_SLOW_LOG_MS.load(std::sync::atomic::Ordering::Relaxed);
+            if now_ms.saturating_sub(last) >= 1000
+                && LAST_SLOW_LOG_MS
+                    .compare_exchange(
+                        last,
+                        now_ms,
+                        std::sync::atomic::Ordering::Relaxed,
+                        std::sync::atomic::Ordering::Relaxed,
+                    )
+                    .is_ok()
+            {
+                eprintln!(
+                    "🐢 slow request on shard {shard_idx}: {} took {:.3}s (conn age {:.1}s)",
+                    path,
+                    req_wall.as_secs_f64(),
+                    conn_t0.elapsed().as_secs_f64()
+                );
+            }
         }
 
         if !keep_alive {
@@ -5771,15 +5825,10 @@ async fn handle_h2_request(
                 &extra_headers,
             );
             let sig = request_signature_hash(head.method.as_str().as_bytes(), &path, body.len());
-            let (result, used_upstream) = dispatch_to_upstreams(&forwarded, &upstreams, sig).await;
+            let (result, _used_upstream) = dispatch_to_upstreams(&forwarded, &upstreams, sig).await;
             HTTP_RESPONSE_SECONDS
                 .with_label_values(&[&path])
                 .observe(started.elapsed().as_secs_f64());
-            if let Some(addr) = &used_upstream {
-                UPSTREAM_REQUESTS_TOTAL
-                    .with_label_values(&[addr, "ok"])
-                    .inc();
-            }
 
             let final_status = match result {
                 Ok(outcome) => {
