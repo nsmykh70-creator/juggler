@@ -5214,7 +5214,7 @@ max-width:720px;margin:0 auto;padding:60px 24px}
 h1{color:#4ade80}code{background:#10131c;border:1px solid #262b3a;border-radius:4px;
 padding:1px 6px}li{margin:6px 0}
 </style></head><body>
-<h1>🤹 Juggler Web Server v0.9.0</h1>
+<h1>🤹 Juggler Web Server v1.0.0</h1>
 <p>Forecast core: <b>Pythia</b> — adaptive Holt predictor + signature cost oracle (Named after the Delphic oracle).</p>
 <p>Thread-per-core HTTPS reverse proxy with sharded SO_REUSEPORT accept,
 hot-reloadable gRPC Control Plane, WASM plugin filters and passive health

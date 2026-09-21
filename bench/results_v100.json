@@ -1,0 +1,573 @@
+{
+  "meta": {
+    "version": "1.0.0",
+    "design": "8-server matrix, drift-control bracketing, wrk timeout 30s, per-class socket errors, 90s cool-down before c=10k",
+    "duration": "15s",
+    "threads": 4,
+    "concurrency": [
+      100,
+      1000,
+      10000
+    ],
+    "wrk_timeout": "30s",
+    "host": "Docker Desktop (WSL2), 12 cores / 15.9 GiB",
+    "juggler_pinned": {
+      "pool_cap_per_upstream": 4096,
+      "prewarm_target": 256
+    }
+  },
+  "runs": [
+    {
+      "server": "nginx",
+      "concurrency": 100,
+      "rps": 20527.51,
+      "latency_avg_ms": 5.06,
+      "percentiles_ms": {
+        "50": 4.39,
+        "75": 6.62,
+        "90": 9.34,
+        "99": 18.41
+      },
+      "non_2xx": 0,
+      "socket_errors": {
+        "connect": 0,
+        "read": 0,
+        "write": 0,
+        "timeout": 8
+      },
+      "errors": 8,
+      "mem_median_mib": 110.1,
+      "mem_max_mib": 110.6,
+      "ts": "02:39:45"
+    },
+    {
+      "server": "apache",
+      "concurrency": 100,
+      "rps": 5710.77,
+      "latency_avg_ms": 25.86,
+      "percentiles_ms": {
+        "50": 13.84,
+        "75": 27.11,
+        "90": 63.37,
+        "99": 168.29
+      },
+      "non_2xx": 0,
+      "socket_errors": {
+        "connect": 0,
+        "read": 0,
+        "write": 0,
+        "timeout": 0
+      },
+      "errors": 0,
+      "mem_median_mib": 32.2,
+      "mem_max_mib": 33.5,
+      "ts": "02:40:01"
+    },
+    {
+      "server": "caddy",
+      "concurrency": 100,
+      "rps": 11192.09,
+      "latency_avg_ms": 10.68,
+      "percentiles_ms": {
+        "50": 7.67,
+        "75": 14.49,
+        "90": 23.41,
+        "99": 49.5
+      },
+      "non_2xx": 0,
+      "socket_errors": {
+        "connect": 0,
+        "read": 0,
+        "write": 0,
+        "timeout": 0
+      },
+      "errors": 0,
+      "mem_median_mib": 35.2,
+      "mem_max_mib": 39.0,
+      "ts": "02:40:17"
+    },
+    {
+      "server": "haproxy",
+      "concurrency": 100,
+      "rps": 7442.88,
+      "latency_avg_ms": 13.44,
+      "percentiles_ms": {
+        "50": 13.01,
+        "75": 14.16,
+        "90": 15.91,
+        "99": 23.24
+      },
+      "non_2xx": 0,
+      "socket_errors": {
+        "connect": 0,
+        "read": 0,
+        "write": 0,
+        "timeout": 0
+      },
+      "errors": 0,
+      "mem_median_mib": 21.2,
+      "mem_max_mib": 21.4,
+      "ts": "02:40:33"
+    },
+    {
+      "server": "envoy",
+      "concurrency": 100,
+      "rps": 15318.28,
+      "latency_avg_ms": 7.11,
+      "percentiles_ms": {
+        "50": 5.68,
+        "75": 8.66,
+        "90": 12.73,
+        "99": 28.85
+      },
+      "non_2xx": 0,
+      "socket_errors": {
+        "connect": 0,
+        "read": 0,
+        "write": 0,
+        "timeout": 10
+      },
+      "errors": 10,
+      "mem_median_mib": 24.9,
+      "mem_max_mib": 25.4,
+      "ts": "02:40:49"
+    },
+    {
+      "server": "traefik",
+      "concurrency": 100,
+      "rps": 13624.45,
+      "latency_avg_ms": 8.18,
+      "percentiles_ms": {
+        "50": 6.43,
+        "75": 10.96,
+        "90": 16.81,
+        "99": 34.61
+      },
+      "non_2xx": 0,
+      "socket_errors": {
+        "connect": 0,
+        "read": 0,
+        "write": 0,
+        "timeout": 0
+      },
+      "errors": 0,
+      "mem_median_mib": 109.0,
+      "mem_max_mib": 116.9,
+      "ts": "02:41:05"
+    },
+    {
+      "server": "openlitespeed",
+      "concurrency": 100,
+      "rps": 24389.65,
+      "latency_avg_ms": 4.31,
+      "percentiles_ms": {
+        "50": 3.43,
+        "75": 5.74,
+        "90": 8.67,
+        "99": 16.5
+      },
+      "non_2xx": 0,
+      "socket_errors": {
+        "connect": 0,
+        "read": 0,
+        "write": 0,
+        "timeout": 2
+      },
+      "errors": 2,
+      "mem_median_mib": 31.8,
+      "mem_max_mib": 32.2,
+      "ts": "02:41:21"
+    },
+    {
+      "server": "juggler",
+      "concurrency": 100,
+      "rps": 25007.99,
+      "latency_avg_ms": 4.43,
+      "percentiles_ms": {
+        "50": 3.34,
+        "75": 5.51,
+        "90": 8.6,
+        "99": 21.17
+      },
+      "non_2xx": 0,
+      "socket_errors": {
+        "connect": 0,
+        "read": 0,
+        "write": 0,
+        "timeout": 4
+      },
+      "errors": 4,
+      "mem_median_mib": 60.7,
+      "mem_max_mib": 61.6,
+      "ts": "02:41:47"
+    },
+    {
+      "server": "nginx",
+      "concurrency": 1000,
+      "rps": 26614.67,
+      "latency_avg_ms": 38.6,
+      "percentiles_ms": {
+        "50": 30.36,
+        "75": 50.35,
+        "90": 76.87,
+        "99": 148.41
+      },
+      "non_2xx": 0,
+      "socket_errors": {
+        "connect": 0,
+        "read": 0,
+        "write": 0,
+        "timeout": 0
+      },
+      "errors": 0,
+      "mem_median_mib": 127.2,
+      "mem_max_mib": 130.0,
+      "ts": "02:42:03"
+    },
+    {
+      "server": "apache",
+      "concurrency": 1000,
+      "rps": 7213.65,
+      "latency_avg_ms": 94.16,
+      "percentiles_ms": {
+        "50": 64.28,
+        "75": 124.91,
+        "90": 209.27,
+        "99": 413.62
+      },
+      "non_2xx": 0,
+      "socket_errors": {
+        "connect": 0,
+        "read": 33991,
+        "write": 0,
+        "timeout": 0
+      },
+      "errors": 33991,
+      "mem_median_mib": 119.2,
+      "mem_max_mib": 133.5,
+      "ts": "02:42:19"
+    },
+    {
+      "server": "caddy",
+      "concurrency": 1000,
+      "rps": 4852.47,
+      "latency_avg_ms": 281.98,
+      "percentiles_ms": {
+        "50": 156.21,
+        "75": 332.59,
+        "90": 729.42,
+        "99": 1640.0
+      },
+      "non_2xx": 0,
+      "socket_errors": {
+        "connect": 0,
+        "read": 0,
+        "write": 0,
+        "timeout": 0
+      },
+      "errors": 0,
+      "mem_median_mib": 182.9,
+      "mem_max_mib": 228.3,
+      "ts": "02:42:35"
+    },
+    {
+      "server": "haproxy",
+      "concurrency": 1000,
+      "rps": 6294.25,
+      "latency_avg_ms": 156.41,
+      "percentiles_ms": {
+        "50": 158.73,
+        "75": 165.93,
+        "90": 173.62,
+        "99": 215.04
+      },
+      "non_2xx": 0,
+      "socket_errors": {
+        "connect": 0,
+        "read": 0,
+        "write": 0,
+        "timeout": 0
+      },
+      "errors": 0,
+      "mem_median_mib": 41.1,
+      "mem_max_mib": 41.6,
+      "ts": "02:42:51"
+    },
+    {
+      "server": "envoy",
+      "concurrency": 1000,
+      "rps": 13503.89,
+      "latency_avg_ms": 74.97,
+      "percentiles_ms": {
+        "50": 64.18,
+        "75": 95.68,
+        "90": 130.8,
+        "99": 225.29
+      },
+      "non_2xx": 0,
+      "socket_errors": {
+        "connect": 0,
+        "read": 0,
+        "write": 0,
+        "timeout": 0
+      },
+      "errors": 0,
+      "mem_median_mib": 73.8,
+      "mem_max_mib": 74.3,
+      "ts": "02:43:07"
+    },
+    {
+      "server": "traefik",
+      "concurrency": 1000,
+      "rps": 10975.38,
+      "latency_avg_ms": 107.45,
+      "percentiles_ms": {
+        "50": 80.26,
+        "75": 124.43,
+        "90": 198.18,
+        "99": 639.31
+      },
+      "non_2xx": 0,
+      "socket_errors": {
+        "connect": 0,
+        "read": 0,
+        "write": 0,
+        "timeout": 0
+      },
+      "errors": 0,
+      "mem_median_mib": 348.7,
+      "mem_max_mib": 421.9,
+      "ts": "02:43:23"
+    },
+    {
+      "server": "openlitespeed",
+      "concurrency": 1000,
+      "rps": 26381.51,
+      "latency_avg_ms": 52.34,
+      "percentiles_ms": {
+        "50": 29.67,
+        "75": 67.82,
+        "90": 128.07,
+        "99": 320.45
+      },
+      "non_2xx": 0,
+      "socket_errors": {
+        "connect": 0,
+        "read": 0,
+        "write": 0,
+        "timeout": 0
+      },
+      "errors": 0,
+      "mem_median_mib": 57.7,
+      "mem_max_mib": 62.0,
+      "ts": "02:43:38"
+    },
+    {
+      "server": "juggler",
+      "concurrency": 1000,
+      "rps": 27007.95,
+      "latency_avg_ms": 36.28,
+      "percentiles_ms": {
+        "50": 29.84,
+        "75": 47.64,
+        "90": 70.2,
+        "99": 132.22
+      },
+      "non_2xx": 0,
+      "socket_errors": {
+        "connect": 0,
+        "read": 0,
+        "write": 0,
+        "timeout": 0
+      },
+      "errors": 0,
+      "mem_median_mib": 119.2,
+      "mem_max_mib": 123.1,
+      "ts": "02:44:04"
+    },
+    {
+      "server": "nginx",
+      "concurrency": 10000,
+      "rps": 24896.42,
+      "latency_avg_ms": 356.84,
+      "percentiles_ms": {
+        "50": 300.27,
+        "75": 493.11,
+        "90": 688.15,
+        "99": 1080.0
+      },
+      "non_2xx": 0,
+      "socket_errors": {
+        "connect": 0,
+        "read": 0,
+        "write": 0,
+        "timeout": 0
+      },
+      "errors": 0,
+      "mem_median_mib": 265.6,
+      "mem_max_mib": 293.3,
+      "ts": "02:44:21"
+    },
+    {
+      "server": "apache",
+      "concurrency": 10000,
+      "rps": 6411.98,
+      "latency_avg_ms": 388.93,
+      "percentiles_ms": {
+        "50": 106.96,
+        "75": 285.52,
+        "90": 721.19,
+        "99": 5680.0
+      },
+      "non_2xx": 0,
+      "socket_errors": {
+        "connect": 0,
+        "read": 34325,
+        "write": 0,
+        "timeout": 0
+      },
+      "errors": 34325,
+      "mem_median_mib": 160.0,
+      "mem_max_mib": 226.5,
+      "ts": "02:44:38"
+    },
+    {
+      "server": "caddy",
+      "concurrency": 10000,
+      "rps": 2508.63,
+      "latency_avg_ms": 2760.0,
+      "percentiles_ms": {
+        "50": 2380.0,
+        "75": 3090.0,
+        "90": 5550.0,
+        "99": 7280.0
+      },
+      "non_2xx": 484,
+      "socket_errors": {
+        "connect": 0,
+        "read": 0,
+        "write": 0,
+        "timeout": 0
+      },
+      "errors": 484,
+      "mem_median_mib": 1110.0,
+      "mem_max_mib": 1136.6,
+      "ts": "02:44:54"
+    },
+    {
+      "server": "haproxy",
+      "concurrency": 10000,
+      "rps": 6477.21,
+      "latency_avg_ms": 1410.0,
+      "percentiles_ms": {
+        "50": 1260.0,
+        "75": 1440.0,
+        "90": 1780.0,
+        "99": 2990.0
+      },
+      "non_2xx": 0,
+      "socket_errors": {
+        "connect": 0,
+        "read": 0,
+        "write": 0,
+        "timeout": 0
+      },
+      "errors": 0,
+      "mem_median_mib": 220.6,
+      "mem_max_mib": 225.1,
+      "ts": "02:45:11"
+    },
+    {
+      "server": "envoy",
+      "concurrency": 10000,
+      "rps": 12346.41,
+      "latency_avg_ms": 734.06,
+      "percentiles_ms": {
+        "50": 687.8,
+        "75": 850.71,
+        "90": 1070.0,
+        "99": 1630.0
+      },
+      "non_2xx": 0,
+      "socket_errors": {
+        "connect": 0,
+        "read": 0,
+        "write": 0,
+        "timeout": 0
+      },
+      "errors": 0,
+      "mem_median_mib": 521.0,
+      "mem_max_mib": 525.5,
+      "ts": "02:45:28"
+    },
+    {
+      "server": "traefik",
+      "concurrency": 10000,
+      "rps": 3445.57,
+      "latency_avg_ms": 2390.0,
+      "percentiles_ms": {
+        "50": 1890.0,
+        "75": 3800.0,
+        "90": 4800.0,
+        "99": 7790.0
+      },
+      "non_2xx": 59,
+      "socket_errors": {
+        "connect": 0,
+        "read": 0,
+        "write": 0,
+        "timeout": 0
+      },
+      "errors": 59,
+      "mem_median_mib": 1168.9,
+      "mem_max_mib": 1599.5,
+      "ts": "02:45:45"
+    },
+    {
+      "server": "openlitespeed",
+      "concurrency": 10000,
+      "rps": 19416.01,
+      "latency_avg_ms": 467.39,
+      "percentiles_ms": {
+        "50": 417.95,
+        "75": 596.58,
+        "90": 790.03,
+        "99": 1190.0
+      },
+      "non_2xx": 0,
+      "socket_errors": {
+        "connect": 0,
+        "read": 0,
+        "write": 0,
+        "timeout": 0
+      },
+      "errors": 0,
+      "mem_median_mib": 282.1,
+      "mem_max_mib": 287.0,
+      "ts": "02:46:02"
+    },
+    {
+      "server": "juggler",
+      "concurrency": 10000,
+      "rps": 22089.72,
+      "latency_avg_ms": 494.84,
+      "percentiles_ms": {
+        "50": 314.87,
+        "75": 515.62,
+        "90": 975.67,
+        "99": 3360.0
+      },
+      "non_2xx": 0,
+      "socket_errors": {
+        "connect": 0,
+        "read": 0,
+        "write": 0,
+        "timeout": 0
+      },
+      "errors": 0,
+      "mem_median_mib": 489.2,
+      "mem_max_mib": 529.6,
+      "ts": "02:47:49"
+    }
+  ]
+}
