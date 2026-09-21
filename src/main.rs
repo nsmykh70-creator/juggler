@@ -2250,7 +2250,7 @@ impl ControlPlane for MyControlPlane {
         self.shared_config.store(Arc::new(new_config));
         // Re-warm pools for any newly added upstreams so the first real
         // requests reuse sockets instead of creating them mid-burst.
-        prewarm_upstream_pool(&self.shared_config, PREWARM_CONNECTIONS).await;
+        prewarm_upstream_pool(&self.shared_config, prewarm_target_cap()).await;
 
         println!("🔄 Config hot-reloaded via gRPC Control Plane");
         Ok(Response::new(UpdateConfigResponse {
@@ -3145,7 +3145,7 @@ async fn apply_admin_config(new_cfg: ServerConfig) -> anyhow::Result<String> {
         .clone();
     persist_config(&new_cfg, &routes_file);
     cfg.store(Arc::new(new_cfg));
-    prewarm_upstream_pool(cfg, PREWARM_CONNECTIONS).await;
+    prewarm_upstream_pool(cfg, prewarm_target_cap()).await;
     Ok("{\"success\":true,\"message\":\"config hot-reloaded\"}".to_string())
 }
 
@@ -3397,6 +3397,18 @@ const UPSTREAM_POOL_PRUNE_INTERVAL: Duration = Duration::from_secs(10);
 /// Idle sockets opened per upstream at startup / hot-reload (pre-warm).
 const PREWARM_CONNECTIONS: usize = 256;
 
+/// Overridable at runtime via env for capacity experiments (e.g. A/B
+/// prewarm sizing without a rebuild); the adaptive tick clamps to it too.
+fn prewarm_target_cap() -> usize {
+    static CAP: std::sync::OnceLock<usize> = std::sync::OnceLock::new();
+    *CAP.get_or_init(|| {
+        std::env::var("JUGGLER_PREWARM_TARGET_CAP")
+            .ok()
+            .and_then(|v| v.parse().ok())
+            .unwrap_or(PREWARM_CONNECTIONS)
+    })
+}
+
 /// How often the telemetry sampler folds shard counters into the Holt state.
 const SHARD_SAMPLE_INTERVAL: std::time::Duration = std::time::Duration::from_secs(2);
 
@@ -3416,7 +3428,7 @@ fn adaptive_prewarm_tick(config: &Arc<ArcSwap<ServerConfig>>) {
     }
     let target = (HWM.load(Ordering::Relaxed) / 2)
         .max(settings().prewarm_floor.get() as usize)
-        .min(upstream_pool_cap());
+        .min(prewarm_target_cap().min(upstream_pool_cap()));
     if target != LAST_TARGET.swap(target, Ordering::Relaxed) {
         let cfg = config.clone();
         tokio::spawn(async move {
@@ -4517,7 +4529,7 @@ fn main() -> Result<()> {
                     .build()
                     .expect("prewarm runtime");
                 rt.block_on(async {
-                    prewarm_upstream_pool(&warm_cfg, PREWARM_CONNECTIONS).await;
+                    prewarm_upstream_pool(&warm_cfg, prewarm_target_cap()).await;
                     println!("🔥 Upstream pools pre-warmed");
                 });
             })
@@ -7114,6 +7126,13 @@ mod tests {
         // Below low watermark -> OFF.
         update_backpressure_state(PENDING_CONNS_LOW - 1);
         assert!(!ACCEPT_BACKPRESSURE.load(Ordering::Acquire));
+    }
+
+    #[test]
+    fn prewarm_target_cap_defaults_to_const() {
+        // Without the env var the cap is the compiled-in prewarm constant.
+        std::env::remove_var("JUGGLER_PREWARM_TARGET_CAP");
+        assert_eq!(prewarm_target_cap(), PREWARM_CONNECTIONS);
     }
 
     #[test]
