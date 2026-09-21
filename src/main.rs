@@ -584,11 +584,12 @@ struct StageAccum {
 
 impl StageAccum {
     const fn new() -> Self {
-        const Z: AtomicU64 = AtomicU64::new(0);
+        #[allow(clippy::declare_interior_mutable_const)]
+        const ZERO: AtomicU64 = AtomicU64::new(0);
         Self {
-            count: [Z; STAGE_COUNT],
-            total_ns: [Z; STAGE_COUNT],
-            ring: [Z; STAGE_COUNT * LAT_RING_CAP],
+            count: [ZERO; STAGE_COUNT],
+            total_ns: [ZERO; STAGE_COUNT],
+            ring: [ZERO; STAGE_COUNT * LAT_RING_CAP],
             idx: AtomicUsize::new(0),
         }
     }
@@ -1252,7 +1253,7 @@ pub fn request_signature_hash(method: &[u8], path: &str, body_len: usize) -> u64
     // is the whole run between slashes: "v1" stays literal (digits after a
     // letter are part of the name), "42" alone collapses to :id.
     let mut seg = Vec::with_capacity(16);
-    let mut flush_seg = |byte: &mut dyn FnMut(u8), seg: &mut Vec<u8>| {
+    let flush_seg = |byte: &mut dyn FnMut(u8), seg: &mut Vec<u8>| {
         if seg.iter().all(|&d| d.is_ascii_digit()) {
             byte(b':');
             byte(b'i');
@@ -1337,10 +1338,8 @@ fn update_backpressure_state(now_pending: usize) {
                 "🛑 Backpressure ON: {now_pending} connections queued in hand-off, accept paused"
             );
         }
-    } else if now_pending < PENDING_CONNS_LOW {
-        if ACCEPT_BACKPRESSURE.swap(false, Ordering::AcqRel) {
-            eprintln!("✅ Backpressure OFF: {now_pending} pending, accept resumed");
-        }
+    } else if now_pending < PENDING_CONNS_LOW && ACCEPT_BACKPRESSURE.swap(false, Ordering::AcqRel) {
+        eprintln!("✅ Backpressure OFF: {now_pending} pending, accept resumed");
     }
 }
 
@@ -1715,6 +1714,7 @@ impl HealthTracker {
     }
 
     /// Fixed-policy constructor (unit tests): thresholds are frozen.
+    #[cfg(test)]
     fn with_policy(policy: HealthPolicy) -> Self {
         Self {
             inner: Mutex::new(HashMap::new()),
@@ -3483,9 +3483,12 @@ pub fn detect_response_end(buf: &[u8]) -> Option<usize> {
         .filter(|&end| end <= buf.len())
 }
 
+/// Header list as parsed off the wire.
+pub type HeaderList = Vec<(String, String)>;
+
 /// Parse the head of a raw HTTP/1.1 response into (status, headers, body
 /// start offset). Returns `None` for non-HTTP garbage.
-pub fn parse_h1_response_head(raw: &[u8]) -> Option<(u16, Vec<(String, String)>, usize)> {
+pub fn parse_h1_response_head(raw: &[u8]) -> Option<(u16, HeaderList, usize)> {
     let header_end = raw.windows(4).position(|w| w == b"\r\n\r\n")?;
     let head = std::str::from_utf8(&raw[..header_end]).ok()?;
     let mut lines = head.split("\r\n");
@@ -3569,7 +3572,9 @@ fn bind_shard_listener(addr: SocketAddr) -> std::net::TcpListener {
 /// floods the Docker embedded DNS server and stalls connects (seen as
 /// `connect timeout` bursts + health flapping). nginx resolves once and
 /// caches; we do the same: one in-flight resolve per name, result shared.
-static DNS_CACHE: OnceLock<Mutex<HashMap<String, (Vec<SocketAddr>, Instant)>>> = OnceLock::new();
+type DnsCacheEntry = HashMap<String, (Vec<SocketAddr>, Instant)>;
+
+static DNS_CACHE: OnceLock<Mutex<DnsCacheEntry>> = OnceLock::new();
 const DNS_TTL: Duration = Duration::from_secs(30);
 
 async fn resolve_cached(host_port: &str) -> std::io::Result<Vec<SocketAddr>> {
@@ -3632,7 +3637,7 @@ async fn connect_upstream(addr: &str) -> std::io::Result<TcpStream> {
         .get_or_init(|| tokio::sync::Semaphore::new(upstream_connect_permits()))
         .acquire()
         .await
-        .map_err(|_| std::io::Error::new(std::io::ErrorKind::Other, "connect semaphore closed"))?;
+        .map_err(|_| std::io::Error::other("connect semaphore closed"))?;
     // Try resolved addresses in order; IP:port strings skip the cache.
     let mut last_err: Option<std::io::Error> = None;
     for a in &addrs {
@@ -3653,9 +3658,7 @@ async fn connect_upstream(addr: &str) -> std::io::Result<TcpStream> {
             }
         }
     }
-    Err(last_err.unwrap_or_else(|| {
-        std::io::Error::new(std::io::ErrorKind::Other, "no addresses to connect")
-    }))
+    Err(last_err.unwrap_or_else(|| std::io::Error::other("no addresses to connect")))
 }
 
 // ----------------------------------------------------------------------------
@@ -4121,7 +4124,7 @@ fn resolve_route(
         .iter()
         .filter(|(_, r)| r.static_dir.is_some())
         .collect();
-    static_candidates.sort_by(|a, b| b.0.len().cmp(&a.0.len()));
+    static_candidates.sort_by_key(|(prefix, _)| std::cmp::Reverse(prefix.len()));
     for (prefix, route) in static_candidates {
         let is_exact = path == prefix.as_str();
         let is_child = path.len() > prefix.len()
@@ -4578,8 +4581,6 @@ fn main() -> Result<()> {
         let shard_idx = i as u32;
         let acceptor = acceptor.clone();
         let cfg = shared_config.clone();
-        let http_addr = http_addr;
-        let grpc_addr = grpc_addr;
         let routes_file = routes_file.clone();
         let plain_addr = std::env::var("JUGGLER_PLAIN_HTTP_ADDR").ok();
         let redirect_addr = std::env::var("JUGGLER_REDIRECT_HTTP").ok();
@@ -4877,6 +4878,7 @@ fn spawn_acceptor(name: &'static str, bind_addr: SocketAddr, kind: HandoffKind, 
         .expect("failed to spawn acceptor thread");
 }
 
+#[allow(clippy::too_many_arguments)] // per-shard wiring; see thread spawn in main
 fn run_shard(
     shard_idx: u32,
     _shard_count: u32,
@@ -5191,7 +5193,6 @@ fn max_keepalive_requests() -> usize {
 /// the same core. The `Mutex<()>` is only ever contended on cross-shard
 /// steals; the MPMC queue itself is lock-free.
 struct BufferPool {
-    cap: usize,
     q: crossbeam_queue::SegQueue<BytesMut>,
     lock: Mutex<()>,
 }
@@ -5232,7 +5233,6 @@ fn init_buf_pools(shards: usize) {
     let _ = BUF_POOLS.set(
         (0..shards.max(1))
             .map(|_| BufferPool {
-                cap: BufferPool::CAP,
                 q: crossbeam_queue::SegQueue::new(),
                 lock: Mutex::new(()),
             })
@@ -5310,7 +5310,7 @@ where
 
         record_stage(shard_idx, STAGE_ROUTE, route_t0);
 
-        match resolve_route(&path, &mut body, peer_ip, PROTO_H1, &config) {
+        match resolve_route(path, &mut body, peer_ip, PROTO_H1, &config) {
             RouteDecision::RateLimited => {
                 client
                     .write_all(&http_response(
@@ -5355,13 +5355,13 @@ where
                 // Signature oracle: hash the request pattern so the cost
                 // prediction is available to the balancer and the observed
                 // cost is fed back after dispatch.
-                let sig = request_signature_hash(req.method(&buf).as_bytes(), &path, body.len());
+                let sig = request_signature_hash(req.method(&buf).as_bytes(), path, body.len());
                 let (result, used_upstream) =
                     dispatch_to_upstreams(&forwarded, &upstreams, sig).await;
                 record_stage(shard_idx, STAGE_UPSTREAM, started);
                 let elapsed = started.elapsed().as_secs_f64();
                 HTTP_RESPONSE_SECONDS
-                    .with_label_values(&[&path])
+                    .with_label_values(&[path])
                     .observe(elapsed);
                 if let Some(addr) = &used_upstream {
                     UPSTREAM_REQUESTS_TOTAL
@@ -5403,7 +5403,7 @@ where
                     }
                 };
                 HTTP_REQUESTS_TOTAL
-                    .with_label_values(&[&path, final_status, PROTO_H1])
+                    .with_label_values(&[path, final_status, PROTO_H1])
                     .inc();
                 record_stage(shard_idx, STAGE_RESPOND, resp_t0);
             }
