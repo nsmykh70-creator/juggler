@@ -30,7 +30,11 @@ fn find_protoc() -> PathBuf {
     // 1. Vendored binary committed with the repo, matching the host OS.
     //    The repo ships the win64 build; Linux/macOS checkouts (CI, Docker)
     //    fall through to the system protoc below.
-    let vendored_name = if cfg!(windows) { "protoc.exe" } else { "protoc" };
+    let vendored_name = if cfg!(windows) {
+        "protoc.exe"
+    } else {
+        "protoc"
+    };
     let vendored = PathBuf::from("third_party/protoc/bin").join(vendored_name);
     if vendored.exists() {
         return std::fs::canonicalize(vendored).expect("canonicalize vendored protoc");
@@ -46,7 +50,10 @@ fn find_protoc() -> PathBuf {
 
     // 3. System protoc in PATH (Linux/macOS: `apt install protobuf-compiler`,
     //    `brew install protobuf`, or a preinstalled GitHub Actions runner).
-    if let Ok(out) = std::process::Command::new("protoc").arg("--version").output() {
+    if let Ok(out) = std::process::Command::new("protoc")
+        .arg("--version")
+        .output()
+    {
         if out.status.success() {
             return PathBuf::from("protoc");
         }
