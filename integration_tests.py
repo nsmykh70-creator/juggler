@@ -572,7 +572,10 @@ def test_upstream_health_cycle():
             code, dt, backend = latency("/health-demo")
         except requests.RequestException:
             time.sleep(0.5)
-            continue  # transient 429/timeouts from the shared rate limiter
+            continue  # transient network errors from the shared limiter
+        if code == 429:
+            time.sleep(0.5)
+            continue  # limiter refill window: probe again, do not fail
         assert code == 200 and backend == "fast-7001", f"{code} {backend}"
         if dt < 1.0:
             fast += 1
@@ -614,6 +617,8 @@ def test_upstream_health_cycle():
         while _t.monotonic() < deadline:
             time.sleep(0.5)  # stay under the rate limiter while polling
             code, dt, backend = latency("/health-demo")
+            if code == 429:
+                continue  # limiter refill window: poll again, do not fail
             assert code == 200, f"poll during recovery got {code}"
             if backend == "revived-7005":
                 revived = True
