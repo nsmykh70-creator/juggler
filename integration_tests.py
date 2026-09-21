@@ -46,13 +46,13 @@ urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 BASE = "https://127.0.0.1:8443"
 GRPC_ADDR = "127.0.0.1:50051"
 
-def _retry_get(url: str, attempts: int = 3):
+def _retry_get(url: str, attempts: int = 3, **kw):
     """GET with short retries: absorbs cold-burst 429/timeouts on CI, where
     the whole suite runs against one freshly started server."""
     last = None
     for _ in range(attempts):
         try:
-            return requests.get(url, verify=False, timeout=5)
+            return requests.get(url, verify=False, timeout=5, **kw)
         except requests.RequestException as e:  # noqa: PERF203
             last = e
             time.sleep(0.5)
@@ -704,8 +704,7 @@ def test_static_files():
     print("   /sample_sites2/ (trailing slash): OK")
 
     # 2. Directory-without-slash still resolves to index.html.
-    r = requests.get(f"{BASE}/sample_sites3", verify=False, timeout=5,
-                     allow_redirects=False)
+    r = _retry_get(f"{BASE}/sample_sites3", allow_redirects=False)
     assert r.status_code == 200 and "Sample site 3" in r.text
     print("   directory without slash -> index.html: OK")
 
