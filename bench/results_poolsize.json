@@ -1,0 +1,61 @@
+{
+  "meta": {
+    "design": "pool-mutex convoy test wave 2: pool_cap 4096 vs 0 (pooling off entirely), single variable via settings API, prewarm 256",
+    "wrk_timeout": "30s",
+    "duration": "15s",
+    "resume_from_round": 1
+  },
+  "juggler": [
+    {
+      "arm": "pool4096",
+      "rounds": [
+        {
+          "arm": "pool4096",
+          "round": 1,
+          "phase": "cold",
+          "concurrency": 10000,
+          "rps": 22375.35,
+          "latency_avg_ms": 446.43,
+          "percentiles_ms": {
+            "50": 279.45,
+            "75": 491.57,
+            "90": 942.37,
+            "99": 2920.0
+          },
+          "non_2xx": 0,
+          "socket_errors": {
+            "connect": 0,
+            "read": 0,
+            "write": 0,
+            "timeout": 0
+          },
+          "errors": 0,
+          "ts": "01:40:06"
+        },
+        {
+          "arm": "pool4096",
+          "round": 1,
+          "phase": "warm",
+          "concurrency": 10000,
+          "rps": 16106.52,
+          "latency_avg_ms": 1120.0,
+          "percentiles_ms": {
+            "50": 340.36,
+            "75": 779.88,
+            "90": 3260.0,
+            "99": 10710.0
+          },
+          "non_2xx": 0,
+          "socket_errors": {
+            "connect": 0,
+            "read": 0,
+            "write": 0,
+            "timeout": 0
+          },
+          "errors": 0,
+          "ts": "01:40:35"
+        }
+      ]
+    }
+  ]
+}

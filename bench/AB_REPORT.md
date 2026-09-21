@@ -110,6 +110,77 @@ loadgen-limited); (3) upstream read/write timeouts under queue depth vs pool
 width — a wider pool trades RAM for churn, the 4096 setting may be past the
 knee.
 
+## Diagnostics (session 2): the 10k profile, per-class errors, and the real fix
+
+Method: per-class wrk socket errors (connect/read/write/timeout, previously
+summed into one number), `--timeout 30s`, in-flight gauge sampled during runs,
+metrics deltas around each run; prewarm-target and connect-permit arms via
+compose interpolation, pool-cap arms via the settings API. Harness:
+`bench/run_diag.py`, `bench/run_poolsize.py`, `bench/run_wave2.py`.
+
+### What the "1.4% errors @10k" actually was
+
+**A wrk `--timeout 5s` artifact.** With a 30 s client timeout the 10k error
+count drops to **zero across every class** (non-2xx 0, socket 0/0/0/0) in all
+fixed-binary runs. Nothing was being lost — requests were simply slower than
+5 s under the burst (p99 7.5–9.4 s pre-fix). The "Juggler sheds 1.4% of
+requests" line above was wrong; the profile is a tail-latency problem, not a
+loss problem.
+
+### Bugs found and fixed on the way (all verified by unit tests, 68/68)
+
+1. **`active_upstream_connections` leaked on every error path** — 26 170
+   zombie in-flight after 16 h idle. Manual inc/dec in `try_upstream_attempt`
+   had no decrement on success or on any `?` bail-out, and pooled-path stale
+   retries decremented without a paired increment. Replaced with an RAII
+   `InFlightGuard`; the adaptive-prewarm HWM and the forecast module were
+   being fed the leaked number.
+2. **Upstream writes had no timeout** (read had 30 s, write none): a
+   zero-window upstream parked the dispatch future forever — warm runs left
+   821–1 747 permanently-parked in-flight after the burst ended. Now
+   `UPSTREAM_WRITE_TIMEOUT` (30 s) on both the fresh and the pooled path.
+3. **Slow-request watchdog spammed the datapath**: 15 131 lines per 10k run
+   (nearly every request >1 s during the burst). Now rate-limited to one line
+   per second.
+4. **`UPSTREAM_REQUESTS_TOTAL` was double-counted** (dispatch loop + both
+   call-sites): metrics showed ~2× request volume. Call-site increment removed.
+
+### Hypotheses tested at c=10k (one variable each)
+
+| Hypothesis | Test | Result |
+|---|---|---|
+| Prewarm target 64 vs 256 matters at 10k | prewarm64 vs prewarm256, pool 4096 | **No effect** — pool fills adaptively to 4096 either way; deltas ±7% ≈ run spread |
+| Fresh-connect semaphore (256) serializes the cold wave | perm256 vs perm2048 | **No effect** (cold p99 4.5–4.8 s in both arms) |
+| Global pool mutex is a 10k convoy (smaller pool → shorter convoy) | pool4096 vs pool512 | **Opposite**: pool512 warm p99 10.7–11.2 s vs 9.2–10.5 s at 4096 |
+| The pool mutex itself is the bottleneck | pool4 ≈ pooling off | **Decisive refutation**: warm 381–610 RPS with 3.4–9.2k non-2xx (fresh-connect flood). The pool is essential; the mutex is not the tail |
+| Warm burst fights lingering client keep-alive conns from the cold phase | pool4096 + **90 s** soak between phases | **Confirmed — the mechanism**: warm 17.1–23.7k RPS (median 22.5k), p99 4.2–6.7 s, **zero errors**, ≥ cold and ≥ nginx control (19.7k same session) |
+
+### Verdict at c=10k (revised)
+
+The historical "warm slower than cold + ~1.4% errors" profile was a
+**harness self-interference artifact**: a 12 s phase gap lands the second
+10k burst while the first burst's client keep-alive sockets (60 s idle grace)
+still occupy the accept path. With a clean 90 s gap, warm @10k is **~22.5k
+RPS / p99 ~4.3 s / 0 errors** — inside the 17–19k pre-registered prediction
+band (above it), at or above nginx's 19.7k on the same session. Remaining
+gap vs nginx is p99 (4.3 s vs 1.5–1.8 s), not throughput or errors.
+
+Operational takeaways: (1) keep the pool cap at the matrix level (4096); (2)
+keep `adaptive_prewarm` on — it holds the pool at HWM/2, which is what warm
+runs ride; (3) in benchmark harnesses, space consecutive phases by ≥ 90 s at
+c=10k, or Juggler (and any server with keep-alive grace) is measured fighting
+its own previous phase; (4) wrk needs `--timeout` ≥ the expected p99 ceiling,
+otherwise tail latency is reported as lost requests.
+
+Host stability note: the WSL2 VM collapsed mid-run (all containers Exited 255,
+`vmmem` memory pressure — 10k bursts plus the full eight-server stack). Docker
+Desktop was restarted; the runner now retries wrk execs against transient
+Docker API failures.
+
+Artifacts for this section: `bench/results_diag.json`,
+`bench/results_poolsize.json` (wave 1), `bench/results_poolsize2.json`
+(wave 2), runner logs `bench/diag_run.log`, `bench/poolsize_run.log`.
+
 ## Artifacts
 
 - `bench/results_ab_round1.json`, `bench/results_ab_round2.json` — raw rows

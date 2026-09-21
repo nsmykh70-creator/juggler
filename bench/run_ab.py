@@ -105,24 +105,34 @@ def preflight() -> None:
     log("✅ preflight: no host juggler.exe on :50051")
 
 
-def wrk(target: str, c: int) -> dict:
+def wrk(target: str, c: int, wrk_timeout: str = "5s") -> dict:
     url = f"http://{target}/bench"
-    text = sh(["docker", "exec", "bench-wrk", "sh", "-c",
-               f"wrk -t{THREADS} -c{c} -d{DURATION} --latency --timeout 5s {url}"],
-              timeout=300)
+    text = ""
+    for attempt in (1, 2):  # Docker Desktop occasionally hiccups (API 500)
+        text = sh(["docker", "exec", "bench-wrk", "sh", "-c",
+                   f"wrk -t{THREADS} -c{c} -d{DURATION} --latency --timeout {wrk_timeout} {url}"],
+                  timeout=300)
+        if WRK_RPS_RE.search(text):
+            break
+        log(f"  ⚠️ wrk attempt {attempt} produced no RPS line, retrying")
+        time.sleep(5)
     rps = float(WRK_RPS_RE.search(text).group(1))
     m = WRK_LATENCY_RE.search(text)
-    errs = 0
+    sock = {"connect": 0, "read": 0, "write": 0, "timeout": 0}
+    non_2xx = 0
     if (e := WRK_ERR_RE.search(text)):
-        errs += int(e.group(1))
+        non_2xx = int(e.group(1))
     if (e := WRK_SOCK_RE.search(text)):
-        errs += sum(int(g) for g in e.groups())
+        for name, g in zip(sock, e.groups()):
+            sock[name] = int(g)
+    errs = non_2xx + sum(sock.values())
     pct = {}
     for line in text.splitlines():
         if (pm := WRK_PCT_RE.match(line)):
             pct[str(int(float(pm.group(1))))] = float(pm.group(2)) * UNIT[pm.group(3)]
     return {"rps": rps, "latency_avg_ms": float(m.group(1)) * UNIT[m.group(2)],
-            "percentiles_ms": pct, "errors": errs}
+            "percentiles_ms": pct, "errors": errs, "non_2xx": non_2xx,
+            "socket_errors": sock}
 
 
 def mem_sampler(container: str, stop: threading.Event, samples: list) -> None:
@@ -157,6 +167,9 @@ def start_juggler(cap: int) -> None:
     env = dict(os.environ)
     if ROUND2:
         env["AB_PREWARM_CAP"] = str(cap)
+    else:
+        env.pop("AB_PREWARM_CAP", None)  # never leak a cap between arms
+    env.pop("AB_CONNECT_PERMITS", None)  # default permits unless the diag round sets it
     sh(["docker", "rm", "-f", "bench-juggler"], timeout=60)
     subprocess.run(["docker", "compose", "-f", "bench/docker-compose.bench.yml",
                     "-f", "bench/compose.ab.yml", "up", "-d", "--no-deps", "juggler"],
@@ -280,6 +293,8 @@ def main() -> None:
                     "latency_avg_ms": run["latency_avg_ms"],
                     "percentiles_ms": run["percentiles_ms"],
                     "errors": run["errors"],
+                    "non_2xx": run["non_2xx"],
+                    "socket_errors": run["socket_errors"],
                     "mem_median_mib": round(statistics.median(samples), 1) if samples else None,
                     "mem_max_mib": round(max(samples), 1) if samples else None,
                     "ts": time.strftime("%H:%M:%S"),

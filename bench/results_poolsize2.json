@@ -1,0 +1,492 @@
+{
+  "meta": {
+    "design": "wave 2: pool4 (pooling off) vs pool4096+90s soak, c=10k, wrk timeout 30s; baseline = wave 1 pool4096/soak12",
+    "duration": "15s"
+  },
+  "juggler": [
+    {
+      "arm": "pool4",
+      "pool_cap": 4,
+      "soak_s": 12,
+      "rounds": [
+        {
+          "arm": "pool4",
+          "round": 1,
+          "phase": "cold",
+          "concurrency": 10000,
+          "rps": 5799.4,
+          "latency_avg_ms": 1740.0,
+          "percentiles_ms": {
+            "50": 173.87,
+            "75": 2710.0,
+            "90": 6020.0,
+            "99": 9660.0
+          },
+          "non_2xx": 0,
+          "socket_errors": {
+            "connect": 0,
+            "read": 0,
+            "write": 0,
+            "timeout": 0
+          },
+          "errors": 0,
+          "ts": "01:49:47"
+        },
+        {
+          "arm": "pool4",
+          "round": 1,
+          "phase": "warm",
+          "concurrency": 10000,
+          "rps": 469.86,
+          "latency_avg_ms": 6100.0,
+          "percentiles_ms": {
+            "50": 5890.0,
+            "75": 8570.0,
+            "90": 11860.0,
+            "99": 13550.0
+          },
+          "non_2xx": 7044,
+          "socket_errors": {
+            "connect": 0,
+            "read": 0,
+            "write": 0,
+            "timeout": 0
+          },
+          "errors": 7044,
+          "ts": "01:50:16"
+        }
+      ]
+    },
+    {
+      "arm": "nginx",
+      "round": 1,
+      "phase": "control",
+      "concurrency": 10000,
+      "rps": 8455.52,
+      "percentiles_ms": {
+        "50": 826.6,
+        "75": 1470.0,
+        "90": 1940.0,
+        "99": 4410.0
+      },
+      "errors": 0,
+      "ts": "01:50:34"
+    },
+    {
+      "arm": "pool4096soak90",
+      "pool_cap": 4096,
+      "soak_s": 90,
+      "rounds": [
+        {
+          "arm": "pool4096soak90",
+          "round": 1,
+          "phase": "cold",
+          "concurrency": 10000,
+          "rps": 17645.54,
+          "latency_avg_ms": 549.2,
+          "percentiles_ms": {
+            "50": 379.38,
+            "75": 634.09,
+            "90": 1080.0,
+            "99": 3560.0
+          },
+          "non_2xx": 0,
+          "socket_errors": {
+            "connect": 0,
+            "read": 0,
+            "write": 0,
+            "timeout": 0
+          },
+          "errors": 0,
+          "ts": "01:50:59"
+        },
+        {
+          "arm": "pool4096soak90",
+          "round": 1,
+          "phase": "warm",
+          "concurrency": 10000,
+          "rps": 22554.55,
+          "latency_avg_ms": 568.1,
+          "percentiles_ms": {
+            "50": 314.39,
+            "75": 529.77,
+            "90": 1180.0,
+            "99": 4460.0
+          },
+          "non_2xx": 0,
+          "socket_errors": {
+            "connect": 0,
+            "read": 0,
+            "write": 0,
+            "timeout": 0
+          },
+          "errors": 0,
+          "ts": "01:52:46"
+        }
+      ]
+    },
+    {
+      "arm": "pool4",
+      "pool_cap": 4,
+      "soak_s": 12,
+      "rounds": [
+        {
+          "arm": "pool4",
+          "round": 2,
+          "phase": "cold",
+          "concurrency": 10000,
+          "rps": 5954.36,
+          "latency_avg_ms": 1640.0,
+          "percentiles_ms": {
+            "50": 151.24,
+            "75": 2760.0,
+            "90": 5720.0,
+            "99": 8450.0
+          },
+          "non_2xx": 0,
+          "socket_errors": {
+            "connect": 0,
+            "read": 0,
+            "write": 0,
+            "timeout": 0
+          },
+          "errors": 0,
+          "ts": "01:53:08"
+        },
+        {
+          "arm": "pool4",
+          "round": 2,
+          "phase": "warm",
+          "concurrency": 10000,
+          "rps": 381.46,
+          "latency_avg_ms": 4690.0,
+          "percentiles_ms": {
+            "50": 4150.0,
+            "75": 8010.0,
+            "90": 10630.0,
+            "99": 13720.0
+          },
+          "non_2xx": 4033,
+          "socket_errors": {
+            "connect": 0,
+            "read": 0,
+            "write": 0,
+            "timeout": 0
+          },
+          "errors": 4033,
+          "ts": "01:53:37"
+        }
+      ]
+    },
+    {
+      "arm": "nginx",
+      "round": 2,
+      "phase": "control",
+      "concurrency": 10000,
+      "rps": 19686.5,
+      "percentiles_ms": {
+        "50": 369.9,
+        "75": 619.43,
+        "90": 871.05,
+        "99": 1540.0
+      },
+      "errors": 0,
+      "ts": "01:53:55"
+    },
+    {
+      "arm": "pool4096soak90",
+      "pool_cap": 4096,
+      "soak_s": 90,
+      "rounds": [
+        {
+          "arm": "pool4096soak90",
+          "round": 2,
+          "phase": "cold",
+          "concurrency": 10000,
+          "rps": 21713.38,
+          "latency_avg_ms": 518.17,
+          "percentiles_ms": {
+            "50": 325.16,
+            "75": 549.93,
+            "90": 1060.0,
+            "99": 3560.0
+          },
+          "non_2xx": 0,
+          "socket_errors": {
+            "connect": 0,
+            "read": 0,
+            "write": 0,
+            "timeout": 0
+          },
+          "errors": 0,
+          "ts": "01:54:20"
+        },
+        {
+          "arm": "pool4096soak90",
+          "round": 2,
+          "phase": "warm",
+          "concurrency": 10000,
+          "rps": 23721.19,
+          "latency_avg_ms": 521.31,
+          "percentiles_ms": {
+            "50": 305.35,
+            "75": 483.47,
+            "90": 962.69,
+            "99": 4200.0
+          },
+          "non_2xx": 0,
+          "socket_errors": {
+            "connect": 0,
+            "read": 0,
+            "write": 0,
+            "timeout": 0
+          },
+          "errors": 0,
+          "ts": "01:56:07"
+        }
+      ]
+    },
+    {
+      "arm": "pool4",
+      "pool_cap": 4,
+      "soak_s": 12,
+      "rounds": [
+        {
+          "arm": "pool4",
+          "round": 3,
+          "phase": "cold",
+          "concurrency": 10000,
+          "rps": 5460.28,
+          "latency_avg_ms": 1810.0,
+          "percentiles_ms": {
+            "50": 192.37,
+            "75": 3140.0,
+            "90": 6050.0,
+            "99": 8960.0
+          },
+          "non_2xx": 0,
+          "socket_errors": {
+            "connect": 0,
+            "read": 0,
+            "write": 0,
+            "timeout": 0
+          },
+          "errors": 0,
+          "ts": "01:56:28"
+        },
+        {
+          "arm": "pool4",
+          "round": 3,
+          "phase": "warm",
+          "concurrency": 10000,
+          "rps": 609.52,
+          "latency_avg_ms": 6830.0,
+          "percentiles_ms": {
+            "50": 6730.0,
+            "75": 10150.0,
+            "90": 12660.0,
+            "99": 13910.0
+          },
+          "non_2xx": 9151,
+          "socket_errors": {
+            "connect": 0,
+            "read": 0,
+            "write": 0,
+            "timeout": 0
+          },
+          "errors": 9151,
+          "ts": "01:56:57"
+        }
+      ]
+    },
+    {
+      "arm": "nginx",
+      "round": 3,
+      "phase": "control",
+      "concurrency": 10000,
+      "rps": 9356.52,
+      "percentiles_ms": {
+        "50": 742.5,
+        "75": 1290.0,
+        "90": 1870.0,
+        "99": 2890.0
+      },
+      "errors": 0,
+      "ts": "01:57:16"
+    },
+    {
+      "arm": "pool4096soak90",
+      "pool_cap": 4096,
+      "soak_s": 90,
+      "rounds": [
+        {
+          "arm": "pool4096soak90",
+          "round": 3,
+          "phase": "cold",
+          "concurrency": 10000,
+          "rps": 22982.16,
+          "latency_avg_ms": 461.4,
+          "percentiles_ms": {
+            "50": 301.23,
+            "75": 490.95,
+            "90": 869.98,
+            "99": 3270.0
+          },
+          "non_2xx": 0,
+          "socket_errors": {
+            "connect": 0,
+            "read": 0,
+            "write": 0,
+            "timeout": 0
+          },
+          "errors": 0,
+          "ts": "01:57:41"
+        },
+        {
+          "arm": "pool4096soak90",
+          "round": 3,
+          "phase": "warm",
+          "concurrency": 10000,
+          "rps": 17081.79,
+          "latency_avg_ms": 842.61,
+          "percentiles_ms": {
+            "50": 386.64,
+            "75": 715.03,
+            "90": 2080.0,
+            "99": 6690.0
+          },
+          "non_2xx": 0,
+          "socket_errors": {
+            "connect": 0,
+            "read": 0,
+            "write": 0,
+            "timeout": 0
+          },
+          "errors": 0,
+          "ts": "01:59:28"
+        }
+      ]
+    },
+    {
+      "arm": "pool4",
+      "pool_cap": 4,
+      "soak_s": 12,
+      "rounds": [
+        {
+          "arm": "pool4",
+          "round": 4,
+          "phase": "cold",
+          "concurrency": 10000,
+          "rps": 5610.79,
+          "latency_avg_ms": 1720.0,
+          "percentiles_ms": {
+            "50": 192.19,
+            "75": 2710.0,
+            "90": 5940.0,
+            "99": 9760.0
+          },
+          "non_2xx": 0,
+          "socket_errors": {
+            "connect": 0,
+            "read": 0,
+            "write": 0,
+            "timeout": 1
+          },
+          "errors": 1,
+          "ts": "01:59:51"
+        },
+        {
+          "arm": "pool4",
+          "round": 4,
+          "phase": "warm",
+          "concurrency": 10000,
+          "rps": 425.98,
+          "latency_avg_ms": 3830.0,
+          "percentiles_ms": {
+            "50": 1140.0,
+            "75": 7690.0,
+            "90": 11880.0,
+            "99": 13620.0
+          },
+          "non_2xx": 3432,
+          "socket_errors": {
+            "connect": 0,
+            "read": 0,
+            "write": 0,
+            "timeout": 0
+          },
+          "errors": 3432,
+          "ts": "02:00:20"
+        }
+      ]
+    },
+    {
+      "arm": "nginx",
+      "round": 4,
+      "phase": "control",
+      "concurrency": 10000,
+      "rps": 19719.52,
+      "percentiles_ms": {
+        "50": 369.26,
+        "75": 600.64,
+        "90": 896.3,
+        "99": 1840.0
+      },
+      "errors": 0,
+      "ts": "02:00:39"
+    },
+    {
+      "arm": "pool4096soak90",
+      "pool_cap": 4096,
+      "soak_s": 90,
+      "rounds": [
+        {
+          "arm": "pool4096soak90",
+          "round": 4,
+          "phase": "cold",
+          "concurrency": 10000,
+          "rps": 18670.68,
+          "latency_avg_ms": 585.23,
+          "percentiles_ms": {
+            "50": 360.7,
+            "75": 647.45,
+            "90": 1270.0,
+            "99": 3790.0
+          },
+          "non_2xx": 0,
+          "socket_errors": {
+            "connect": 0,
+            "read": 0,
+            "write": 0,
+            "timeout": 0
+          },
+          "errors": 0,
+          "ts": "02:01:04"
+        },
+        {
+          "arm": "pool4096soak90",
+          "round": 4,
+          "phase": "warm",
+          "concurrency": 10000,
+          "rps": 22428.19,
+          "latency_avg_ms": 550.73,
+          "percentiles_ms": {
+            "50": 306.43,
+            "75": 526.34,
+            "90": 1140.0,
+            "99": 4280.0
+          },
+          "non_2xx": 0,
+          "socket_errors": {
+            "connect": 0,
+            "read": 0,
+            "write": 0,
+            "timeout": 0
+          },
+          "errors": 0,
+          "ts": "02:02:50"
+        }
+      ]
+    }
+  ]
+}

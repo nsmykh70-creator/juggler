@@ -13,3 +13,7 @@ services:
       # injected per arm via compose interpolation (AB_PREWARM_CAP env on the
       # host); the pool itself stays at the matrix-level 4096 in both arms.
       JUGGLER_PREWARM_TARGET_CAP: "${AB_PREWARM_CAP:-256}"
+      # Diag round: upstream fresh-connect concurrency (semaphore permits).
+      # 256 permits at c=10k serialize the ~6k cold-connect wave into
+      # ~0.4 s batches — the suspected tail-latency mechanism.
+      JUGGLER_UPSTREAM_CONNECT_CONCURRENCY: "${AB_CONNECT_PERMITS:-256}"
