@@ -10,3 +10,12 @@ control_plane_pb2_grpc.py
 cert.pem
 key.pem
 dev-certs/
+
+# Session-local run scripts and logs
+live_run.*
+build_live.*
+build_pid.txt
+mock_live.*
+juggler_live.log
+bench/probe_live.json
+mock_pid.txt

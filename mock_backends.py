@@ -89,7 +89,19 @@ class EchoHandler(http.server.BaseHTTPRequestHandler):
 
 
 def serve(port, handler):
-    httpd = http.server.ThreadingHTTPServer(("127.0.0.1", port), handler)
+    # Keep-alive + generous backlog so the mock is not the bottleneck: with
+    # the HTTP/1.0 default the mock closes every connection (pool churn in
+    # Juggler) and with the backlog=5 default burst connections are refused
+    # (os error 10061 observed as 502s under live load).
+
+    class Backended(http.server.ThreadingHTTPServer):
+        request_queue_size = 1024
+        daemon_threads = True
+
+    class KeepAliveHandler(handler):
+        protocol_version = "HTTP/1.1"
+
+    httpd = Backended(("127.0.0.1", port), KeepAliveHandler)
     print(f"   backend on http://127.0.0.1:{port} ({handler.__name__})")
     httpd.serve_forever()
 

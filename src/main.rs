@@ -802,9 +802,10 @@ impl IpRateLimiter {
             let (max_tokens, refill) = self.limits();
             buckets.insert(ip, TokenBucket::new(max_tokens, refill));
         }
-        // Live retune: None for fixed-policy (test) limiters, Some for the
-        // global limiter so admin-panel changes reach existing buckets.
-        let retune = self.custom.map(|_| self.limits());
+        // Live retune: the fixed-policy (unit-test) limiter never retunes;
+        // the global limiter (custom == None) pushes current settings into
+        // every existing bucket so admin-panel changes apply immediately.
+        let retune = self.custom.is_none().then(|| self.limits());
         buckets.get_mut(&ip).unwrap().take(retune)
     }
 }
@@ -2265,8 +2266,28 @@ impl ControlPlane for MyControlPlane {
 // ============================================================================
 
 fn create_tls_config() -> rustls::ServerConfig {
-    // Priority: JUGGLER_TLS_DIR with cert.pem + key.pem (real certificates,
-    // e.g. Let's Encrypt / corporate CA) > persistent self-signed pair.
+    // Priority: JUGGLER_TLS_PFX (PKCS#12/PFX bundle, e.g. from Windows
+    // certlm/IIS or `openssl pkcs12 -export`) with optional password >
+    // JUGGLER_TLS_DIR with cert.pem + key.pem > persistent self-signed pair.
+    if let Ok(pfx_path) = std::env::var("JUGGLER_TLS_PFX") {
+        let pfx_password = std::env::var("JUGGLER_TLS_PFX_PASSWORD").unwrap_or_default();
+        match load_pfx(&pfx_path, &pfx_password) {
+            Ok((certs, key)) => {
+                println!(
+                    "🔒 TLS: loaded PFX bundle from {} ({} cert(s))",
+                    pfx_path,
+                    certs.len()
+                );
+                return build_tls_config(certs, key);
+            }
+            Err(e) => {
+                println!(
+                    "⚠️ TLS: JUGGLER_TLS_PFX={} set but unusable ({}); falling back",
+                    pfx_path, e
+                );
+            }
+        }
+    }
     if let Ok(dir) = std::env::var("JUGGLER_TLS_DIR") {
         match load_pem_pair(&dir) {
             Ok((certs, key)) => {
@@ -2322,6 +2343,35 @@ fn build_tls_config(
     // visible via TlsStream::get_ref().1.alpn_protocol() after the handshake.
     cfg.alpn_protocols = vec![b"h2".to_vec(), b"http/1.1".to_vec()];
     cfg
+}
+
+/// Load a PKCS#12 (.pfx/.p12) bundle: server certificate chain + private
+/// key in one password-protected file — the native Windows cert exchange
+/// format. An empty string is accepted for unencrypted bundles.
+fn load_pfx(
+    path: &str,
+    password: &str,
+) -> Result<(Vec<CertificateDer<'static>>, PrivateKeyDer<'static>), String> {
+    let der = std::fs::read(path).map_err(|e| format!("{}: {}", path, e))?;
+    let keystore = p12_keystore::KeyStore::from_pkcs12(
+        &der,
+        password,
+        p12_keystore::Pkcs12ImportPolicy::Relaxed,
+    )
+    .map_err(|e| format!("bad pfx: {}", e))?;
+    let (_, chain) = keystore
+        .private_key_chain()
+        .ok_or_else(|| "no private key entry in bundle".to_string())?;
+    let certs: Vec<CertificateDer<'static>> = chain
+        .certs()
+        .iter()
+        .map(|c| CertificateDer::from(c.as_der().to_vec()))
+        .collect();
+    if certs.is_empty() {
+        return Err("no certificates in bundle".into());
+    }
+    let key = PrivateKeyDer::Pkcs8(chain.key().as_der().to_vec().into());
+    Ok((certs, key))
 }
 
 fn load_pem_pair(
@@ -2961,6 +3011,22 @@ fn admin_stats_json() -> String {
         "history_step_secs": SHARD_SAMPLE_INTERVAL.as_secs(),
         "history_cap": FORECAST_HISTORY_CAP,
         "stages": stages,
+        // Oracle steering visibility: cumulative connections each pick_shard
+        // decision sent per shard, split by listener kind (tls/plain/redir).
+        // Uniform histogram = kernel-hash-like spread; load-tracking
+        // histogram = the forecast is actually steering.
+        "accept_mode": match accept_mode() {
+            AcceptMode::HandOff => "handoff (pythia steering)",
+            AcceptMode::KernelReusePort => "reuseport (kernel hash; pythia not steering)",
+        },
+        "handoff_steering": handoff_steering_counters()
+            .iter()
+            .map(|row| serde_json::json!({
+                "tls": row[0].load(Ordering::Relaxed),
+                "plain": row[1].load(Ordering::Relaxed),
+                "redir": row[2].load(Ordering::Relaxed),
+            }))
+            .collect::<Vec<_>>(),
     });
     serde_json::to_string_pretty(&body).unwrap_or_else(|_| "{}".into())
 }
@@ -4749,10 +4815,20 @@ enum AcceptMode {
 }
 
 fn accept_mode() -> AcceptMode {
-    if cfg!(windows) {
-        AcceptMode::HandOff
-    } else {
-        AcceptMode::KernelReusePort
+    // JUGGLER_ACCEPT_MODE=handoff|reuseport|auto (default: auto =
+    // HandOff on Windows, KernelReusePort on Unix). `handoff` on Linux
+    // routes every accept through the Pythia forecast core: the oracle
+    // predicts which shard frees up and the acceptor directs the
+    // connection there, instead of the kernel's blind 4-tuple hash.
+    match std::env::var("JUGGLER_ACCEPT_MODE").ok().as_deref() {
+        Some("handoff") => AcceptMode::HandOff,
+        Some("reuseport") if cfg!(windows) => {
+            eprintln!("⚠️ JUGGLER_ACCEPT_MODE=reuseport unsupported on Windows; using handoff");
+            AcceptMode::HandOff
+        }
+        Some("reuseport") => AcceptMode::KernelReusePort,
+        _ if cfg!(windows) => AcceptMode::HandOff,
+        _ => AcceptMode::KernelReusePort,
     }
 }
 
@@ -4872,6 +4948,30 @@ fn pick_shard(n: usize, kind: HandoffKind) -> usize {
     best
 }
 
+/// How many connections each pick_shard decision sent to each shard
+/// (cumulative, per kind). The admin dashboard reads this to make the
+/// oracle's steering visible: if forecast hand-off works, the per-shard
+/// histogram should track load instead of being uniform.
+fn handoff_steering_counters() -> &'static Vec<[AtomicU64; 3]> {
+    static C: OnceLock<Vec<[AtomicU64; 3]>> = OnceLock::new();
+    C.get_or_init(|| {
+        (0..shard_fc().cells.len())
+            .map(|_| std::array::from_fn(|_| AtomicU64::new(0)))
+            .collect()
+    })
+}
+
+fn record_steering(shard: usize, kind: HandoffKind) {
+    let k = match kind {
+        HandoffKind::Tls => 0,
+        HandoffKind::Plain => 1,
+        HandoffKind::Redir => 2,
+    };
+    if let Some(row) = handoff_steering_counters().get(shard) {
+        row[k].fetch_add(1, Ordering::Relaxed);
+    }
+}
+
 #[derive(Clone, Copy)]
 enum HandoffKind {
     Tls,
@@ -4915,7 +5015,9 @@ fn spawn_acceptor(name: &'static str, bind_addr: SocketAddr, kind: HandoffKind, 
                                 HandoffKind::Plain => handoff_plain(),
                                 HandoffKind::Redir => handoff_redir(),
                             };
-                            if let Some(m) = mailboxes.get(pick_shard(shards, kind)) {
+                            let target = pick_shard(shards, kind);
+                            record_steering(target, kind);
+                            if let Some(m) = mailboxes.get(target) {
                                 m.push(stream, peer.ip());
                             }
                         }
@@ -5970,6 +6072,59 @@ mod tests {
     use super::*;
     use std::time::Duration;
 
+    // ---- Pythia shard steering ----
+
+    #[test]
+    fn pick_shard_steers_to_forecasted_free_shard() {
+        // Size the forecast core for 3 shards (in the unit-test process
+        // nothing else has initialized it: counters empty, NUM_SHARDS 0,
+        // so without this the core would have 1 cell and shards 1..2
+        // would read as forecast 0.0 — "perfectly idle" — regardless of
+        // the data we fold).
+        init_shard_counters(3);
+        NUM_SHARDS.store(3, Ordering::Relaxed);
+        let n = 3;
+        let fc = shard_fc();
+        for (i, sample) in [2.0, 6.0, 2.0].iter().enumerate() {
+            if let Some(cell) = fc.cell(i) {
+                cell.fold(*sample, 6.0);
+                cell.fold(*sample, 6.0); // two folds: build level+trend
+            }
+        }
+        // All three shards have equal live active conns and empty queues:
+        // raw counters tie, the forecast must break it. Shard 1's forecast
+        // is RISING (6 > 2), so the oracle must avoid it and pick 0/2.
+        let mut picked_rising = 0;
+        for _ in 0..50 {
+            if pick_shard(n, HandoffKind::Plain) == 1 {
+                picked_rising += 1;
+            }
+        }
+        assert_eq!(
+            picked_rising, 0,
+            "oracle steered to a shard whose forecast is rising"
+        );
+    }
+
+    #[test]
+    fn steering_counters_record_per_kind() {
+        let before = handoff_steering_counters()[0][1].load(Ordering::Relaxed);
+        record_steering(0, HandoffKind::Plain);
+        record_steering(0, HandoffKind::Plain);
+        let after = handoff_steering_counters()[0][1].load(Ordering::Relaxed);
+        assert_eq!(after - before, 2);
+    }
+
+    #[test]
+    fn accept_mode_env_overrides_platform_default() {
+        std::env::set_var("JUGGLER_ACCEPT_MODE", "handoff");
+        assert!(matches!(accept_mode(), AcceptMode::HandOff));
+        std::env::set_var("JUGGLER_ACCEPT_MODE", "auto");
+        // Whatever the platform, auto must return a valid mode without panic.
+        let _ = accept_mode();
+        std::env::remove_var("JUGGLER_ACCEPT_MODE");
+    }
+
     // ---- Static file serving ----
 
     #[test]
@@ -6122,6 +6277,32 @@ mod tests {
             let _ = lim.check_limit(ip);
         }
         assert!(lim.buckets.lock().unwrap().len() <= 11);
+    }
+
+    #[test]
+    fn live_limiter_retunes_existing_buckets() {
+        // Regression: the live (production) limiter must push new settings
+        // into already-created buckets — otherwise a raised admin limit keeps
+        // returning 429 to every IP seen before the retune (observed as stuck
+        // 429s during live load probes).
+        let lim = IpRateLimiter::live(100);
+        let ip: IpAddr = "10.2.0.1".parse().unwrap();
+        settings().rate_limit_tokens.set(2);
+        settings().rate_limit_refill.set(0);
+        assert!(lim.check_limit(ip));
+        assert!(lim.check_limit(ip));
+        assert!(!lim.check_limit(ip), "bucket must exhaust at old limit");
+        // Raise the limit via the admin knob: existing bucket must grow and
+        // refill (both knobs live in the same retune push).
+        settings().rate_limit_tokens.set(100);
+        settings().rate_limit_refill.set(10_000);
+        std::thread::sleep(Duration::from_millis(5)); // accrue refilled tokens
+        assert!(
+            lim.check_limit(ip),
+            "live retune must apply to existing buckets"
+        );
+        settings().rate_limit_tokens.set(10);
+        settings().rate_limit_refill.set(5);
     }
 
     // ---- HTTP parsing ----
