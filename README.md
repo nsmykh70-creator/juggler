@@ -443,7 +443,9 @@ Caddy/OpenLiteSpeed по RPS, латентности и памяти.
 Juggler v1.0.0 прошёл структурированный security pass covering HTTP parser
 fuzzing (1200 structured mutations), request-smuggling/desync vectors,
 resource exhaustion, admin/gRPC authorization, configuration atomicity,
-SSRF/egress controls (config-time and resolve-time — DNS-rebinding guard),
+SSRF/egress controls (config-time and resolve-time — the verified
+hostname-resolution gap is closed by the DNS-rebinding guard; exotic
+resolver/cache semantics are out of scope),
 path traversal and protocol-abuse scenarios. Issues found during the audit
 (control-plane authorization and several protocol-hardening defects) were
 fixed and re-verified live on the rebuilt image. In the tested scenarios no
