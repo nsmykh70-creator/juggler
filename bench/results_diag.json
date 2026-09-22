@@ -1,0 +1,1198 @@
+{
+  "meta": {
+    "design": "c=10k diag: prewarm target 64 vs 256 (round-2 style), pool cap 4096, per-class socket errors + metrics/log deltas",
+    "wrk_timeout": "30s",
+    "duration": "15s",
+    "host": "Docker Desktop (WSL2), 12 cores / 15.9 GiB"
+  },
+  "juggler": [
+    {
+      "arm": "perm256",
+      "rounds": [
+        {
+          "arm": "perm256",
+          "round": 1,
+          "phase": "cold",
+          "concurrency": 10000,
+          "rps": 15369.71,
+          "latency_avg_ms": 711.45,
+          "percentiles_ms": {
+            "50": 398.2,
+            "75": 764.16,
+            "90": 1570.0,
+            "99": 5080.0
+          },
+          "non_2xx": 0,
+          "socket_errors": {
+            "connect": 0,
+            "read": 0,
+            "write": 0,
+            "timeout": 0
+          },
+          "errors": 0,
+          "mem_median_mib": 460.3,
+          "mem_max_mib": 480.5,
+          "active_inflight_during_max": 5892,
+          "active_inflight_after": 0,
+          "metrics_before": {
+            "upstream_pool_size": 256,
+            "upstream_pool_reuses_total": 0,
+            "upstream_stale_retries_total": 0,
+            "upstream_failover_total": 0,
+            "active_upstream_connections": 0,
+            "connections_total": 0,
+            "upstream_ok_total": 0,
+            "upstream_error_total": 0
+          },
+          "metrics_after": {
+            "upstream_pool_size": 4096,
+            "upstream_pool_reuses_total": 228844,
+            "upstream_stale_retries_total": 0,
+            "upstream_failover_total": 0,
+            "active_upstream_connections": 0,
+            "connections_total": 0,
+            "upstream_ok_total": 243299,
+            "upstream_error_total": 0
+          },
+          "ts": "00:55:58"
+        },
+        {
+          "arm": "perm256",
+          "round": 1,
+          "phase": "warm",
+          "concurrency": 10000,
+          "rps": 10856.32,
+          "latency_avg_ms": 1100.0,
+          "percentiles_ms": {
+            "50": 453.09,
+            "75": 1010.0,
+            "90": 2610.0,
+            "99": 10060.0
+          },
+          "non_2xx": 0,
+          "socket_errors": {
+            "connect": 0,
+            "read": 0,
+            "write": 0,
+            "timeout": 0
+          },
+          "errors": 0,
+          "mem_median_mib": 547.9,
+          "mem_max_mib": 563.8,
+          "active_inflight_during_max": 5171,
+          "active_inflight_after": 355,
+          "metrics_before": {
+            "upstream_pool_size": 4096,
+            "upstream_pool_reuses_total": 228844,
+            "upstream_stale_retries_total": 0,
+            "upstream_failover_total": 0,
+            "active_upstream_connections": 0,
+            "connections_total": 0,
+            "upstream_ok_total": 243299,
+            "upstream_error_total": 0
+          },
+          "metrics_after": {
+            "upstream_pool_size": 4096,
+            "upstream_pool_reuses_total": 397275,
+            "upstream_stale_retries_total": 0,
+            "upstream_failover_total": 0,
+            "active_upstream_connections": 355,
+            "connections_total": 0,
+            "upstream_ok_total": 417095,
+            "upstream_error_total": 0
+          },
+          "ts": "00:56:28"
+        }
+      ]
+    },
+    {
+      "arm": "perm2048",
+      "rounds": [
+        {
+          "arm": "perm2048",
+          "round": 1,
+          "phase": "cold",
+          "concurrency": 10000,
+          "rps": 16189.37,
+          "latency_avg_ms": 675.81,
+          "percentiles_ms": {
+            "50": 412.84,
+            "75": 684.78,
+            "90": 1400.0,
+            "99": 4640.0
+          },
+          "non_2xx": 0,
+          "socket_errors": {
+            "connect": 0,
+            "read": 0,
+            "write": 0,
+            "timeout": 0
+          },
+          "errors": 0,
+          "mem_median_mib": 485.7,
+          "mem_max_mib": 516.8,
+          "active_inflight_during_max": 6965,
+          "active_inflight_after": 0,
+          "metrics_before": {
+            "upstream_pool_size": 256,
+            "upstream_pool_reuses_total": 0,
+            "upstream_stale_retries_total": 0,
+            "upstream_failover_total": 0,
+            "active_upstream_connections": 0,
+            "connections_total": 0,
+            "upstream_ok_total": 0,
+            "upstream_error_total": 0
+          },
+          "metrics_after": {
+            "upstream_pool_size": 4096,
+            "upstream_pool_reuses_total": 241727,
+            "upstream_stale_retries_total": 87,
+            "upstream_failover_total": 0,
+            "active_upstream_connections": 0,
+            "connections_total": 0,
+            "upstream_ok_total": 253622,
+            "upstream_error_total": 0
+          },
+          "ts": "00:56:53"
+        },
+        {
+          "arm": "perm2048",
+          "round": 1,
+          "phase": "warm",
+          "concurrency": 10000,
+          "rps": 13614.26,
+          "latency_avg_ms": 997.03,
+          "percentiles_ms": {
+            "50": 441.16,
+            "75": 924.49,
+            "90": 2360.0,
+            "99": 8280.0
+          },
+          "non_2xx": 0,
+          "socket_errors": {
+            "connect": 0,
+            "read": 0,
+            "write": 0,
+            "timeout": 0
+          },
+          "errors": 0,
+          "mem_median_mib": 538.5,
+          "mem_max_mib": 580.0,
+          "active_inflight_during_max": 3284,
+          "active_inflight_after": 0,
+          "metrics_before": {
+            "upstream_pool_size": 4096,
+            "upstream_pool_reuses_total": 241727,
+            "upstream_stale_retries_total": 87,
+            "upstream_failover_total": 0,
+            "active_upstream_connections": 0,
+            "connections_total": 0,
+            "upstream_ok_total": 253622,
+            "upstream_error_total": 0
+          },
+          "metrics_after": {
+            "upstream_pool_size": 4096,
+            "upstream_pool_reuses_total": 450147,
+            "upstream_stale_retries_total": 87,
+            "upstream_failover_total": 0,
+            "active_upstream_connections": 0,
+            "connections_total": 0,
+            "upstream_ok_total": 468621,
+            "upstream_error_total": 0
+          },
+          "ts": "00:57:23"
+        }
+      ]
+    },
+    {
+      "arm": "perm256",
+      "rounds": [
+        {
+          "arm": "perm256",
+          "round": 2,
+          "phase": "cold",
+          "concurrency": 10000,
+          "rps": 16236.61,
+          "latency_avg_ms": 620.79,
+          "percentiles_ms": {
+            "50": 392.01,
+            "75": 712.77,
+            "90": 1300.0,
+            "99": 3810.0
+          },
+          "non_2xx": 0,
+          "socket_errors": {
+            "connect": 0,
+            "read": 0,
+            "write": 0,
+            "timeout": 0
+          },
+          "errors": 0,
+          "mem_median_mib": 465.1,
+          "mem_max_mib": 498.1,
+          "active_inflight_during_max": 5208,
+          "active_inflight_after": 1925,
+          "metrics_before": {
+            "upstream_pool_size": 256,
+            "upstream_pool_reuses_total": 0,
+            "upstream_stale_retries_total": 0,
+            "upstream_failover_total": 0,
+            "active_upstream_connections": 0,
+            "connections_total": 0,
+            "upstream_ok_total": 0,
+            "upstream_error_total": 0
+          },
+          "metrics_after": {
+            "upstream_pool_size": 4096,
+            "upstream_pool_reuses_total": 238503,
+            "upstream_stale_retries_total": 32,
+            "upstream_failover_total": 0,
+            "active_upstream_connections": 1925,
+            "connections_total": 0,
+            "upstream_ok_total": 253391,
+            "upstream_error_total": 0
+          },
+          "ts": "00:57:47"
+        },
+        {
+          "arm": "perm256",
+          "round": 2,
+          "phase": "warm",
+          "concurrency": 10000,
+          "rps": 12050.44,
+          "latency_avg_ms": 1190.0,
+          "percentiles_ms": {
+            "50": 480.73,
+            "75": 881.09,
+            "90": 3230.0,
+            "99": 10390.0
+          },
+          "non_2xx": 0,
+          "socket_errors": {
+            "connect": 0,
+            "read": 0,
+            "write": 0,
+            "timeout": 0
+          },
+          "errors": 0,
+          "mem_median_mib": 522.5,
+          "mem_max_mib": 543.6,
+          "active_inflight_during_max": 5409,
+          "active_inflight_after": 0,
+          "metrics_before": {
+            "upstream_pool_size": 4096,
+            "upstream_pool_reuses_total": 238503,
+            "upstream_stale_retries_total": 32,
+            "upstream_failover_total": 0,
+            "active_upstream_connections": 0,
+            "connections_total": 0,
+            "upstream_ok_total": 255316,
+            "upstream_error_total": 0
+          },
+          "metrics_after": {
+            "upstream_pool_size": 4096,
+            "upstream_pool_reuses_total": 425475,
+            "upstream_stale_retries_total": 32,
+            "upstream_failover_total": 0,
+            "active_upstream_connections": 0,
+            "connections_total": 0,
+            "upstream_ok_total": 448059,
+            "upstream_error_total": 0
+          },
+          "ts": "00:58:17"
+        }
+      ]
+    },
+    {
+      "arm": "perm2048",
+      "rounds": [
+        {
+          "arm": "perm2048",
+          "round": 2,
+          "phase": "cold",
+          "concurrency": 10000,
+          "rps": 15163.04,
+          "latency_avg_ms": 670.89,
+          "percentiles_ms": {
+            "50": 427.06,
+            "75": 747.34,
+            "90": 1410.0,
+            "99": 4390.0
+          },
+          "non_2xx": 0,
+          "socket_errors": {
+            "connect": 0,
+            "read": 0,
+            "write": 0,
+            "timeout": 0
+          },
+          "errors": 0,
+          "mem_median_mib": 457.0,
+          "mem_max_mib": 496.4,
+          "active_inflight_during_max": 5187,
+          "active_inflight_after": 0,
+          "metrics_before": {
+            "upstream_pool_size": 256,
+            "upstream_pool_reuses_total": 0,
+            "upstream_stale_retries_total": 0,
+            "upstream_failover_total": 0,
+            "active_upstream_connections": 0,
+            "connections_total": 0,
+            "upstream_ok_total": 0,
+            "upstream_error_total": 0
+          },
+          "metrics_after": {
+            "upstream_pool_size": 4096,
+            "upstream_pool_reuses_total": 226783,
+            "upstream_stale_retries_total": 0,
+            "upstream_failover_total": 0,
+            "active_upstream_connections": 0,
+            "connections_total": 0,
+            "upstream_ok_total": 237915,
+            "upstream_error_total": 0
+          },
+          "ts": "00:58:42"
+        },
+        {
+          "arm": "perm2048",
+          "round": 2,
+          "phase": "warm",
+          "concurrency": 10000,
+          "rps": 13023.72,
+          "latency_avg_ms": 931.68,
+          "percentiles_ms": {
+            "50": 484.02,
+            "75": 978.47,
+            "90": 2100.0,
+            "99": 7190.0
+          },
+          "non_2xx": 0,
+          "socket_errors": {
+            "connect": 0,
+            "read": 0,
+            "write": 0,
+            "timeout": 0
+          },
+          "errors": 0,
+          "mem_median_mib": 582.0,
+          "mem_max_mib": 599.0,
+          "active_inflight_during_max": 2670,
+          "active_inflight_after": 0,
+          "metrics_before": {
+            "upstream_pool_size": 4096,
+            "upstream_pool_reuses_total": 226783,
+            "upstream_stale_retries_total": 0,
+            "upstream_failover_total": 0,
+            "active_upstream_connections": 0,
+            "connections_total": 0,
+            "upstream_ok_total": 237915,
+            "upstream_error_total": 0
+          },
+          "metrics_after": {
+            "upstream_pool_size": 4096,
+            "upstream_pool_reuses_total": 427611,
+            "upstream_stale_retries_total": 0,
+            "upstream_failover_total": 0,
+            "active_upstream_connections": 0,
+            "connections_total": 0,
+            "upstream_ok_total": 444412,
+            "upstream_error_total": 0
+          },
+          "ts": "00:59:12"
+        }
+      ]
+    },
+    {
+      "arm": "perm256",
+      "rounds": [
+        {
+          "arm": "perm256",
+          "round": 3,
+          "phase": "cold",
+          "concurrency": 10000,
+          "rps": 14886.82,
+          "latency_avg_ms": 872.8,
+          "percentiles_ms": {
+            "50": 422.11,
+            "75": 811.56,
+            "90": 2210.0,
+            "99": 6420.0
+          },
+          "non_2xx": 0,
+          "socket_errors": {
+            "connect": 0,
+            "read": 0,
+            "write": 0,
+            "timeout": 0
+          },
+          "errors": 0,
+          "mem_median_mib": 460.2,
+          "mem_max_mib": 509.9,
+          "active_inflight_during_max": 7517,
+          "active_inflight_after": 0,
+          "metrics_before": {
+            "upstream_pool_size": 256,
+            "upstream_pool_reuses_total": 0,
+            "upstream_stale_retries_total": 0,
+            "upstream_failover_total": 0,
+            "active_upstream_connections": 0,
+            "connections_total": 0,
+            "upstream_ok_total": 0,
+            "upstream_error_total": 0
+          },
+          "metrics_after": {
+            "upstream_pool_size": 4096,
+            "upstream_pool_reuses_total": 219248,
+            "upstream_stale_retries_total": 19,
+            "upstream_failover_total": 0,
+            "active_upstream_connections": 0,
+            "connections_total": 0,
+            "upstream_ok_total": 231687,
+            "upstream_error_total": 0
+          },
+          "ts": "00:59:36"
+        },
+        {
+          "arm": "perm256",
+          "round": 3,
+          "phase": "warm",
+          "concurrency": 10000,
+          "rps": 12069.22,
+          "latency_avg_ms": 820.53,
+          "percentiles_ms": {
+            "50": 324.68,
+            "75": 666.71,
+            "90": 2090.0,
+            "99": 7860.0
+          },
+          "non_2xx": 0,
+          "socket_errors": {
+            "connect": 0,
+            "read": 0,
+            "write": 0,
+            "timeout": 0
+          },
+          "errors": 0,
+          "mem_median_mib": 538.5,
+          "mem_max_mib": 551.1,
+          "active_inflight_during_max": 3998,
+          "active_inflight_after": 779,
+          "metrics_before": {
+            "upstream_pool_size": 4096,
+            "upstream_pool_reuses_total": 219248,
+            "upstream_stale_retries_total": 19,
+            "upstream_failover_total": 0,
+            "active_upstream_connections": 0,
+            "connections_total": 0,
+            "upstream_ok_total": 231687,
+            "upstream_error_total": 0
+          },
+          "metrics_after": {
+            "upstream_pool_size": 4096,
+            "upstream_pool_reuses_total": 405419,
+            "upstream_stale_retries_total": 63,
+            "upstream_failover_total": 0,
+            "active_upstream_connections": 779,
+            "connections_total": 0,
+            "upstream_ok_total": 423278,
+            "upstream_error_total": 0
+          },
+          "ts": "01:00:06"
+        }
+      ]
+    },
+    {
+      "arm": "perm2048",
+      "rounds": [
+        {
+          "arm": "perm2048",
+          "round": 3,
+          "phase": "cold",
+          "concurrency": 10000,
+          "rps": 15122.71,
+          "latency_avg_ms": 751.84,
+          "percentiles_ms": {
+            "50": 415.25,
+            "75": 733.42,
+            "90": 1700.0,
+            "99": 5450.0
+          },
+          "non_2xx": 0,
+          "socket_errors": {
+            "connect": 0,
+            "read": 0,
+            "write": 0,
+            "timeout": 0
+          },
+          "errors": 0,
+          "mem_median_mib": 454.4,
+          "mem_max_mib": 493.2,
+          "active_inflight_during_max": 5713,
+          "active_inflight_after": 0,
+          "metrics_before": {
+            "upstream_pool_size": 256,
+            "upstream_pool_reuses_total": 0,
+            "upstream_stale_retries_total": 0,
+            "upstream_failover_total": 0,
+            "active_upstream_connections": 0,
+            "connections_total": 0,
+            "upstream_ok_total": 0,
+            "upstream_error_total": 0
+          },
+          "metrics_after": {
+            "upstream_pool_size": 4096,
+            "upstream_pool_reuses_total": 223239,
+            "upstream_stale_retries_total": 160,
+            "upstream_failover_total": 0,
+            "active_upstream_connections": 0,
+            "connections_total": 0,
+            "upstream_ok_total": 237255,
+            "upstream_error_total": 0
+          },
+          "ts": "01:00:32"
+        },
+        {
+          "arm": "perm2048",
+          "round": 3,
+          "phase": "warm",
+          "concurrency": 10000,
+          "rps": 13483.13,
+          "latency_avg_ms": 1050.0,
+          "percentiles_ms": {
+            "50": 352.27,
+            "75": 836.95,
+            "90": 2700.0,
+            "99": 10180.0
+          },
+          "non_2xx": 0,
+          "socket_errors": {
+            "connect": 0,
+            "read": 0,
+            "write": 0,
+            "timeout": 0
+          },
+          "errors": 0,
+          "mem_median_mib": 539.0,
+          "mem_max_mib": 570.9,
+          "active_inflight_during_max": 4944,
+          "active_inflight_after": 172,
+          "metrics_before": {
+            "upstream_pool_size": 4096,
+            "upstream_pool_reuses_total": 223239,
+            "upstream_stale_retries_total": 160,
+            "upstream_failover_total": 0,
+            "active_upstream_connections": 0,
+            "connections_total": 0,
+            "upstream_ok_total": 237255,
+            "upstream_error_total": 0
+          },
+          "metrics_after": {
+            "upstream_pool_size": 4096,
+            "upstream_pool_reuses_total": 430137,
+            "upstream_stale_retries_total": 160,
+            "upstream_failover_total": 0,
+            "active_upstream_connections": 172,
+            "connections_total": 0,
+            "upstream_ok_total": 449697,
+            "upstream_error_total": 0
+          },
+          "ts": "01:01:01"
+        }
+      ]
+    },
+    {
+      "arm": "perm256",
+      "rounds": [
+        {
+          "arm": "perm256",
+          "round": 4,
+          "phase": "cold",
+          "concurrency": 10000,
+          "rps": 16547.99,
+          "latency_avg_ms": 695.84,
+          "percentiles_ms": {
+            "50": 394.81,
+            "75": 691.67,
+            "90": 1440.0,
+            "99": 5340.0
+          },
+          "non_2xx": 0,
+          "socket_errors": {
+            "connect": 0,
+            "read": 0,
+            "write": 0,
+            "timeout": 0
+          },
+          "errors": 0,
+          "mem_median_mib": 472.0,
+          "mem_max_mib": 500.2,
+          "active_inflight_during_max": 4989,
+          "active_inflight_after": 0,
+          "metrics_before": {
+            "upstream_pool_size": 256,
+            "upstream_pool_reuses_total": 0,
+            "upstream_stale_retries_total": 0,
+            "upstream_failover_total": 0,
+            "active_upstream_connections": 0,
+            "connections_total": 0,
+            "upstream_ok_total": 0,
+            "upstream_error_total": 0
+          },
+          "metrics_after": {
+            "upstream_pool_size": 4096,
+            "upstream_pool_reuses_total": 244568,
+            "upstream_stale_retries_total": 0,
+            "upstream_failover_total": 0,
+            "active_upstream_connections": 0,
+            "connections_total": 0,
+            "upstream_ok_total": 259397,
+            "upstream_error_total": 0
+          },
+          "ts": "01:01:26"
+        },
+        {
+          "arm": "perm256",
+          "round": 4,
+          "phase": "warm",
+          "concurrency": 10000,
+          "rps": 12688.61,
+          "latency_avg_ms": 1240.0,
+          "percentiles_ms": {
+            "50": 522.46,
+            "75": 973.05,
+            "90": 3430.0,
+            "99": 10290.0
+          },
+          "non_2xx": 0,
+          "socket_errors": {
+            "connect": 0,
+            "read": 0,
+            "write": 0,
+            "timeout": 0
+          },
+          "errors": 0,
+          "mem_median_mib": 510.9,
+          "mem_max_mib": 538.3,
+          "active_inflight_during_max": 5536,
+          "active_inflight_after": 0,
+          "metrics_before": {
+            "upstream_pool_size": 4096,
+            "upstream_pool_reuses_total": 244568,
+            "upstream_stale_retries_total": 0,
+            "upstream_failover_total": 0,
+            "active_upstream_connections": 0,
+            "connections_total": 0,
+            "upstream_ok_total": 259397,
+            "upstream_error_total": 0
+          },
+          "metrics_after": {
+            "upstream_pool_size": 4096,
+            "upstream_pool_reuses_total": 440332,
+            "upstream_stale_retries_total": 0,
+            "upstream_failover_total": 0,
+            "active_upstream_connections": 0,
+            "connections_total": 0,
+            "upstream_ok_total": 460899,
+            "upstream_error_total": 0
+          },
+          "ts": "01:01:56"
+        }
+      ]
+    },
+    {
+      "arm": "perm2048",
+      "rounds": [
+        {
+          "arm": "perm2048",
+          "round": 4,
+          "phase": "cold",
+          "concurrency": 10000,
+          "rps": 18853.98,
+          "latency_avg_ms": 493.62,
+          "percentiles_ms": {
+            "50": 381.19,
+            "75": 591.26,
+            "90": 890.44,
+            "99": 2830.0
+          },
+          "non_2xx": 0,
+          "socket_errors": {
+            "connect": 0,
+            "read": 0,
+            "write": 0,
+            "timeout": 0
+          },
+          "errors": 0,
+          "mem_median_mib": 455.9,
+          "mem_max_mib": 488.6,
+          "active_inflight_during_max": 4555,
+          "active_inflight_after": 0,
+          "metrics_before": {
+            "upstream_pool_size": 256,
+            "upstream_pool_reuses_total": 0,
+            "upstream_stale_retries_total": 0,
+            "upstream_failover_total": 0,
+            "active_upstream_connections": 0,
+            "connections_total": 0,
+            "upstream_ok_total": 0,
+            "upstream_error_total": 0
+          },
+          "metrics_after": {
+            "upstream_pool_size": 4096,
+            "upstream_pool_reuses_total": 279318,
+            "upstream_stale_retries_total": 158,
+            "upstream_failover_total": 0,
+            "active_upstream_connections": 0,
+            "connections_total": 0,
+            "upstream_ok_total": 293154,
+            "upstream_error_total": 0
+          },
+          "ts": "01:02:20"
+        },
+        {
+          "arm": "perm2048",
+          "round": 4,
+          "phase": "warm",
+          "concurrency": 10000,
+          "rps": 11710.18,
+          "latency_avg_ms": 1030.0,
+          "percentiles_ms": {
+            "50": 364.87,
+            "75": 822.21,
+            "90": 2580.0,
+            "99": 10110.0
+          },
+          "non_2xx": 0,
+          "socket_errors": {
+            "connect": 0,
+            "read": 0,
+            "write": 0,
+            "timeout": 0
+          },
+          "errors": 0,
+          "mem_median_mib": 519.0,
+          "mem_max_mib": 539.4,
+          "active_inflight_during_max": 5306,
+          "active_inflight_after": 732,
+          "metrics_before": {
+            "upstream_pool_size": 4096,
+            "upstream_pool_reuses_total": 279318,
+            "upstream_stale_retries_total": 158,
+            "upstream_failover_total": 0,
+            "active_upstream_connections": 0,
+            "connections_total": 0,
+            "upstream_ok_total": 293154,
+            "upstream_error_total": 0
+          },
+          "metrics_after": {
+            "upstream_pool_size": 4096,
+            "upstream_pool_reuses_total": 460470,
+            "upstream_stale_retries_total": 158,
+            "upstream_failover_total": 0,
+            "active_upstream_connections": 732,
+            "connections_total": 0,
+            "upstream_ok_total": 479287,
+            "upstream_error_total": 0
+          },
+          "ts": "01:02:49"
+        }
+      ]
+    },
+    {
+      "arm": "perm256",
+      "rounds": [
+        {
+          "arm": "perm256",
+          "round": 5,
+          "phase": "cold",
+          "concurrency": 10000,
+          "rps": 17642.18,
+          "latency_avg_ms": 672.56,
+          "percentiles_ms": {
+            "50": 375.32,
+            "75": 658.11,
+            "90": 1670.0,
+            "99": 4470.0
+          },
+          "non_2xx": 0,
+          "socket_errors": {
+            "connect": 0,
+            "read": 0,
+            "write": 0,
+            "timeout": 0
+          },
+          "errors": 0,
+          "mem_median_mib": 470.2,
+          "mem_max_mib": 501.9,
+          "active_inflight_during_max": 5749,
+          "active_inflight_after": 0,
+          "metrics_before": {
+            "upstream_pool_size": 256,
+            "upstream_pool_reuses_total": 0,
+            "upstream_stale_retries_total": 0,
+            "upstream_failover_total": 0,
+            "active_upstream_connections": 0,
+            "connections_total": 0,
+            "upstream_ok_total": 0,
+            "upstream_error_total": 0
+          },
+          "metrics_after": {
+            "upstream_pool_size": 4096,
+            "upstream_pool_reuses_total": 261389,
+            "upstream_stale_retries_total": 65,
+            "upstream_failover_total": 0,
+            "active_upstream_connections": 0,
+            "connections_total": 0,
+            "upstream_ok_total": 274984,
+            "upstream_error_total": 0
+          },
+          "ts": "01:03:14"
+        },
+        {
+          "arm": "perm256",
+          "round": 5,
+          "phase": "warm",
+          "concurrency": 10000,
+          "rps": 13084.43,
+          "latency_avg_ms": 1210.0,
+          "percentiles_ms": {
+            "50": 436.43,
+            "75": 909.87,
+            "90": 3590.0,
+            "99": 10410.0
+          },
+          "non_2xx": 0,
+          "socket_errors": {
+            "connect": 0,
+            "read": 0,
+            "write": 0,
+            "timeout": 0
+          },
+          "errors": 0,
+          "mem_median_mib": 524.2,
+          "mem_max_mib": 549.0,
+          "active_inflight_during_max": 4813,
+          "active_inflight_after": 0,
+          "metrics_before": {
+            "upstream_pool_size": 4096,
+            "upstream_pool_reuses_total": 261389,
+            "upstream_stale_retries_total": 65,
+            "upstream_failover_total": 0,
+            "active_upstream_connections": 0,
+            "connections_total": 0,
+            "upstream_ok_total": 274984,
+            "upstream_error_total": 0
+          },
+          "metrics_after": {
+            "upstream_pool_size": 4096,
+            "upstream_pool_reuses_total": 463334,
+            "upstream_stale_retries_total": 96,
+            "upstream_failover_total": 0,
+            "active_upstream_connections": 0,
+            "connections_total": 0,
+            "upstream_ok_total": 482703,
+            "upstream_error_total": 0
+          },
+          "ts": "01:03:43"
+        }
+      ]
+    },
+    {
+      "arm": "perm2048",
+      "rounds": [
+        {
+          "arm": "perm2048",
+          "round": 5,
+          "phase": "cold",
+          "concurrency": 10000,
+          "rps": 17774.19,
+          "latency_avg_ms": 547.84,
+          "percentiles_ms": {
+            "50": 391.31,
+            "75": 624.52,
+            "90": 1010.0,
+            "99": 3270.0
+          },
+          "non_2xx": 0,
+          "socket_errors": {
+            "connect": 0,
+            "read": 0,
+            "write": 0,
+            "timeout": 0
+          },
+          "errors": 0,
+          "mem_median_mib": 456.6,
+          "mem_max_mib": 478.5,
+          "active_inflight_during_max": 4011,
+          "active_inflight_after": 0,
+          "metrics_before": {
+            "upstream_pool_size": 256,
+            "upstream_pool_reuses_total": 0,
+            "upstream_stale_retries_total": 0,
+            "upstream_failover_total": 0,
+            "active_upstream_connections": 0,
+            "connections_total": 0,
+            "upstream_ok_total": 0,
+            "upstream_error_total": 0
+          },
+          "metrics_after": {
+            "upstream_pool_size": 4096,
+            "upstream_pool_reuses_total": 264586,
+            "upstream_stale_retries_total": 448,
+            "upstream_failover_total": 0,
+            "active_upstream_connections": 0,
+            "connections_total": 0,
+            "upstream_ok_total": 278218,
+            "upstream_error_total": 0
+          },
+          "ts": "01:04:08"
+        },
+        {
+          "arm": "perm2048",
+          "round": 5,
+          "phase": "warm",
+          "concurrency": 10000,
+          "rps": 11894.28,
+          "latency_avg_ms": 1060.0,
+          "percentiles_ms": {
+            "50": 410.52,
+            "75": 908.59,
+            "90": 2680.0,
+            "99": 9960.0
+          },
+          "non_2xx": 0,
+          "socket_errors": {
+            "connect": 0,
+            "read": 0,
+            "write": 0,
+            "timeout": 0
+          },
+          "errors": 0,
+          "mem_median_mib": 536.5,
+          "mem_max_mib": 552.9,
+          "active_inflight_during_max": 4695,
+          "active_inflight_after": 328,
+          "metrics_before": {
+            "upstream_pool_size": 4096,
+            "upstream_pool_reuses_total": 264586,
+            "upstream_stale_retries_total": 448,
+            "upstream_failover_total": 0,
+            "active_upstream_connections": 0,
+            "connections_total": 0,
+            "upstream_ok_total": 278218,
+            "upstream_error_total": 0
+          },
+          "metrics_after": {
+            "upstream_pool_size": 4096,
+            "upstream_pool_reuses_total": 448505,
+            "upstream_stale_retries_total": 448,
+            "upstream_failover_total": 0,
+            "active_upstream_connections": 328,
+            "connections_total": 0,
+            "upstream_ok_total": 467555,
+            "upstream_error_total": 0
+          },
+          "ts": "01:04:38"
+        }
+      ]
+    },
+    {
+      "arm": "perm256",
+      "rounds": [
+        {
+          "arm": "perm256",
+          "round": 6,
+          "phase": "cold",
+          "concurrency": 10000,
+          "rps": 17100.18,
+          "latency_avg_ms": 536.11,
+          "percentiles_ms": {
+            "50": 379.3,
+            "75": 663.99,
+            "90": 1090.0,
+            "99": 2840.0
+          },
+          "non_2xx": 0,
+          "socket_errors": {
+            "connect": 0,
+            "read": 0,
+            "write": 0,
+            "timeout": 0
+          },
+          "errors": 0,
+          "mem_median_mib": 447.6,
+          "mem_max_mib": 482.8,
+          "active_inflight_during_max": 6172,
+          "active_inflight_after": 0,
+          "metrics_before": {
+            "upstream_pool_size": 256,
+            "upstream_pool_reuses_total": 0,
+            "upstream_stale_retries_total": 0,
+            "upstream_failover_total": 0,
+            "active_upstream_connections": 0,
+            "connections_total": 0,
+            "upstream_ok_total": 0,
+            "upstream_error_total": 0
+          },
+          "metrics_after": {
+            "upstream_pool_size": 4096,
+            "upstream_pool_reuses_total": 256803,
+            "upstream_stale_retries_total": 32,
+            "upstream_failover_total": 0,
+            "active_upstream_connections": 0,
+            "connections_total": 0,
+            "upstream_ok_total": 268865,
+            "upstream_error_total": 0
+          },
+          "ts": "01:05:02"
+        },
+        {
+          "arm": "perm256",
+          "round": 6,
+          "phase": "warm",
+          "concurrency": 10000,
+          "rps": 12722.99,
+          "latency_avg_ms": 1020.0,
+          "percentiles_ms": {
+            "50": 465.07,
+            "75": 991.64,
+            "90": 2260.0,
+            "99": 8720.0
+          },
+          "non_2xx": 0,
+          "socket_errors": {
+            "connect": 0,
+            "read": 0,
+            "write": 0,
+            "timeout": 0
+          },
+          "errors": 0,
+          "mem_median_mib": 529.9,
+          "mem_max_mib": 566.4,
+          "active_inflight_during_max": 3739,
+          "active_inflight_after": 93,
+          "metrics_before": {
+            "upstream_pool_size": 4096,
+            "upstream_pool_reuses_total": 256803,
+            "upstream_stale_retries_total": 32,
+            "upstream_failover_total": 0,
+            "active_upstream_connections": 0,
+            "connections_total": 0,
+            "upstream_ok_total": 268865,
+            "upstream_error_total": 0
+          },
+          "metrics_after": {
+            "upstream_pool_size": 4096,
+            "upstream_pool_reuses_total": 452488,
+            "upstream_stale_retries_total": 32,
+            "upstream_failover_total": 0,
+            "active_upstream_connections": 93,
+            "connections_total": 0,
+            "upstream_ok_total": 470866,
+            "upstream_error_total": 0
+          },
+          "ts": "01:05:33"
+        }
+      ]
+    },
+    {
+      "arm": "perm2048",
+      "rounds": [
+        {
+          "arm": "perm2048",
+          "round": 6,
+          "phase": "cold",
+          "concurrency": 10000,
+          "rps": 14233.93,
+          "latency_avg_ms": 747.19,
+          "percentiles_ms": {
+            "50": 473.98,
+            "75": 834.84,
+            "90": 1520.0,
+            "99": 4870.0
+          },
+          "non_2xx": 0,
+          "socket_errors": {
+            "connect": 0,
+            "read": 0,
+            "write": 0,
+            "timeout": 0
+          },
+          "errors": 0,
+          "mem_median_mib": 471.8,
+          "mem_max_mib": 502.5,
+          "active_inflight_during_max": 5186,
+          "active_inflight_after": 0,
+          "metrics_before": {
+            "upstream_pool_size": 256,
+            "upstream_pool_reuses_total": 0,
+            "upstream_stale_retries_total": 0,
+            "upstream_failover_total": 0,
+            "active_upstream_connections": 0,
+            "connections_total": 0,
+            "upstream_ok_total": 0,
+            "upstream_error_total": 0
+          },
+          "metrics_after": {
+            "upstream_pool_size": 4096,
+            "upstream_pool_reuses_total": 211853,
+            "upstream_stale_retries_total": 96,
+            "upstream_failover_total": 0,
+            "active_upstream_connections": 0,
+            "connections_total": 0,
+            "upstream_ok_total": 223324,
+            "upstream_error_total": 0
+          },
+          "ts": "01:05:57"
+        },
+        {
+          "arm": "perm2048",
+          "round": 6,
+          "phase": "warm",
+          "concurrency": 10000,
+          "rps": 13559.21,
+          "latency_avg_ms": 1070.0,
+          "percentiles_ms": {
+            "50": 427.53,
+            "75": 950.92,
+            "90": 2380.0,
+            "99": 10040.0
+          },
+          "non_2xx": 0,
+          "socket_errors": {
+            "connect": 0,
+            "read": 0,
+            "write": 0,
+            "timeout": 0
+          },
+          "errors": 0,
+          "mem_median_mib": 543.0,
+          "mem_max_mib": 573.1,
+          "active_inflight_during_max": 3828,
+          "active_inflight_after": 0,
+          "metrics_before": {
+            "upstream_pool_size": 4096,
+            "upstream_pool_reuses_total": 211853,
+            "upstream_stale_retries_total": 96,
+            "upstream_failover_total": 0,
+            "active_upstream_connections": 0,
+            "connections_total": 0,
+            "upstream_ok_total": 223324,
+            "upstream_error_total": 0
+          },
+          "metrics_after": {
+            "upstream_pool_size": 4096,
+            "upstream_pool_reuses_total": 420107,
+            "upstream_stale_retries_total": 96,
+            "upstream_failover_total": 0,
+            "active_upstream_connections": 0,
+            "connections_total": 0,
+            "upstream_ok_total": 437186,
+            "upstream_error_total": 0
+          },
+          "ts": "01:06:27"
+        }
+      ]
+    }
+  ]
+}

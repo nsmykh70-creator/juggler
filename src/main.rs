@@ -44,9 +44,9 @@ use tokio_rustls::TlsAcceptor;
 
 use rustls_pki_types::{CertificateDer, PrivateKeyDer};
 
-use tonic::{Request, Response, Status, transport::Server};
 pub use pb::control_plane_server::{ControlPlane, ControlPlaneServer};
 pub use pb::{RouteConfig as PbRouteConfig, UpdateConfigRequest, UpdateConfigResponse};
+use tonic::{transport::Server, Request, Response, Status};
 
 /// Generated protobuf/gRPC code (compiled from proto/control_plane.proto).
 pub mod pb {
@@ -87,7 +87,9 @@ lazy_static! {
             "http_response_seconds",
             "End-to-end latency of requests served by the Data Plane",
         )
-        .buckets(vec![0.0005, 0.001, 0.0025, 0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1.0, 2.5]),
+        .buckets(vec![
+            0.0005, 0.001, 0.0025, 0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1.0, 2.5
+        ]),
         &["path"],
     )
     .unwrap();
@@ -132,12 +134,17 @@ lazy_static! {
             "wasm_plugin_seconds",
             "Time spent inside WASM filter invocations",
         )
-        .buckets(vec![0.00005, 0.0001, 0.00025, 0.0005, 0.001, 0.0025, 0.005, 0.01]),
+        .buckets(vec![
+            0.00005, 0.0001, 0.00025, 0.0005, 0.001, 0.0025, 0.005, 0.01
+        ]),
         &["stage"],
     )
     .unwrap();
-    pub static ref WASM_MODULES_LOADED: IntGauge =
-        IntGauge::new("wasm_modules_loaded", "WASM modules currently in the registry").unwrap();
+    pub static ref WASM_MODULES_LOADED: IntGauge = IntGauge::new(
+        "wasm_modules_loaded",
+        "WASM modules currently in the registry"
+    )
+    .unwrap();
     pub static ref UPSTREAM_HEALTH_STATE: IntGaugeVec = IntGaugeVec::new(
         Opts::new(
             "upstream_health_state",
@@ -197,7 +204,9 @@ fn register_metrics() {
     HTTP_REQUESTS_TOTAL
         .with_label_values(&["init", "0", "init"])
         .inc_by(0);
-    HTTP_RESPONSE_SECONDS.with_label_values(&["init"]).observe(0.0);
+    HTTP_RESPONSE_SECONDS
+        .with_label_values(&["init"])
+        .observe(0.0);
     UPSTREAM_REQUESTS_TOTAL
         .with_label_values(&["init", "ok"])
         .inc_by(0);
@@ -207,7 +216,9 @@ fn register_metrics() {
     WASM_PLUGIN_CALLS_TOTAL
         .with_label_values(&["init", "ok"])
         .inc_by(0);
-    WASM_PLUGIN_SECONDS.with_label_values(&["init"]).observe(0.0);
+    WASM_PLUGIN_SECONDS
+        .with_label_values(&["init"])
+        .observe(0.0);
     WASM_MODULES_LOADED.set(0);
     ACTIVE_UPSTREAM_CONNECTIONS.set(0);
     UPSTREAM_HEALTH_STATE
@@ -220,23 +231,57 @@ fn register_metrics() {
     SHARD_FORECAST_CONNS.with_label_values(&["init"]).set(0);
     UPSTREAM_FORECAST_LOAD.with_label_values(&["init"]).set(0);
 
-    REGISTRY.register(Box::new(HTTP_REQUESTS_TOTAL.clone())).unwrap();
-    REGISTRY.register(Box::new(HTTP_RESPONSE_SECONDS.clone())).unwrap();
-    REGISTRY.register(Box::new(UPSTREAM_REQUESTS_TOTAL.clone())).unwrap();
-    REGISTRY.register(Box::new(UPSTREAM_FAILOVER_TOTAL.clone())).unwrap();
-    REGISTRY.register(Box::new(KEEPALIVE_CONNECTIONS_TOTAL.clone())).unwrap();
-    REGISTRY.register(Box::new(RATE_LIMIT_REJECTED.clone())).unwrap();
-    REGISTRY.register(Box::new(ACTIVE_UPSTREAM_CONNECTIONS.clone())).unwrap();
-    REGISTRY.register(Box::new(UPSTREAM_POOL_REUSES_TOTAL.clone())).unwrap();
-    REGISTRY.register(Box::new(UPSTREAM_STALE_RETRIES_TOTAL.clone())).unwrap();
-    REGISTRY.register(Box::new(UPSTREAM_POOL_SIZE.clone())).unwrap();
-    REGISTRY.register(Box::new(WASM_PLUGIN_CALLS_TOTAL.clone())).unwrap();
-    REGISTRY.register(Box::new(WASM_PLUGIN_SECONDS.clone())).unwrap();
-    REGISTRY.register(Box::new(WASM_MODULES_LOADED.clone())).unwrap();
-    REGISTRY.register(Box::new(UPSTREAM_HEALTH_STATE.clone())).unwrap();
-    REGISTRY.register(Box::new(SHARD_ACTIVE_CONNS.clone())).unwrap();
-    REGISTRY.register(Box::new(SHARD_FORECAST_CONNS.clone())).unwrap();
-    REGISTRY.register(Box::new(UPSTREAM_FORECAST_LOAD.clone())).unwrap();
+    REGISTRY
+        .register(Box::new(HTTP_REQUESTS_TOTAL.clone()))
+        .unwrap();
+    REGISTRY
+        .register(Box::new(HTTP_RESPONSE_SECONDS.clone()))
+        .unwrap();
+    REGISTRY
+        .register(Box::new(UPSTREAM_REQUESTS_TOTAL.clone()))
+        .unwrap();
+    REGISTRY
+        .register(Box::new(UPSTREAM_FAILOVER_TOTAL.clone()))
+        .unwrap();
+    REGISTRY
+        .register(Box::new(KEEPALIVE_CONNECTIONS_TOTAL.clone()))
+        .unwrap();
+    REGISTRY
+        .register(Box::new(RATE_LIMIT_REJECTED.clone()))
+        .unwrap();
+    REGISTRY
+        .register(Box::new(ACTIVE_UPSTREAM_CONNECTIONS.clone()))
+        .unwrap();
+    REGISTRY
+        .register(Box::new(UPSTREAM_POOL_REUSES_TOTAL.clone()))
+        .unwrap();
+    REGISTRY
+        .register(Box::new(UPSTREAM_STALE_RETRIES_TOTAL.clone()))
+        .unwrap();
+    REGISTRY
+        .register(Box::new(UPSTREAM_POOL_SIZE.clone()))
+        .unwrap();
+    REGISTRY
+        .register(Box::new(WASM_PLUGIN_CALLS_TOTAL.clone()))
+        .unwrap();
+    REGISTRY
+        .register(Box::new(WASM_PLUGIN_SECONDS.clone()))
+        .unwrap();
+    REGISTRY
+        .register(Box::new(WASM_MODULES_LOADED.clone()))
+        .unwrap();
+    REGISTRY
+        .register(Box::new(UPSTREAM_HEALTH_STATE.clone()))
+        .unwrap();
+    REGISTRY
+        .register(Box::new(SHARD_ACTIVE_CONNS.clone()))
+        .unwrap();
+    REGISTRY
+        .register(Box::new(SHARD_FORECAST_CONNS.clone()))
+        .unwrap();
+    REGISTRY
+        .register(Box::new(UPSTREAM_FORECAST_LOAD.clone()))
+        .unwrap();
 }
 
 // ============================================================================
@@ -384,7 +429,6 @@ fn history_snapshot() -> Vec<std::collections::VecDeque<HistPoint>> {
 const FC_SHIFT: u32 = 16;
 const FC_ONE: i64 = 1 << FC_SHIFT;
 
-
 #[repr(align(64))]
 struct FcCell {
     level: AtomicI64,
@@ -438,12 +482,8 @@ impl FcCell {
         // keeps pathological inputs inside range instead of wrapping.
         let err = (((prev_l as i128 + prev_t as i128 - s as i128).abs() * FC_ONE as i128)
             / scale as i128) as i64;
-        let a2 = a.saturating_add(
-            (((FC_ADAPT_K as i128) * (err as i128 - a as i128)) >> 3) as i64,
-        );
-        let b2 = b.saturating_add(
-            (((FC_ADAPT_K as i128) * (err as i128 - b as i128)) >> 3) as i64,
-        );
+        let a2 = a.saturating_add((((FC_ADAPT_K as i128) * (err as i128 - a as i128)) >> 3) as i64);
+        let b2 = b.saturating_add((((FC_ADAPT_K as i128) * (err as i128 - b as i128)) >> 3) as i64);
         self.level.store(level, Ordering::Relaxed);
         self.trend.store(trend, Ordering::Relaxed);
         self.alpha
@@ -509,7 +549,10 @@ fn shard_fc() -> &'static ForecastCore {
 /// Shard count is known before the counters are registered (main() knows
 /// the core count first); fall back to the registered length otherwise.
 fn num_cores_hint() -> usize {
-    NUM_SHARDS.load(Ordering::Relaxed).max(shard_counters().len()).max(1)
+    NUM_SHARDS
+        .load(Ordering::Relaxed)
+        .max(shard_counters().len())
+        .max(1)
 }
 
 /// Set once in main() before init_shard_counters so the forecast core is
@@ -541,11 +584,12 @@ struct StageAccum {
 
 impl StageAccum {
     const fn new() -> Self {
-        const Z: AtomicU64 = AtomicU64::new(0);
+        #[allow(clippy::declare_interior_mutable_const)]
+        const ZERO: AtomicU64 = AtomicU64::new(0);
         Self {
-            count: [Z; STAGE_COUNT],
-            total_ns: [Z; STAGE_COUNT],
-            ring: [Z; STAGE_COUNT * LAT_RING_CAP],
+            count: [ZERO; STAGE_COUNT],
+            total_ns: [ZERO; STAGE_COUNT],
+            ring: [ZERO; STAGE_COUNT * LAT_RING_CAP],
             idx: AtomicUsize::new(0),
         }
     }
@@ -555,8 +599,7 @@ impl StageAccum {
         self.count[stage].fetch_add(1, Ordering::Relaxed);
         self.total_ns[stage].fetch_add(ns, Ordering::Relaxed);
         let i = self.idx.fetch_add(1, Ordering::Relaxed);
-        self.ring[(stage * LAT_RING_CAP) + (i % LAT_RING_CAP)]
-            .store(ns, Ordering::Relaxed);
+        self.ring[(stage * LAT_RING_CAP) + (i % LAT_RING_CAP)].store(ns, Ordering::Relaxed);
     }
 }
 
@@ -689,8 +732,8 @@ impl TokenBucket {
         let now = Instant::now();
         let elapsed = now.duration_since(self.last_refill).as_secs_f64();
         self.last_refill = now;
-        self.tokens = (self.tokens.min(self.max_tokens) + elapsed * self.refill_rate)
-            .min(self.max_tokens);
+        self.tokens =
+            (self.tokens.min(self.max_tokens) + elapsed * self.refill_rate).min(self.max_tokens);
         if self.tokens >= 1.0 {
             self.tokens -= 1.0;
             true
@@ -757,7 +800,7 @@ impl IpRateLimiter {
                 }
             }
             let (max_tokens, refill) = self.limits();
-        buckets.insert(ip, TokenBucket::new(max_tokens, refill));
+            buckets.insert(ip, TokenBucket::new(max_tokens, refill));
         }
         // Live retune: None for fixed-policy (test) limiters, Some for the
         // global limiter so admin-panel changes reach existing buckets.
@@ -894,12 +937,7 @@ impl LeastConnectionsBalancer {
         self.connections.store(Arc::new(updated));
         // Rebuild the forecast name table + cells, preserving prior state
         // of surviving upstreams (same layout as the counters above).
-        let mut names: Vec<String> = self
-            .connections
-            .load()
-            .keys()
-            .cloned()
-            .collect();
+        let mut names: Vec<String> = self.connections.load().keys().cloned().collect();
         names.sort();
         let mut old = self.forecast.lock().unwrap();
         let mut old_cells = self.forecast_cells.lock().unwrap();
@@ -996,7 +1034,10 @@ impl LeastConnectionsBalancer {
     /// one short-lived lock only to copy the (level, trend) table out of
     /// the cell array, then pure atomic reads — no per-request map lookups
     /// with String hashing.
-    pub fn select_upstream_predictive(&self, addrs: &[String]) -> Option<(String, Arc<AtomicUsize>)> {
+    pub fn select_upstream_predictive(
+        &self,
+        addrs: &[String],
+    ) -> Option<(String, Arc<AtomicUsize>)> {
         let registry = self.connections.load();
         let names = self.forecast.lock().unwrap();
         let scores: Vec<(f64, f64)> = self
@@ -1046,10 +1087,7 @@ impl LeastConnectionsBalancer {
         } else {
             best.as_ref().map(|(_, a, _)| *a)?
         };
-        Some((
-            picked.to_string(),
-            registry.get(picked).unwrap().clone(),
-        ))
+        Some((picked.to_string(), registry.get(picked).unwrap().clone()))
     }
 
     /// Predictive selection weighted by the signature oracle's predicted
@@ -1084,7 +1122,11 @@ impl LeastConnectionsBalancer {
                     n += 1;
                 }
             }
-            if n > 0 { (sum as f64 / n as f64, true) } else { (0.0, false) }
+            if n > 0 {
+                (sum as f64 / n as f64, true)
+            } else {
+                (0.0, false)
+            }
         };
         let cost_units = if known && mean_cost > 0.0 {
             predicted_cost_ns as f64 / mean_cost
@@ -1123,10 +1165,7 @@ impl LeastConnectionsBalancer {
         } else {
             best.as_ref().map(|(_, a, _)| *a)?
         };
-        Some((
-            picked.to_string(),
-            registry.get(picked).unwrap().clone(),
-        ))
+        Some((picked.to_string(), registry.get(picked).unwrap().clone()))
     }
 }
 
@@ -1187,7 +1226,13 @@ static SIG_TABLE: OnceLock<Vec<SigSlot>> = OnceLock::new();
 const SIG_EMA_SHIFT: u32 = 3;
 
 fn sig_table() -> &'static [SigSlot] {
-    SIG_TABLE.get_or_init(|| (0..SIG_TABLE_SIZE).map(|_| SigSlot { ema_ns: AtomicU64::new(0) }).collect())
+    SIG_TABLE.get_or_init(|| {
+        (0..SIG_TABLE_SIZE)
+            .map(|_| SigSlot {
+                ema_ns: AtomicU64::new(0),
+            })
+            .collect()
+    })
 }
 
 /// Compute the u64 signature hash for a request: FNV-1a over method, the
@@ -1208,7 +1253,7 @@ pub fn request_signature_hash(method: &[u8], path: &str, body_len: usize) -> u64
     // is the whole run between slashes: "v1" stays literal (digits after a
     // letter are part of the name), "42" alone collapses to :id.
     let mut seg = Vec::with_capacity(16);
-    let mut flush_seg = |byte: &mut dyn FnMut(u8), seg: &mut Vec<u8>| {
+    let flush_seg = |byte: &mut dyn FnMut(u8), seg: &mut Vec<u8>| {
         if seg.iter().all(|&d| d.is_ascii_digit()) {
             byte(b':');
             byte(b'i');
@@ -1243,7 +1288,7 @@ pub fn request_signature_hash(method: &[u8], path: &str, body_len: usize) -> u64
     } else {
         3
     };
-    byte(b' ');  
+    byte(b' ');
     byte(class + b'0');
     h
 }
@@ -1251,16 +1296,26 @@ pub fn request_signature_hash(method: &[u8], path: &str, body_len: usize) -> u64
 /// Record the observed upstream processing time for a signature (EMA).
 fn sig_record(sig: u64, elapsed_ns: u64) {
     let slot = &sig_table()[(sig as usize) % SIG_TABLE_SIZE];
-    slot.ema_ns.fetch_update(Ordering::Relaxed, Ordering::Relaxed, |old| {
-        Some(if old == 0 { elapsed_ns } else { (old * 7 + elapsed_ns) >> SIG_EMA_SHIFT })
-    }).ok();
+    slot.ema_ns
+        .fetch_update(Ordering::Relaxed, Ordering::Relaxed, |old| {
+            Some(if old == 0 {
+                elapsed_ns
+            } else {
+                (old * 7 + elapsed_ns) >> SIG_EMA_SHIFT
+            })
+        })
+        .ok();
 }
 
 /// Predicted cost of a signature in ns; default 45 µs when unseen.
 fn sig_predict(sig: u64) -> u64 {
     let slot = &sig_table()[(sig as usize) % SIG_TABLE_SIZE];
     let v = slot.ema_ns.load(Ordering::Relaxed);
-    if v == 0 { 45_000 } else { v }
+    if v == 0 {
+        45_000
+    } else {
+        v
+    }
 }
 
 /// Global backpressure flag (see mailbox watermarks below).
@@ -1279,12 +1334,12 @@ const PENDING_CONNS_LOW: usize = 1024;
 fn update_backpressure_state(now_pending: usize) {
     if now_pending >= PENDING_CONNS_MAX {
         if !ACCEPT_BACKPRESSURE.swap(true, Ordering::AcqRel) {
-            eprintln!("🛑 Backpressure ON: {now_pending} connections queued in hand-off, accept paused");
+            eprintln!(
+                "🛑 Backpressure ON: {now_pending} connections queued in hand-off, accept paused"
+            );
         }
-    } else if now_pending < PENDING_CONNS_LOW {
-        if ACCEPT_BACKPRESSURE.swap(false, Ordering::AcqRel) {
-            eprintln!("✅ Backpressure OFF: {now_pending} pending, accept resumed");
-        }
+    } else if now_pending < PENDING_CONNS_LOW && ACCEPT_BACKPRESSURE.swap(false, Ordering::AcqRel) {
+        eprintln!("✅ Backpressure OFF: {now_pending} pending, accept resumed");
     }
 }
 
@@ -1306,7 +1361,11 @@ struct Knob {
 
 impl Knob {
     const fn new(v: u64, min: u64, max: u64) -> Self {
-        Self { value: AtomicU64::new(v), min, max }
+        Self {
+            value: AtomicU64::new(v),
+            min,
+            max,
+        }
     }
     fn get(&self) -> u64 {
         self.value.load(Ordering::Relaxed)
@@ -1359,15 +1418,19 @@ fn env_u64(name: &str, default: u64) -> u64 {
 impl RuntimeSettings {
     fn from_env() -> Self {
         Self {
-            balancer: Knob::new(
-                u64::from(balancer_mode() == "predictive"),
-                0,
-                1,
-            ),
+            balancer: Knob::new(u64::from(balancer_mode() == "predictive"), 0, 1),
             rate_limit_tokens: Knob::new(env_u64("JUGGLER_RATE_LIMIT_TOKENS", 10), 0, 1_000_000),
             rate_limit_refill: Knob::new(env_u64("JUGGLER_RATE_LIMIT_REFILL", 5), 0, 1_000_000),
-            pool_cap_per_upstream: Knob::new(env_u64("JUGGLER_UPSTREAM_POOL_PER_UPSTREAM", 512), 4, 16_384),
-            max_keepalive_requests: Knob::new(env_u64("JUGGLER_MAX_KEEPALIVE_REQUESTS", 1000), 1, 100_000_000),
+            pool_cap_per_upstream: Knob::new(
+                env_u64("JUGGLER_UPSTREAM_POOL_PER_UPSTREAM", 512),
+                4,
+                16_384,
+            ),
+            max_keepalive_requests: Knob::new(
+                env_u64("JUGGLER_MAX_KEEPALIVE_REQUESTS", 1000),
+                1,
+                100_000_000,
+            ),
             pool_idle_timeout_secs: Knob::new(60, 5, 3600),
             prewarm_floor: Knob::new(env_u64("JUGGLER_PREWARM_FLOOR", 32), 0, 4096),
             health_max_failures: Knob::new(env_u64("JUGGLER_HEALTH_MAX_FAILURES", 3), 1, 1000),
@@ -1518,7 +1581,9 @@ fn apply_settings_update(
     for (name, raw) in updates {
         match name.as_str() {
             "adaptive_prewarm" => {
-                let v = raw.as_bool().ok_or_else(|| anyhow::anyhow!("adaptive_prewarm must be bool"))?;
+                let v = raw
+                    .as_bool()
+                    .ok_or_else(|| anyhow::anyhow!("adaptive_prewarm must be bool"))?;
                 s.adaptive_prewarm.store(v, Ordering::Relaxed);
             }
             "balancer" => {
@@ -1649,6 +1714,7 @@ impl HealthTracker {
     }
 
     /// Fixed-policy constructor (unit tests): thresholds are frozen.
+    #[cfg(test)]
     fn with_policy(policy: HealthPolicy) -> Self {
         Self {
             inner: Mutex::new(HashMap::new()),
@@ -1657,9 +1723,7 @@ impl HealthTracker {
     }
 
     fn policy(&self) -> HealthPolicy {
-        self.custom_policy
-            .clone()
-            .unwrap_or_else(health_policy)
+        self.custom_policy.clone().unwrap_or_else(health_policy)
     }
 
     /// Forget stale entries: upstreams removed by the latest hot reload
@@ -1673,7 +1737,8 @@ impl HealthTracker {
         map: &'a mut HashMap<String, UpstreamHealth>,
         addr: &str,
     ) -> &'a mut UpstreamHealth {
-        map.entry(addr.to_string()).or_insert_with(UpstreamHealth::new)
+        map.entry(addr.to_string())
+            .or_insert_with(UpstreamHealth::new)
     }
 
     /// Current (lazily evaluated) health state of one upstream.
@@ -1681,7 +1746,10 @@ impl HealthTracker {
         let policy = self.policy();
         let mut map = self.inner.lock().unwrap();
         let entry = Self::entry_for(&mut map, addr);
-        if entry.state == HealthState::Unhealthy && entry.marked_at.is_some_and(|t| t.elapsed() >= policy.cooldown)
+        if entry.state == HealthState::Unhealthy
+            && entry
+                .marked_at
+                .is_some_and(|t| t.elapsed() >= policy.cooldown)
         {
             // Cooldown expired: switch to half-open and allow one probe.
             entry.state = HealthState::HalfOpen;
@@ -1705,13 +1773,21 @@ impl HealthTracker {
             (true, HealthState::HalfOpen) => {
                 // Probe succeeded: close the circuit.
                 *entry = UpstreamHealth::new();
-                UPSTREAM_HEALTH_STATE.with_label_values(&[addr, "half-open"]).set(0);
-                UPSTREAM_HEALTH_STATE.with_label_values(&[addr, "healthy"]).set(1);
+                UPSTREAM_HEALTH_STATE
+                    .with_label_values(&[addr, "half-open"])
+                    .set(0);
+                UPSTREAM_HEALTH_STATE
+                    .with_label_values(&[addr, "healthy"])
+                    .set(1);
             }
             (true, _) => {
                 if entry.state == HealthState::Unhealthy {
-                    UPSTREAM_HEALTH_STATE.with_label_values(&[addr, "unhealthy"]).set(0);
-                    UPSTREAM_HEALTH_STATE.with_label_values(&[addr, "healthy"]).set(1);
+                    UPSTREAM_HEALTH_STATE
+                        .with_label_values(&[addr, "unhealthy"])
+                        .set(0);
+                    UPSTREAM_HEALTH_STATE
+                        .with_label_values(&[addr, "healthy"])
+                        .set(1);
                 }
                 entry.consecutive_failures = 0;
                 entry.state = HealthState::Healthy;
@@ -1721,8 +1797,12 @@ impl HealthTracker {
                 entry.consecutive_failures = policy.max_failures;
                 entry.state = HealthState::Unhealthy;
                 entry.marked_at = Some(Instant::now());
-                UPSTREAM_HEALTH_STATE.with_label_values(&[addr, "half-open"]).set(0);
-                UPSTREAM_HEALTH_STATE.with_label_values(&[addr, "unhealthy"]).set(1);
+                UPSTREAM_HEALTH_STATE
+                    .with_label_values(&[addr, "half-open"])
+                    .set(0);
+                UPSTREAM_HEALTH_STATE
+                    .with_label_values(&[addr, "unhealthy"])
+                    .set(1);
             }
             (false, _) => {
                 entry.consecutive_failures += 1;
@@ -1735,7 +1815,9 @@ impl HealthTracker {
                         "🚑 upstream {addr} marked unhealthy after {} consecutive failures",
                         entry.consecutive_failures
                     );
-                    UPSTREAM_HEALTH_STATE.with_label_values(&[addr, "unhealthy"]).set(1);
+                    UPSTREAM_HEALTH_STATE
+                        .with_label_values(&[addr, "unhealthy"])
+                        .set(1);
                 }
             }
         }
@@ -1853,7 +1935,9 @@ fn wasm_registry_lock() -> std::sync::MutexGuard<'static, HashMap<String, Arc<wa
 fn load_plugin_modules(routes: &HashMap<String, RouteConfig>) {
     let mut registry = wasm_registry_lock();
     for cfg in routes.values() {
-        let Some(path) = &cfg.wasm_plugin else { continue };
+        let Some(path) = &cfg.wasm_plugin else {
+            continue;
+        };
         if registry.contains_key(path) {
             continue;
         }
@@ -1928,9 +2012,7 @@ fn host_add_header(
 
 /// The plugin asks the host to write its zero-terminated path into scratch
 /// memory and answers with the path length (path starts at PLUG_SCRATCH_PTR).
-fn host_path(
-    mut caller: wasmtime::Caller<'_, PluginCtx>,
-) -> i32 {
+fn host_path(mut caller: wasmtime::Caller<'_, PluginCtx>) -> i32 {
     let path = caller.data().path.clone();
     if path.len() > PLUG_SCRATCH_MAX {
         return -1;
@@ -1938,7 +2020,10 @@ fn host_path(
     if let Some(mem) = caller.get_export("memory").and_then(|e| e.into_memory()) {
         let mut buf = path.into_bytes();
         buf.push(0); // zero-terminated for convenience
-        if mem.write(&mut caller, PLUG_SCRATCH_PTR as usize, &buf).is_err() {
+        if mem
+            .write(&mut caller, PLUG_SCRATCH_PTR as usize, &buf)
+            .is_err()
+        {
             return -1;
         }
         return (buf.len() - 1) as i32;
@@ -1961,13 +2046,27 @@ fn invoke_plugin(
         return Err("body too large for plugin rewrite".to_string());
     }
     let engine = wasm_engine();
-    let mut store = wasmtime::Store::new(engine, PluginCtx { path: path.to_string(), headers: Vec::new() });
+    let mut store = wasmtime::Store::new(
+        engine,
+        PluginCtx {
+            path: path.to_string(),
+            headers: Vec::new(),
+        },
+    );
     store.set_fuel(PLUGIN_FUEL).map_err(|e| e.to_string())?;
     let mut linker = wasmtime::Linker::<PluginCtx>::new(engine);
-    linker.func_wrap("juggler", "alloc", host_alloc).map_err(|e| e.to_string())?;
-    linker.func_wrap("juggler", "add_header", host_add_header).map_err(|e| e.to_string())?;
-    linker.func_wrap("juggler", "path", host_path).map_err(|e| e.to_string())?;
-    let instance = linker.instantiate(&mut store, module).map_err(|e| format!("instantiate: {e:#}"))?;
+    linker
+        .func_wrap("juggler", "alloc", host_alloc)
+        .map_err(|e| e.to_string())?;
+    linker
+        .func_wrap("juggler", "add_header", host_add_header)
+        .map_err(|e| e.to_string())?;
+    linker
+        .func_wrap("juggler", "path", host_path)
+        .map_err(|e| e.to_string())?;
+    let instance = linker
+        .instantiate(&mut store, module)
+        .map_err(|e| format!("instantiate: {e:#}"))?;
 
     // Publish the request path into the plugin's linear memory.
     // get_memory / get_typed_func want `AsContextMut`: pass the store.
@@ -2077,7 +2176,10 @@ pub struct MyControlPlane {
 
 impl MyControlPlane {
     pub fn new(shared_config: Arc<ArcSwap<ServerConfig>>, routes_file: String) -> Self {
-        Self { shared_config, routes_file }
+        Self {
+            shared_config,
+            routes_file,
+        }
     }
 }
 
@@ -2101,10 +2203,8 @@ impl ControlPlane for MyControlPlane {
                 )));
             }
             let security = grpc_route.security.unwrap_or_default();
-            let response_headers: Vec<(String, String)> = security
-                .response_headers
-                .into_iter()
-                .collect();
+            let response_headers: Vec<(String, String)> =
+                security.response_headers.into_iter().collect();
             new_routes.insert(
                 path,
                 RouteConfig {
@@ -2121,8 +2221,11 @@ impl ControlPlane for MyControlPlane {
         }
 
         BALANCER.update_registry(&new_routes);
-        HEALTH
-            .retain(new_routes.values().flat_map(|r| r.upstream_addrs.iter().cloned()));
+        HEALTH.retain(
+            new_routes
+                .values()
+                .flat_map(|r| r.upstream_addrs.iter().cloned()),
+        );
         // Pick up any new site directories under the document root without
         // a restart: static routes merge over the Control Plane routes.
         let merged = merge_static_routes(&default_static_root(), new_routes);
@@ -2147,7 +2250,7 @@ impl ControlPlane for MyControlPlane {
         self.shared_config.store(Arc::new(new_config));
         // Re-warm pools for any newly added upstreams so the first real
         // requests reuse sockets instead of creating them mid-burst.
-        prewarm_upstream_pool(&self.shared_config, PREWARM_CONNECTIONS).await;
+        prewarm_upstream_pool(&self.shared_config, prewarm_target_cap()).await;
 
         println!("🔄 Config hot-reloaded via gRPC Control Plane");
         Ok(Response::new(UpdateConfigResponse {
@@ -2167,7 +2270,10 @@ fn create_tls_config() -> rustls::ServerConfig {
     if let Ok(dir) = std::env::var("JUGGLER_TLS_DIR") {
         match load_pem_pair(&dir) {
             Ok((certs, key)) => {
-                println!("🔒 TLS: loaded certificate from {} (cert.pem + key.pem)", dir);
+                println!(
+                    "🔒 TLS: loaded certificate from {} (cert.pem + key.pem)",
+                    dir
+                );
                 return build_tls_config(certs, key);
             }
             Err(e) => {
@@ -2188,11 +2294,9 @@ fn create_tls_config() -> rustls::ServerConfig {
         }
         Err(_) => {
             println!("🔒 TLS: generating new self-signed certificate (localhost, 127.0.0.1)");
-            let cert = rcgen::generate_simple_self_signed(vec![
-                "localhost".into(),
-                "127.0.0.1".into(),
-            ])
-            .expect("failed to generate self-signed certificate");
+            let cert =
+                rcgen::generate_simple_self_signed(vec!["localhost".into(), "127.0.0.1".into()])
+                    .expect("failed to generate self-signed certificate");
             let cert_pem = cert.cert.pem();
             let key_pem = cert.key_pair.serialize_pem();
             let _ = std::fs::write("cert.pem", &cert_pem); // best effort; in-memory fallback below
@@ -2206,7 +2310,10 @@ fn create_tls_config() -> rustls::ServerConfig {
     build_tls_config(certs, key)
 }
 
-fn build_tls_config(certs: Vec<CertificateDer<'static>>, key: PrivateKeyDer<'static>) -> rustls::ServerConfig {
+fn build_tls_config(
+    certs: Vec<CertificateDer<'static>>,
+    key: PrivateKeyDer<'static>,
+) -> rustls::ServerConfig {
     let mut cfg = rustls::ServerConfig::builder()
         .with_no_client_auth()
         .with_single_cert(certs, key)
@@ -2217,11 +2324,12 @@ fn build_tls_config(certs: Vec<CertificateDer<'static>>, key: PrivateKeyDer<'sta
     cfg
 }
 
-fn load_pem_pair(dir: &str) -> Result<(Vec<CertificateDer<'static>>, PrivateKeyDer<'static>), String> {
+fn load_pem_pair(
+    dir: &str,
+) -> Result<(Vec<CertificateDer<'static>>, PrivateKeyDer<'static>), String> {
     let cert_path = format!("{dir}/cert.pem");
     let key_path = format!("{dir}/key.pem");
-    let cert_pem = std::fs::read(&cert_path)
-    .map_err(|e| format!("{}: {}", cert_path, e))?;
+    let cert_pem = std::fs::read(&cert_path).map_err(|e| format!("{}: {}", cert_path, e))?;
     let key_pem = std::fs::read(&key_path).map_err(|e| format!("{}: {}", key_path, e))?;
     let mut reader = std::io::BufReader::new(&cert_pem[..]);
     let mut certs = Vec::new();
@@ -2456,7 +2564,11 @@ pub async fn handle_redirect_connection(
     }
     let data = &buf[..n];
     // Request line: METHOD SP TARGET SP VERSION
-    let head_end = data.windows(4).position(|w| w == b"\r\n\r\n").map(|p| p + 4).unwrap_or(n);
+    let head_end = data
+        .windows(4)
+        .position(|w| w == b"\r\n\r\n")
+        .map(|p| p + 4)
+        .unwrap_or(n);
     let head = std::str::from_utf8(&data[..head_end]).unwrap_or("");
     let mut lines = head.split("\r\n");
     let request_line = lines.next().unwrap_or("");
@@ -2780,8 +2892,7 @@ loadSettings();
 /// Build the full admin JSON snapshot (also reused by /api/stats).
 fn admin_stats_json() -> String {
     let shards = shard_stats_snapshot();
-    let cfg = ADMIN_CONFIG
-        .get_or_init(|| Arc::new(ArcSwap::from_pointee(ServerConfig::default())));
+    let cfg = ADMIN_CONFIG.get_or_init(|| Arc::new(ArcSwap::from_pointee(ServerConfig::default())));
     let routes: Vec<serde_json::Value> = cfg
         .load()
         .routes
@@ -2801,7 +2912,12 @@ fn admin_stats_json() -> String {
         })
         .collect();
     let mut pool_sizes = Vec::new();
-    for addr in cfg.load().routes.values().flat_map(|r| r.upstream_addrs.iter()) {
+    for addr in cfg
+        .load()
+        .routes
+        .values()
+        .flat_map(|r| r.upstream_addrs.iter())
+    {
         pool_sizes.push(serde_json::json!({"addr": addr, "idle": UPSTREAM_POOL.pooled_len(addr)}));
     }
     // Sparkline history: parallel level/forecast arrays per shard (oldest first).
@@ -2871,7 +2987,8 @@ async fn serve_admin_connection(mut stream: tokio::net::TcpStream) -> std::io::R
             .lines()
             .find_map(|l| {
                 let (k, v) = l.split_once(':')?;
-                k.trim().eq_ignore_ascii_case("content-length")
+                k.trim()
+                    .eq_ignore_ascii_case("content-length")
                     .then(|| v.trim().parse().ok())
                     .flatten()
             })
@@ -2912,7 +3029,7 @@ async fn serve_admin_connection(mut stream: tokio::net::TcpStream) -> std::io::R
             let bearer = format!("Bearer {expected}");
             data.windows(bearer.len())
                 .any(|w| w.eq_ignore_ascii_case(bearer.as_bytes()))
-    }
+        }
     };
 
     let (status, ctype, body): (u16, &str, String) = match (path_only, auth_ok) {
@@ -2978,7 +3095,15 @@ async fn serve_admin_connection(mut stream: tokio::net::TcpStream) -> std::io::R
     let response = format!(
         "HTTP/1.1 {} {}\r\nContent-Type: {}\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{}",
         status,
-        if status == 200 { "OK" } else if status == 401 { "Unauthorized" } else if status == 400 { "Bad Request" } else { "Not Found" },
+        if status == 200 {
+            "OK"
+        } else if status == 401 {
+            "Unauthorized"
+        } else if status == 400 {
+            "Bad Request"
+        } else {
+            "Not Found"
+        },
         ctype,
         body.len(),
         body
@@ -3002,18 +3127,25 @@ async fn apply_admin_config(new_cfg: ServerConfig) -> anyhow::Result<String> {
     // Static docroot routes must survive admin hot-reload exactly like they
     // survive gRPC Control Plane updates: merge over the posted routes.
     let merged_routes = merge_static_routes(&default_static_root(), new_cfg.routes);
-    let new_cfg = ServerConfig { routes: merged_routes };
-    let cfg = ADMIN_CONFIG
-        .get_or_init(|| Arc::new(ArcSwap::from_pointee(ServerConfig::default())));
+    let new_cfg = ServerConfig {
+        routes: merged_routes,
+    };
+    let cfg = ADMIN_CONFIG.get_or_init(|| Arc::new(ArcSwap::from_pointee(ServerConfig::default())));
     BALANCER.update_registry(&new_cfg.routes);
-    HEALTH
-        .retain(new_cfg.routes.values().flat_map(|r| r.upstream_addrs.iter().cloned()));
+    HEALTH.retain(
+        new_cfg
+            .routes
+            .values()
+            .flat_map(|r| r.upstream_addrs.iter().cloned()),
+    );
     let routes_file = ADMIN_ROUTES_FILE
-        .get_or_init(|| std::env::var("JUGGLER_ROUTES_FILE").unwrap_or_else(|_| "routes.json".into()))
+        .get_or_init(|| {
+            std::env::var("JUGGLER_ROUTES_FILE").unwrap_or_else(|_| "routes.json".into())
+        })
         .clone();
     persist_config(&new_cfg, &routes_file);
     cfg.store(Arc::new(new_cfg));
-    prewarm_upstream_pool(cfg, PREWARM_CONNECTIONS).await;
+    prewarm_upstream_pool(cfg, prewarm_target_cap()).await;
     Ok("{\"success\":true,\"message\":\"config hot-reloaded\"}".to_string())
 }
 
@@ -3258,12 +3390,29 @@ fn title_case_header(name: &str) -> String {
 const MAX_UPSTREAM_RESPONSE: usize = 64 * 1024 * 1024;
 const UPSTREAM_READ_TIMEOUT: Duration = Duration::from_secs(30);
 const UPSTREAM_CONNECT_TIMEOUT: Duration = Duration::from_secs(3);
+/// Writes to an upstream share the read budget: a never-writable socket
+/// (zero-window backend, black-holed peer) must not park the dispatch
+/// future forever — at 10k concurrency such parked futures pinned hundreds
+/// of in-flight slots minutes after the burst ended.
+const UPSTREAM_WRITE_TIMEOUT: Duration = Duration::from_secs(30);
 /// Idle keep-alive sockets older than this are discarded on pruning.
 // (idle socket lifetime is the live knob settings().pool_idle_timeout_secs)
 /// How often the pruning task walks the pool.
 const UPSTREAM_POOL_PRUNE_INTERVAL: Duration = Duration::from_secs(10);
 /// Idle sockets opened per upstream at startup / hot-reload (pre-warm).
 const PREWARM_CONNECTIONS: usize = 256;
+
+/// Overridable at runtime via env for capacity experiments (e.g. A/B
+/// prewarm sizing without a rebuild); the adaptive tick clamps to it too.
+fn prewarm_target_cap() -> usize {
+    static CAP: std::sync::OnceLock<usize> = std::sync::OnceLock::new();
+    *CAP.get_or_init(|| {
+        std::env::var("JUGGLER_PREWARM_TARGET_CAP")
+            .ok()
+            .and_then(|v| v.parse().ok())
+            .unwrap_or(PREWARM_CONNECTIONS)
+    })
+}
 
 /// How often the telemetry sampler folds shard counters into the Holt state.
 const SHARD_SAMPLE_INTERVAL: std::time::Duration = std::time::Duration::from_secs(2);
@@ -3284,7 +3433,7 @@ fn adaptive_prewarm_tick(config: &Arc<ArcSwap<ServerConfig>>) {
     }
     let target = (HWM.load(Ordering::Relaxed) / 2)
         .max(settings().prewarm_floor.get() as usize)
-        .min(upstream_pool_cap());
+        .min(prewarm_target_cap().min(upstream_pool_cap()));
     if target != LAST_TARGET.swap(target, Ordering::Relaxed) {
         let cfg = config.clone();
         tokio::spawn(async move {
@@ -3351,9 +3500,12 @@ pub fn detect_response_end(buf: &[u8]) -> Option<usize> {
         .filter(|&end| end <= buf.len())
 }
 
+/// Header list as parsed off the wire.
+pub type HeaderList = Vec<(String, String)>;
+
 /// Parse the head of a raw HTTP/1.1 response into (status, headers, body
 /// start offset). Returns `None` for non-HTTP garbage.
-pub fn parse_h1_response_head(raw: &[u8]) -> Option<(u16, Vec<(String, String)>, usize)> {
+pub fn parse_h1_response_head(raw: &[u8]) -> Option<(u16, HeaderList, usize)> {
     let header_end = raw.windows(4).position(|w| w == b"\r\n\r\n")?;
     let head = std::str::from_utf8(&raw[..header_end]).ok()?;
     let mut lines = head.split("\r\n");
@@ -3437,7 +3589,9 @@ fn bind_shard_listener(addr: SocketAddr) -> std::net::TcpListener {
 /// floods the Docker embedded DNS server and stalls connects (seen as
 /// `connect timeout` bursts + health flapping). nginx resolves once and
 /// caches; we do the same: one in-flight resolve per name, result shared.
-static DNS_CACHE: OnceLock<Mutex<HashMap<String, (Vec<SocketAddr>, Instant)>>> = OnceLock::new();
+type DnsCacheEntry = HashMap<String, (Vec<SocketAddr>, Instant)>;
+
+static DNS_CACHE: OnceLock<Mutex<DnsCacheEntry>> = OnceLock::new();
 const DNS_TTL: Duration = Duration::from_secs(30);
 
 async fn resolve_cached(host_port: &str) -> std::io::Result<Vec<SocketAddr>> {
@@ -3500,7 +3654,7 @@ async fn connect_upstream(addr: &str) -> std::io::Result<TcpStream> {
         .get_or_init(|| tokio::sync::Semaphore::new(upstream_connect_permits()))
         .acquire()
         .await
-        .map_err(|_| std::io::Error::new(std::io::ErrorKind::Other, "connect semaphore closed"))?;
+        .map_err(|_| std::io::Error::other("connect semaphore closed"))?;
     // Try resolved addresses in order; IP:port strings skip the cache.
     let mut last_err: Option<std::io::Error> = None;
     for a in &addrs {
@@ -3521,8 +3675,7 @@ async fn connect_upstream(addr: &str) -> std::io::Result<TcpStream> {
             }
         }
     }
-    Err(last_err
-        .unwrap_or_else(|| std::io::Error::new(std::io::ErrorKind::Other, "no addresses to connect")))
+    Err(last_err.unwrap_or_else(|| std::io::Error::other("no addresses to connect")))
 }
 
 // ----------------------------------------------------------------------------
@@ -3538,7 +3691,9 @@ struct UpstreamPool {
 
 impl UpstreamPool {
     fn new() -> Self {
-        Self { conns: std::sync::Mutex::new(HashMap::new()) }
+        Self {
+            conns: std::sync::Mutex::new(HashMap::new()),
+        }
     }
 
     /// Number of idle sockets currently pooled for `addr`.
@@ -3555,9 +3710,7 @@ impl UpstreamPool {
     fn pop(&self, addr: &str) -> Option<TcpStream> {
         let mut pools = self.conns.lock().unwrap();
         let s = pools.get_mut(addr).and_then(|v| v.pop().map(|(s, _)| s))?;
-        UPSTREAM_POOL_SIZE
-            .with_label_values(&[addr])
-            .dec();
+        UPSTREAM_POOL_SIZE.with_label_values(&[addr]).dec();
         Some(s)
     }
 
@@ -3567,9 +3720,7 @@ impl UpstreamPool {
         let pool = pools.entry(addr.to_string()).or_default();
         if pool.len() < upstream_pool_cap() {
             pool.push((s, Instant::now()));
-            UPSTREAM_POOL_SIZE
-                .with_label_values(&[addr])
-                .inc();
+            UPSTREAM_POOL_SIZE.with_label_values(&[addr]).inc();
         }
         // else: over capacity -> drop (closes the socket).
     }
@@ -3647,6 +3798,26 @@ async fn read_upstream_response_reusable(
     }
 }
 
+/// RAII guard for the in-flight upstream gauge: increments on creation,
+/// decrements on drop — including early `?` returns and future cancellation
+/// (e.g. a dispatch timeout dropping the in-progress future). The previous
+/// manual inc/dec scheme leaked on every error path and drifted the gauge
+/// permanently upward, poisoning the adaptive-prewarm HWM.
+struct InFlightGuard;
+
+impl InFlightGuard {
+    fn new() -> Self {
+        ACTIVE_UPSTREAM_CONNECTIONS.inc();
+        InFlightGuard
+    }
+}
+
+impl Drop for InFlightGuard {
+    fn drop(&mut self) {
+        ACTIVE_UPSTREAM_CONNECTIONS.dec();
+    }
+}
+
 /// One upstream attempt over the keep-alive pool. `request_is_reusable`
 /// tells whether the request body is fully framed (Content-Length present
 /// or empty body), which is a precondition for connection reuse.
@@ -3660,7 +3831,16 @@ async fn try_upstream_attempt(
     // connection is made — a single silent retry, invisible to the caller.
     if request_is_reusable {
         if let Some(mut conn) = UPSTREAM_POOL.pop(addr) {
-            match conn.write_all(raw_request).await {
+            // A never-writable pooled socket (zero-window upstream) must
+            // surface as a stale retry, not park this dispatch forever.
+            match tokio::time::timeout(UPSTREAM_WRITE_TIMEOUT, conn.write_all(raw_request))
+                .await
+                .unwrap_or_else(|_| {
+                    Err(std::io::Error::new(
+                        std::io::ErrorKind::TimedOut,
+                        "pooled upstream write timed out",
+                    ))
+                }) {
                 Ok(_) => match read_upstream_response_reusable(&mut conn).await {
                     // A healthy upstream always writes at least the head;
                     // zero bytes means the socket was closed before the
@@ -3675,20 +3855,19 @@ async fn try_upstream_attempt(
                         return finish_outcome(response);
                     }
                     Ok(_) => {
-                        ACTIVE_UPSTREAM_CONNECTIONS.dec();
                         UPSTREAM_STALE_RETRIES_TOTAL.inc();
-                        eprintln!("⚠️ pooled conn to {addr} closed before responding, retrying fresh");
+                        eprintln!(
+                            "⚠️ pooled conn to {addr} closed before responding, retrying fresh"
+                        );
                         // fall through to the fresh-connection path
                     }
                     Err(e) => {
-                        ACTIVE_UPSTREAM_CONNECTIONS.dec();
                         UPSTREAM_STALE_RETRIES_TOTAL.inc();
                         eprintln!("⚠️ pooled conn to {addr} broke, retrying fresh: {e:#}");
                         // fall through to the fresh-connection path
                     }
                 },
                 Err(e) => {
-                    ACTIVE_UPSTREAM_CONNECTIONS.dec();
                     UPSTREAM_STALE_RETRIES_TOTAL.inc();
                     eprintln!("⚠️ pooled conn to {addr} write failed, retrying fresh: {e}");
                     // fall through to the fresh-connection path
@@ -3697,11 +3876,19 @@ async fn try_upstream_attempt(
         }
     }
 
-    // Slow path: brand-new connection.
-    let mut upstream = connect_upstream(addr).await.map_err(|e| anyhow::anyhow!(e))?;
-    ACTIVE_UPSTREAM_CONNECTIONS.inc();
-    upstream.write_all(raw_request).await?;
-    upstream.flush().await?;
+    // Slow path: brand-new connection. The guard keeps the in-flight gauge
+    // exact across every exit path (success, any error via `?`, and future
+    // cancellation when the dispatch timeout drops this future).
+    let _inflight = InFlightGuard::new();
+    let mut upstream = connect_upstream(addr)
+        .await
+        .map_err(|e| anyhow::anyhow!(e))?;
+    tokio::time::timeout(UPSTREAM_WRITE_TIMEOUT, upstream.write_all(raw_request))
+        .await
+        .map_err(|_| anyhow::anyhow!("upstream write timed out"))??;
+    tokio::time::timeout(UPSTREAM_WRITE_TIMEOUT, upstream.flush())
+        .await
+        .map_err(|_| anyhow::anyhow!("upstream flush timed out"))??;
     let (response, reusable) = read_upstream_response_reusable(&mut upstream).await?;
     if reusable && request_is_reusable {
         UPSTREAM_POOL.push(addr, upstream);
@@ -3771,8 +3958,11 @@ async fn dispatch_to_upstreams(
     // Health gate: unhealthy upstreams are skipped (until their recovery
     // cooldown turns them half-open). Healthy ordering below is still
     // least-connections first, then the rest for failover.
-    let mut healthy: Vec<String> =
-        upstreams.iter().filter(|a| HEALTH.accepts(a)).cloned().collect();
+    let mut healthy: Vec<String> = upstreams
+        .iter()
+        .filter(|a| HEALTH.accepts(a))
+        .cloned()
+        .collect();
     if healthy.is_empty() {
         // All upstreams are marked unhealthy (e.g. an outage burst). Rather
         // than hard-failing while every circuit is open, let the request
@@ -3795,11 +3985,17 @@ async fn dispatch_to_upstreams(
     let picked = if settings().balancer.get() == BALANCER_PREDICTIVE && healthy.len() > 1 {
         BALANCER.select_upstream_predictive_weighted(&healthy, predicted_cost_ns)
     } else {
-        BALANCER.select_upstream_predictive(&healthy)
+        BALANCER
+            .select_upstream_predictive(&healthy)
             .or_else(|| BALANCER.select_upstream(&healthy))
             .or_else(|| {
                 healthy.first().cloned().map(|a| {
-                    let c = BALANCER.connections.load().get(&a).cloned().unwrap_or_default();
+                    let c = BALANCER
+                        .connections
+                        .load()
+                        .get(&a)
+                        .cloned()
+                        .unwrap_or_default();
                     (a, c)
                 })
             })
@@ -3896,7 +4092,12 @@ enum RouteDecision {
     NotFound,
     /// Upstream pool, WASM-rewritten body, headers injected by plugins,
     /// security response headers from the route policy.
-    Proxy(Vec<String>, Vec<u8>, Vec<(String, String)>, Vec<(String, String)>),
+    Proxy(
+        Vec<String>,
+        Vec<u8>,
+        Vec<(String, String)>,
+        Vec<(String, String)>,
+    ),
     /// File served from a route's `static_dir`. `head` is the raw response
     /// head (status line + headers, CRLF-terminated); `body` is the file
     /// content. Built by `serve_static_file`.
@@ -3972,7 +4173,7 @@ fn resolve_route(
         .iter()
         .filter(|(_, r)| r.static_dir.is_some())
         .collect();
-    static_candidates.sort_by(|a, b| b.0.len().cmp(&a.0.len()));
+    static_candidates.sort_by_key(|(prefix, _)| std::cmp::Reverse(prefix.len()));
     for (prefix, route) in static_candidates {
         let is_exact = path == prefix.as_str();
         let is_child = path.len() > prefix.len()
@@ -4123,7 +4324,12 @@ fn static_path_for(root: &str, suffix: &str) -> Option<String> {
 
 /// Build a raw HTTP/1.1 head for a static response. H2 requests get the head
 /// stripped by the caller; H1 ships it as-is.
-fn static_http_head(status_line: &str, content_type: &str, len: usize, keep_alive: bool) -> Vec<u8> {
+fn static_http_head(
+    status_line: &str,
+    content_type: &str,
+    len: usize,
+    keep_alive: bool,
+) -> Vec<u8> {
     format!(
         "HTTP/1.1 {}\r\nContent-Type: {}\r\nContent-Length: {}\r\nConnection: {}\r\n\r\n",
         status_line,
@@ -4139,11 +4345,7 @@ fn static_http_head(status_line: &str, content_type: &str, len: usize, keep_aliv
 /// 2. canonicalize — the OS resolves symlinks, so a link pointing outside
 ///    the root also fails the prefix check (nginx open-at()/chroot levels);
 /// 3. prefix-check the canonical path against the canonical root.
-fn serve_static_file(
-    root: &str,
-    suffix: &str,
-    keep_alive: bool,
-) -> RouteDecision {
+fn serve_static_file(root: &str, suffix: &str, keep_alive: bool) -> RouteDecision {
     let Some(path) = static_path_for(root, suffix) else {
         return RouteDecision::StaticFile(
             static_http_head("403 Forbidden", "text/plain; charset=utf-8", 9, keep_alive),
@@ -4178,18 +4380,13 @@ fn serve_static_file(
                 );
             }
             let ct = mime_type_of(&path);
-            RouteDecision::StaticFile(
-                static_http_head("200 OK", ct, body.len(), keep_alive),
-                body,
-            )
+            RouteDecision::StaticFile(static_http_head("200 OK", ct, body.len(), keep_alive), body)
         }
         Err(e) if e.kind() == std::io::ErrorKind::NotFound => RouteDecision::NotFound,
-        Err(e) if e.kind() == std::io::ErrorKind::PermissionDenied => {
-            RouteDecision::StaticFile(
-                static_http_head("403 Forbidden", "text/plain; charset=utf-8", 9, keep_alive),
-                b"forbidden".to_vec(),
-            )
-        }
+        Err(e) if e.kind() == std::io::ErrorKind::PermissionDenied => RouteDecision::StaticFile(
+            static_http_head("403 Forbidden", "text/plain; charset=utf-8", 9, keep_alive),
+            b"forbidden".to_vec(),
+        ),
         // A directory without a trailing slash: retry as its index.html.
         Err(e) if e.kind() == std::io::ErrorKind::IsADirectory => {
             let idx = format!("{}/index.html", path.trim_end_matches('/'));
@@ -4205,7 +4402,12 @@ fn serve_static_file(
             }
         }
         Err(_) => RouteDecision::StaticFile(
-            static_http_head("500 Internal Server Error", "text/plain; charset=utf-8", 15, keep_alive),
+            static_http_head(
+                "500 Internal Server Error",
+                "text/plain; charset=utf-8",
+                15,
+                keep_alive,
+            ),
             b"internal error".to_vec(),
         ),
     }
@@ -4249,7 +4451,10 @@ fn ensure_www_layout(root: &str) -> usize {
 /// Auto-register `/<dir>` static routes for every subdirectory of `root`.
 /// Called at startup and after every Control Plane update, so new site
 /// folders are picked up without a restart. Returns the merged route map.
-fn merge_static_routes(root: &str, mut routes: HashMap<String, RouteConfig>) -> HashMap<String, RouteConfig> {
+fn merge_static_routes(
+    root: &str,
+    mut routes: HashMap<String, RouteConfig>,
+) -> HashMap<String, RouteConfig> {
     let Ok(entries) = std::fs::read_dir(root) else {
         return routes;
     };
@@ -4298,7 +4503,9 @@ fn main() -> Result<()> {
     UPSTREAM_POOL.close_all(None);
     let shared_config = Arc::new(ArcSwap::from_pointee({
         let loaded = load_persisted_config(&routes_file).unwrap_or_default();
-        ServerConfig { routes: merge_static_routes(&www_root, loaded.routes) }
+        ServerConfig {
+            routes: merge_static_routes(&www_root, loaded.routes),
+        }
     }));
     {
         let prune_cfg = shared_config.clone();
@@ -4359,7 +4566,7 @@ fn main() -> Result<()> {
                     .build()
                     .expect("prewarm runtime");
                 rt.block_on(async {
-                    prewarm_upstream_pool(&warm_cfg, PREWARM_CONNECTIONS).await;
+                    prewarm_upstream_pool(&warm_cfg, prewarm_target_cap()).await;
                     println!("🔥 Upstream pools pre-warmed");
                 });
             })
@@ -4392,25 +4599,37 @@ fn main() -> Result<()> {
             let plain_addr: SocketAddr = plain
                 .parse()
                 .unwrap_or_else(|_| panic!("bad JUGGLER_PLAIN_HTTP_ADDR"));
-            spawn_acceptor("juggler-accept-plain", plain_addr, HandoffKind::Plain, num_cores);
+            spawn_acceptor(
+                "juggler-accept-plain",
+                plain_addr,
+                HandoffKind::Plain,
+                num_cores,
+            );
             println!("🌐 Data Plane (plain HTTP) listening on http://{plain_addr} (hand-off)");
         }
         if let Ok(redir) = std::env::var("JUGGLER_REDIRECT_HTTP") {
             let redir_addr: SocketAddr = redir
                 .parse()
                 .unwrap_or_else(|_| panic!("bad JUGGLER_REDIRECT_HTTP"));
-            spawn_acceptor("juggler-accept-redir", redir_addr, HandoffKind::Redir, num_cores);
-            println!("↪️  HTTP→HTTPS redirect listening on http://{redir_addr} → https://{http_addr}");
+            spawn_acceptor(
+                "juggler-accept-redir",
+                redir_addr,
+                HandoffKind::Redir,
+                num_cores,
+            );
+            println!(
+                "↪️  HTTP→HTTPS redirect listening on http://{redir_addr} → https://{http_addr}"
+            );
         }
-        println!("🔒 Data Plane (HTTPS) listening on https://{http_addr} (forecast hand-off accept)");
+        println!(
+            "🔒 Data Plane (HTTPS) listening on https://{http_addr} (forecast hand-off accept)"
+        );
     }
     for (i, core) in core_ids.iter().enumerate() {
         let core_id = *core;
         let shard_idx = i as u32;
         let acceptor = acceptor.clone();
         let cfg = shared_config.clone();
-        let http_addr = http_addr;
-        let grpc_addr = grpc_addr;
         let routes_file = routes_file.clone();
         let plain_addr = std::env::var("JUGGLER_PLAIN_HTTP_ADDR").ok();
         let redirect_addr = std::env::var("JUGGLER_REDIRECT_HTTP").ok();
@@ -4545,16 +4764,29 @@ fn accept_mode() -> AcceptMode {
 struct ShardMailbox {
     q: crossbeam_queue::SegQueue<(TcpStream, IpAddr)>,
     depth: AtomicUsize,
+    /// Park/unpark for the shard's drain task. SegQueue::pop() is
+    /// NON-blocking (returns None immediately) — without this the drain
+    /// loop would busy-spin at 100% CPU per shard thread, starving the
+    /// very clients and backends it serves. notify_one() stores a permit
+    /// when no one is waiting, so a push racing with park never stalls.
+    notify: tokio::sync::Notify,
 }
 
 impl ShardMailbox {
     fn new() -> Self {
-        Self { q: crossbeam_queue::SegQueue::new(), depth: AtomicUsize::new(0) }
+        Self {
+            q: crossbeam_queue::SegQueue::new(),
+            depth: AtomicUsize::new(0),
+            notify: tokio::sync::Notify::new(),
+        }
     }
 
     fn push(&self, s: TcpStream, ip: IpAddr) {
         self.q.push((s, ip));
         self.depth.fetch_add(1, Ordering::Relaxed);
+        // Wake the drain task (permit semantics make a push that races
+        // with the park-to-wait window lossless).
+        self.notify.notify_one();
         // Backpressure accounting: total queued connections across all
         // mailboxes drive the global accept pause (kernel backlog absorbs
         // the burst instead of unbounded userspace memory).
@@ -4571,6 +4803,15 @@ impl ShardMailbox {
 
     fn len_approx(&self) -> usize {
         self.depth.load(Ordering::Relaxed)
+    }
+
+    /// Park until a push signals the notifier (permit semantics: if the
+    /// notify fired while we were between pop attempts, the future below
+    /// resolves immediately). Timed: a spurious-wakeup safety net so a
+    /// lost permit can never wedge a shard forever.
+    async fn wait_for_item(&self) {
+        let _ = tokio::time::timeout(std::time::Duration::from_millis(50), self.notify.notified())
+            .await;
     }
 }
 
@@ -4618,7 +4859,10 @@ fn pick_shard(n: usize, kind: HandoffKind) -> usize {
     for i in 0..n {
         let fcst = fc.cell(i).map(|c| c.forecast()).unwrap_or(0.0);
         let qd = depth.get(i).map(|m| m.len_approx()).unwrap_or(0) as f64;
-        let act = active.get(i).map(|c| c.active_conns.load(Ordering::Relaxed)).unwrap_or(0) as f64;
+        let act = active
+            .get(i)
+            .map(|c| c.active_conns.load(Ordering::Relaxed))
+            .unwrap_or(0) as f64;
         let cost = fcst * 2.0 + qd * 4.0 + act;
         if cost < best_cost {
             best_cost = cost;
@@ -4640,12 +4884,7 @@ enum HandoffKind {
 /// socket to the chosen shard's mailbox. Runs on a dedicated small runtime
 /// thread — accept is a syscall loop, no pinning needed (the kernel spreads
 /// its IRQs; the data path stays on the shards).
-fn spawn_acceptor(
-    name: &'static str,
-    bind_addr: SocketAddr,
-    kind: HandoffKind,
-    shards: usize,
-) {
+fn spawn_acceptor(name: &'static str, bind_addr: SocketAddr, kind: HandoffKind, shards: usize) {
     let std_listener = bind_shard_listener(bind_addr);
     let rt = tokio::runtime::Builder::new_current_thread()
         .enable_all()
@@ -4688,6 +4927,7 @@ fn spawn_acceptor(
         .expect("failed to spawn acceptor thread");
 }
 
+#[allow(clippy::too_many_arguments)] // per-shard wiring; see thread spawn in main
 fn run_shard(
     shard_idx: u32,
     _shard_count: u32,
@@ -4722,12 +4962,30 @@ fn run_shard(
                         .expect("grpc runtime failed");
                     rt.block_on(async {
                         let svc = MyControlPlane::new(grpc_cfg, routes_file);
-                        if let Err(e) = Server::builder()
-                            .add_service(ControlPlaneServer::new(svc))
-                            .serve(grpc_addr)
-                            .await
-                        {
-                            eprintln!("❌ gRPC Control Plane error: {e:#}");
+                        // A transport-level failure (bind race, transient port
+                        // conflict with WSL relay etc.) must NOT kill the
+                        // control plane forever — hot-reload of routes via
+                        // gRPC is a core feature. Retry with backoff, capped.
+                        let mut attempt: u32 = 0;
+                        loop {
+                            match Server::builder()
+                                .add_service(ControlPlaneServer::new(svc.clone()))
+                                .serve(grpc_addr)
+                                .await
+                            {
+                                Ok(()) => break, // server stopped cleanly
+                                Err(e) => {
+                                    eprintln!("❌ gRPC Control Plane error: {e:#}");
+                                    attempt = attempt.saturating_add(1);
+                                    let backoff = Duration::from_millis(
+                                        500u64.saturating_mul(u64::from(attempt.min(60))),
+                                    );
+                                    eprintln!(
+                                        "🔁 retrying gRPC Control Plane bind in {backoff:?} (attempt {attempt})"
+                                    );
+                                    tokio::time::sleep(backoff).await;
+                                }
+                            }
                         }
                     });
                 })
@@ -4746,12 +5004,15 @@ fn run_shard(
                 let cfg = shared_config.clone();
                 tokio::task::spawn_local(async move {
                     loop {
-                        // pop() parks on the MPMC queue when empty — no spin,
-                        // no polling, exact wake-up on the first handed-off conn.
+                        // Pop is non-blocking; when the mailbox is empty,
+                        // park on the notifier instead of spinning — 0% CPU
+                        // idle, exact wake-up on the first handed-off conn.
                         let Some((stream, peer_ip)) =
                             handoff_plain().get(shard).and_then(|m| m.pop())
                         else {
-                            tokio::task::yield_now().await;
+                            if let Some(m) = handoff_plain().get(shard) {
+                                m.wait_for_item().await;
+                            }
                             continue;
                         };
                         let cfg = cfg.clone();
@@ -4818,7 +5079,9 @@ fn run_shard(
                         let Some((stream, peer_ip)) =
                             handoff_redir().get(shard).and_then(|m| m.pop())
                         else {
-                            tokio::task::yield_now().await;
+                            if let Some(m) = handoff_redir().get(shard) {
+                                m.wait_for_item().await;
+                            }
                             continue;
                         };
                         spawn_redirect(stream, peer_ip, shard);
@@ -4854,7 +5117,9 @@ fn run_shard(
             let shard = shard_idx as usize;
             loop {
                 let Some((stream, peer_ip)) = handoff_tls().get(shard).and_then(|m| m.pop()) else {
-                    tokio::task::yield_now().await;
+                    if let Some(m) = handoff_tls().get(shard) {
+                        m.wait_for_item().await;
+                    }
                     continue;
                 };
                 let tls = acceptor.clone();
@@ -4949,7 +5214,7 @@ max-width:720px;margin:0 auto;padding:60px 24px}
 h1{color:#4ade80}code{background:#10131c;border:1px solid #262b3a;border-radius:4px;
 padding:1px 6px}li{margin:6px 0}
 </style></head><body>
-<h1>🤹 Juggler Web Server v0.9.0</h1>
+<h1>🤹 Juggler Web Server v1.0.0</h1>
 <p>Forecast core: <b>Pythia</b> — adaptive Holt predictor + signature cost oracle (Named after the Delphic oracle).</p>
 <p>Thread-per-core HTTPS reverse proxy with sharded SO_REUSEPORT accept,
 hot-reloadable gRPC Control Plane, WASM plugin filters and passive health
@@ -4977,7 +5242,6 @@ fn max_keepalive_requests() -> usize {
 /// the same core. The `Mutex<()>` is only ever contended on cross-shard
 /// steals; the MPMC queue itself is lock-free.
 struct BufferPool {
-    cap: usize,
     q: crossbeam_queue::SegQueue<BytesMut>,
     lock: Mutex<()>,
 }
@@ -5018,7 +5282,6 @@ fn init_buf_pools(shards: usize) {
     let _ = BUF_POOLS.set(
         (0..shards.max(1))
             .map(|_| BufferPool {
-                cap: BufferPool::CAP,
                 q: crossbeam_queue::SegQueue::new(),
                 lock: Mutex::new(()),
             })
@@ -5096,7 +5359,7 @@ where
 
         record_stage(shard_idx, STAGE_ROUTE, route_t0);
 
-        match resolve_route(&path, &mut body, peer_ip, PROTO_H1, &config) {
+        match resolve_route(path, &mut body, peer_ip, PROTO_H1, &config) {
             RouteDecision::RateLimited => {
                 client
                     .write_all(&http_response(
@@ -5119,7 +5382,11 @@ where
             }
             RouteDecision::NotFound => {
                 client
-                    .write_all(&http_response("404 Not Found", "route not found", keep_alive))
+                    .write_all(&http_response(
+                        "404 Not Found",
+                        "route not found",
+                        keep_alive,
+                    ))
                     .await?;
             }
             RouteDecision::StaticFile(mut head, file_body) => {
@@ -5137,23 +5404,14 @@ where
                 // Signature oracle: hash the request pattern so the cost
                 // prediction is available to the balancer and the observed
                 // cost is fed back after dispatch.
-                let sig = request_signature_hash(
-                    req.method(&buf).as_bytes(),
-                    &path,
-                    body.len(),
-                );
-                let (result, used_upstream) =
+                let sig = request_signature_hash(req.method(&buf).as_bytes(), path, body.len());
+                let (result, _used_upstream) =
                     dispatch_to_upstreams(&forwarded, &upstreams, sig).await;
                 record_stage(shard_idx, STAGE_UPSTREAM, started);
                 let elapsed = started.elapsed().as_secs_f64();
                 HTTP_RESPONSE_SECONDS
-                    .with_label_values(&[&path])
+                    .with_label_values(&[path])
                     .observe(elapsed);
-                if let Some(addr) = &used_upstream {
-                    UPSTREAM_REQUESTS_TOTAL
-                        .with_label_values(&[addr, "ok"])
-                        .inc();
-                }
 
                 let resp_t0 = Instant::now();
                 let final_status = match result {
@@ -5189,7 +5447,7 @@ where
                     }
                 };
                 HTTP_REQUESTS_TOTAL
-                    .with_label_values(&[&path, final_status, PROTO_H1])
+                    .with_label_values(&[path, final_status, PROTO_H1])
                     .inc();
                 record_stage(shard_idx, STAGE_RESPOND, resp_t0);
             }
@@ -5198,12 +5456,34 @@ where
         // Slow-request watchdog: >1 s wall time for the whole request.
         let req_wall = parse_t0.elapsed();
         if req_wall.as_millis() > 1000 {
-            eprintln!(
-                "🐢 slow request on shard {shard_idx}: {} took {:.3}s (conn age {:.1}s)",
-                path,
-                req_wall.as_secs_f64(),
-                conn_t0.elapsed().as_secs_f64()
-            );
+            // Rate-limited watchdog: under a 10k burst nearly every request
+            // is slow for a while, and unbounded 🐢 logging itself became a
+            // datapath cost (15k lines per bench run). One line per second
+            // keeps the signal without the spam.
+            static LAST_SLOW_LOG_MS: std::sync::atomic::AtomicU64 =
+                std::sync::atomic::AtomicU64::new(0);
+            let now_ms = std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .map(|d| d.as_millis() as u64)
+                .unwrap_or(0);
+            let last = LAST_SLOW_LOG_MS.load(std::sync::atomic::Ordering::Relaxed);
+            if now_ms.saturating_sub(last) >= 1000
+                && LAST_SLOW_LOG_MS
+                    .compare_exchange(
+                        last,
+                        now_ms,
+                        std::sync::atomic::Ordering::Relaxed,
+                        std::sync::atomic::Ordering::Relaxed,
+                    )
+                    .is_ok()
+            {
+                eprintln!(
+                    "🐢 slow request on shard {shard_idx}: {} took {:.3}s (conn age {:.1}s)",
+                    path,
+                    req_wall.as_secs_f64(),
+                    conn_t0.elapsed().as_secs_f64()
+                );
+            }
         }
 
         if !keep_alive {
@@ -5244,7 +5524,10 @@ fn build_forwarded_request(
 ) -> Vec<u8> {
     let head_len = req.body_offset.min(raw.len());
     let head_end = head_len.saturating_sub(2); // keep the last header CRLF, drop the blank line
-    let extras_len: usize = extra_headers.iter().map(|(k, v)| k.len() + v.len() + 4).sum();
+    let extras_len: usize = extra_headers
+        .iter()
+        .map(|(k, v)| k.len() + v.len() + 4)
+        .sum();
     let mut out = Vec::with_capacity(head_len + body.len() + extras_len + 128);
 
     // Copy the head (without the final blank-line CRLF), rewriting the
@@ -5296,7 +5579,11 @@ fn find_header_line(head: &[u8], name: &[u8]) -> Option<(usize, usize)> {
     let mut off = 0usize;
     let mut first = true;
     while off < head.len() {
-        let end = head[off..].windows(2).position(|w| w == b"\r\n").map(|p| off + p).unwrap_or(head.len());
+        let end = head[off..]
+            .windows(2)
+            .position(|w| w == b"\r\n")
+            .map(|p| off + p)
+            .unwrap_or(head.len());
         if !first {
             let line = &head[off..end];
             if let Some(colon) = line.iter().position(|&b| b == b':') {
@@ -5326,7 +5613,10 @@ fn replace_content_length(mut raw: Vec<u8>, new_len: usize) -> Vec<u8> {
     if let Some(start) = pos {
         if let Some(end) = raw[start..].windows(2).position(|w| w == b"\r\n") {
             let replacement = format!("Content-Length: {new_len}\r\n");
-            raw.splice(start..start + end + 2, replacement.as_bytes().iter().copied());
+            raw.splice(
+                start..start + end + 2,
+                replacement.as_bytes().iter().copied(),
+            );
         }
     }
     raw
@@ -5485,8 +5775,13 @@ async fn handle_h2_request(
             } else {
                 "text/plain; charset=utf-8"
             };
-            send_h2_response(&mut respond, status, &[("content-type", ct)], Bytes::from(text))
-                .await?;
+            send_h2_response(
+                &mut respond,
+                status,
+                &[("content-type", ct)],
+                Bytes::from(text),
+            )
+            .await?;
         }
         RouteDecision::NotFound => {
             send_h2_response(
@@ -5512,8 +5807,13 @@ async fn handle_h2_request(
                         .map(|v| v.trim().to_string())
                 })
                 .unwrap_or_else(|| "application/octet-stream".to_string());
-            send_h2_response(&mut respond, status, &[("content-type", ct.as_str())],
-                Bytes::from(file_body)).await?;
+            send_h2_response(
+                &mut respond,
+                status,
+                &[("content-type", ct.as_str())],
+                Bytes::from(file_body),
+            )
+            .await?;
         }
         RouteDecision::Proxy(upstreams, body, extra_headers, security_headers) => {
             let started = Instant::now();
@@ -5524,21 +5824,11 @@ async fn handle_h2_request(
                 &body,
                 &extra_headers,
             );
-            let sig = request_signature_hash(
-                head.method.as_str().as_bytes(),
-                &path,
-                body.len(),
-            );
-            let (result, used_upstream) =
-                dispatch_to_upstreams(&forwarded, &upstreams, sig).await;
+            let sig = request_signature_hash(head.method.as_str().as_bytes(), &path, body.len());
+            let (result, _used_upstream) = dispatch_to_upstreams(&forwarded, &upstreams, sig).await;
             HTTP_RESPONSE_SECONDS
                 .with_label_values(&[&path])
                 .observe(started.elapsed().as_secs_f64());
-            if let Some(addr) = &used_upstream {
-                UPSTREAM_REQUESTS_TOTAL
-                    .with_label_values(&[addr, "ok"])
-                    .inc();
-            }
 
             let final_status = match result {
                 Ok(outcome) => {
@@ -5548,9 +5838,7 @@ async fn handle_h2_request(
                     {
                         let mut hdrs: Vec<(String, String)> = Vec::new();
                         for (k, v) in &security_headers {
-                            let exists = headers
-                                .iter()
-                                .any(|(hk, _)| hk.eq_ignore_ascii_case(k));
+                            let exists = headers.iter().any(|(hk, _)| hk.eq_ignore_ascii_case(k));
                             if !exists {
                                 hdrs.push((title_case_header(k), v.clone()));
                             }
@@ -5571,10 +5859,8 @@ async fn handle_h2_request(
                             }
                             hdrs.push((title_case_header(k), v.clone()));
                         }
-                        let hdr_refs: Vec<(&str, &str)> = hdrs
-                            .iter()
-                            .map(|(k, v)| (k.as_str(), v.as_str()))
-                            .collect();
+                        let hdr_refs: Vec<(&str, &str)> =
+                            hdrs.iter().map(|(k, v)| (k.as_str(), v.as_str())).collect();
                         let body = Bytes::copy_from_slice(&outcome.response[body_start..]);
                         send_h2_response(&mut respond, code, &hdr_refs, body).await?;
                         status_label(code)
@@ -5640,8 +5926,13 @@ pub fn build_h1_request_from_parts(
         // Hop-by-hop and framing headers must not cross the h2 -> h1 bridge.
         if matches!(
             n,
-            "connection" | "te" | "upgrade" | "transfer-encoding" | "keep-alive"
-                | "proxy-connection" | "content-length"
+            "connection"
+                | "te"
+                | "upgrade"
+                | "transfer-encoding"
+                | "keep-alive"
+                | "proxy-connection"
+                | "content-length"
         ) {
             continue;
         }
@@ -5654,14 +5945,10 @@ pub fn build_h1_request_from_parts(
             continue;
         }
         if let Ok(v) = value.to_str() {
-            out.extend_from_slice(
-                format!("{}: {}\r\n", title_case_header(n), v).as_bytes(),
-            );
+            out.extend_from_slice(format!("{}: {}\r\n", title_case_header(n), v).as_bytes());
         }
     }
-    out.extend_from_slice(
-        format!("Host: {}\r\n", host.unwrap_or("localhost")).as_bytes(),
-    );
+    out.extend_from_slice(format!("Host: {}\r\n", host.unwrap_or("localhost")).as_bytes());
     out.extend_from_slice(b"Connection: keep-alive\r\n");
     out.extend_from_slice(b"X-Forwarded-For: client\r\n");
     out.extend_from_slice(format!("X-Request-Id: req-{:x}\r\n", rand::random::<u64>()).as_bytes());
@@ -5699,8 +5986,14 @@ mod tests {
     #[test]
     fn static_path_maps_and_rejects_traversal() {
         let root = "/tmp/www/site1";
-        assert_eq!(static_path_for(root, "/"), Some(format!("{root}/index.html")));
-        assert_eq!(static_path_for(root, ""), Some(format!("{root}/index.html")));
+        assert_eq!(
+            static_path_for(root, "/"),
+            Some(format!("{root}/index.html"))
+        );
+        assert_eq!(
+            static_path_for(root, ""),
+            Some(format!("{root}/index.html"))
+        );
         assert_eq!(
             static_path_for(root, "/css/main.css"),
             Some(format!("{root}/css/main.css"))
@@ -5733,7 +6026,9 @@ mod tests {
             RouteDecision::StaticFile(h, b) => (h, b),
             other => panic!("expected StaticFile, got {other:?}"),
         };
-        assert!(String::from_utf8(head).unwrap().contains("application/json"));
+        assert!(String::from_utf8(head)
+            .unwrap()
+            .contains("application/json"));
 
         assert!(matches!(
             serve_static_file(&root, "/missing.png", true),
@@ -5765,10 +6060,7 @@ mod tests {
         std::fs::create_dir_all(tmp.join("alpha")).unwrap();
         std::fs::create_dir_all(tmp.join(".hidden")).unwrap();
         std::fs::write(tmp.join("file.txt"), b"x").unwrap();
-        let routes = merge_static_routes(
-            &tmp.to_string_lossy(),
-            HashMap::new(),
-        );
+        let routes = merge_static_routes(&tmp.to_string_lossy(), HashMap::new());
         assert_eq!(routes.len(), 1, "only visible dirs become routes");
         assert_eq!(
             routes["/alpha"].static_dir.as_deref(),
@@ -5803,7 +6095,10 @@ mod tests {
         std::thread::sleep(Duration::from_millis(10));
         assert!(b.take(None));
         assert!(b.take(None));
-        assert!(!b.take(None), "capacity cap must hold even after long refill");
+        assert!(
+            !b.take(None),
+            "capacity cap must hold even after long refill"
+        );
     }
 
     // ---- IpRateLimiter ----
@@ -5834,7 +6129,9 @@ mod tests {
     /// Legacy `(String, Vec<(String,String)>)` parser kept ONLY for the
     /// allocation benchmark below: proves the zero-copy rewrite head-to-head
     /// in one process.
-    fn parse_request_legacy(buf: &[u8]) -> Option<(String, String, String, Vec<(String, String)>, usize)> {
+    fn parse_request_legacy(
+        buf: &[u8],
+    ) -> Option<(String, String, String, Vec<(String, String)>, usize)> {
         let header_end = buf.windows(4).position(|w| w == b"\r\n\r\n")?;
         let head = std::str::from_utf8(&buf[..header_end]).ok()?;
         let mut lines = head.split("\r\n");
@@ -5919,14 +6216,10 @@ mod tests {
         let r = parse_request(b"GET / HTTP/1.0\r\n\r\n").unwrap();
         assert!(!r.wants_keep_alive(), "HTTP/1.0 defaults to close");
 
-        let r =
-            parse_request(b"GET / HTTP/1.1\r\nConnection: close\r\n\r\n").unwrap();
+        let r = parse_request(b"GET / HTTP/1.1\r\nConnection: close\r\n\r\n").unwrap();
         assert!(!r.wants_keep_alive());
 
-        let r = parse_request(
-            b"GET / HTTP/1.0\r\nConnection: keep-alive\r\n\r\n",
-        )
-        .unwrap();
+        let r = parse_request(b"GET / HTTP/1.0\r\nConnection: keep-alive\r\n\r\n").unwrap();
         assert!(r.wants_keep_alive(), "HTTP/1.0 can opt in");
     }
 
@@ -5941,7 +6234,9 @@ mod tests {
         assert!(!text.contains("Connection: close"));
 
         let patched = patch_connection_header(raw, false);
-        assert!(String::from_utf8(patched).unwrap().contains("Connection: close"));
+        assert!(String::from_utf8(patched)
+            .unwrap()
+            .contains("Connection: close"));
     }
 
     #[test]
@@ -5961,7 +6256,10 @@ mod tests {
         let raw = b"HTTP/1.0 200 OK\r\nContent-Length: 2\r\nConnection: close\r\n\r\nhi";
         let out = normalize_response_for_client(raw, true);
         let text = String::from_utf8(out).unwrap();
-        assert!(text.starts_with("HTTP/1.1 200 OK"), "version must be normalized");
+        assert!(
+            text.starts_with("HTTP/1.1 200 OK"),
+            "version must be normalized"
+        );
         assert!(text.contains("Connection: keep-alive"));
         assert!(!text.contains("Connection: close"));
 
@@ -6035,7 +6333,10 @@ mod tests {
     #[test]
     fn alpn_offers_h2_and_http11() {
         let cfg = create_tls_config();
-        assert_eq!(cfg.alpn_protocols, vec![b"h2".to_vec(), b"http/1.1".to_vec()]);
+        assert_eq!(
+            cfg.alpn_protocols,
+            vec![b"h2".to_vec(), b"http/1.1".to_vec()]
+        );
     }
 
     // ---- h2 -> h1 request encoding ----
@@ -6046,13 +6347,8 @@ mod tests {
         headers.insert("host", "example.com".parse().unwrap());
         headers.insert("user-agent", "h2-client".parse().unwrap());
         headers.insert("x-forwarded-for", "spoofed".parse().unwrap());
-        let out = build_h1_request_from_parts(
-            &http::Method::POST,
-            "/api?x=1",
-            &headers,
-            b"payload",
-            &[],
-        );
+        let out =
+            build_h1_request_from_parts(&http::Method::POST, "/api?x=1", &headers, b"payload", &[]);
         let text = String::from_utf8(out).unwrap();
         assert!(text.starts_with("POST /api?x=1 HTTP/1.1\r\n"));
         assert!(text.contains("Host: example.com"));
@@ -6140,9 +6436,7 @@ mod tests {
         drop(registry);
         a_counter.fetch_add(2, Ordering::SeqCst); // a:1 now has 2 active
 
-        let (addr2, _) = bal
-            .select_upstream(&routes["/api"].upstream_addrs)
-            .unwrap();
+        let (addr2, _) = bal.select_upstream(&routes["/api"].upstream_addrs).unwrap();
         assert_eq!(addr2, "b:1", "pick must go to the idle upstream");
     }
 
@@ -6152,7 +6446,12 @@ mod tests {
         let mut cfg1 = HashMap::new();
         cfg1.insert(
             "/api".into(),
-            RouteConfig { upstream_addrs: vec!["a:1".into()], wasm_plugin: None, security: SecurityConfig::default(), static_dir: None },
+            RouteConfig {
+                upstream_addrs: vec!["a:1".into()],
+                wasm_plugin: None,
+                security: SecurityConfig::default(),
+                static_dir: None,
+            },
         );
         bal.update_registry(&cfg1);
         let (_, c) = bal.select_upstream(&["a:1".to_string()]).unwrap();
@@ -6231,7 +6530,11 @@ mod tests {
         let mut bad = HashMap::new();
         bad.insert(
             "api".into(),
-            PbRouteConfig { upstream_addrs: vec!["x:1".into()], wasm_plugin: None, security: None },
+            PbRouteConfig {
+                upstream_addrs: vec!["x:1".into()],
+                wasm_plugin: None,
+                security: None,
+            },
         );
         assert!(cp
             .update_config(Request::new(UpdateConfigRequest { routes: bad }))
@@ -6241,7 +6544,11 @@ mod tests {
         let mut empty = HashMap::new();
         empty.insert(
             "/api".into(),
-            PbRouteConfig { upstream_addrs: vec![], wasm_plugin: None, security: None },
+            PbRouteConfig {
+                upstream_addrs: vec![],
+                wasm_plugin: None,
+                security: None,
+            },
         );
         assert!(cp
             .update_config(Request::new(UpdateConfigRequest { routes: empty }))
@@ -6255,8 +6562,7 @@ mod tests {
     fn wat_module(wat_src: &str) -> Arc<wasmtime::Module> {
         let binary = wat::parse_str(wat_src).expect("WAT parse failed");
         Arc::new(
-            wasmtime::Module::from_binary(wasm_engine(), &binary)
-                .expect("module compile failed"),
+            wasmtime::Module::from_binary(wasm_engine(), &binary).expect("module compile failed"),
         )
     }
 
@@ -6353,7 +6659,10 @@ mod tests {
         let module = wat_module(HEADER_PLUGIN);
         let mut body = b"hello".to_vec();
         let headers = run_plugin_filters(&Some(module), "/api", &mut body).unwrap();
-        assert_eq!(headers, vec![("X-Wasm-Test".to_string(), "works".to_string())]);
+        assert_eq!(
+            headers,
+            vec![("X-Wasm-Test".to_string(), "works".to_string())]
+        );
         assert_eq!(body, b"hello"); // body untouched (transform returned -1)
     }
 
@@ -6439,7 +6748,10 @@ mod tests {
     // ---- upstream health tracker ---------------------------------------
 
     fn fast_policy() -> HealthPolicy {
-        HealthPolicy { max_failures: 3, cooldown: Duration::from_millis(50) }
+        HealthPolicy {
+            max_failures: 3,
+            cooldown: Duration::from_millis(50),
+        }
     }
 
     #[test]
@@ -6450,7 +6762,10 @@ mod tests {
         t.record("a:1", false);
         assert!(t.accepts("a:1"), "below threshold must stay healthy");
         t.record("a:1", false);
-        assert!(!t.accepts("a:1"), "3rd consecutive failure must mark unhealthy");
+        assert!(
+            !t.accepts("a:1"),
+            "3rd consecutive failure must mark unhealthy"
+        );
         // A success resets the consecutive-failure counter.
         let t2 = HealthTracker::with_policy(fast_policy());
         t2.record("a:1", false);
@@ -6469,9 +6784,12 @@ mod tests {
         }
         assert!(!t.accepts("a:1"));
         std::thread::sleep(Duration::from_millis(60)); // cooldown 50ms
-        // Cooldown expired: exactly one probe request is let through...
+                                                       // Cooldown expired: exactly one probe request is let through...
         assert!(t.accepts("a:1"), "cooldown expiry must allow a probe");
-        assert!(!t.accepts("a:1"), "second request during half-open must wait");
+        assert!(
+            !t.accepts("a:1"),
+            "second request during half-open must wait"
+        );
         // ...and its failure re-opens the circuit immediately.
         t.record("a:1", false);
         assert!(!t.accepts("a:1"), "failed probe must re-open the circuit");
@@ -6495,7 +6813,10 @@ mod tests {
         t.retain(["a:1".to_string()].into_iter());
         // a:1 keeps its (unhealthy) history, b:2 is forgotten entirely.
         assert!(!t.accepts("a:1"));
-        assert!(t.accepts("b:2"), "removed upstream must be forgotten, not kept");
+        assert!(
+            t.accepts("b:2"),
+            "removed upstream must be forgotten, not kept"
+        );
     }
 
     // ---- Security layer (deny patterns + response headers) ----
@@ -6529,7 +6850,13 @@ mod tests {
     }
 
     fn sec_resolve(path: &str, body: &mut Vec<u8>) -> RouteDecision {
-        resolve_route(path, body, "203.0.113.7".parse().unwrap(), PROTO_H1, &sec_config())
+        resolve_route(
+            path,
+            body,
+            "203.0.113.7".parse().unwrap(),
+            PROTO_H1,
+            &sec_config(),
+        )
     }
 
     #[test]
@@ -6554,7 +6881,9 @@ mod tests {
         match sec_resolve("/api", &mut body) {
             RouteDecision::Proxy(_, _, _, hdrs) => {
                 assert!(hdrs.contains(&("X-Frame-Options".to_string(), "DENY".to_string())));
-                assert!(hdrs.contains(&("X-Content-Type-Options".to_string(), "nosniff".to_string())));
+                assert!(
+                    hdrs.contains(&("X-Content-Type-Options".to_string(), "nosniff".to_string()))
+                );
             }
             other => panic!("expected proxy, got {other:?}"),
         }
@@ -6568,9 +6897,15 @@ mod tests {
             &[("X-Frame-Options".to_string(), "DENY".to_string())],
         ))
         .unwrap();
-        assert!(out.contains("X-Frame-Options: DENY"), "existing value replaced: {out}");
+        assert!(
+            out.contains("X-Frame-Options: DENY"),
+            "existing value replaced: {out}"
+        );
         assert!(!out.contains("SAMEORIGIN"));
-        assert!(out.ends_with("\r\n\r\nbody"), "head/body boundary intact: {out}");
+        assert!(
+            out.ends_with("\r\n\r\nbody"),
+            "head/body boundary intact: {out}"
+        );
     }
 
     #[test]
@@ -6594,7 +6929,13 @@ mod tests {
             routes: HashMap::new(),
         }));
         let mut body = Vec::new();
-        match resolve_route("/nope", &mut body, "127.0.0.1".parse().unwrap(), PROTO_H1, &cfg) {
+        match resolve_route(
+            "/nope",
+            &mut body,
+            "127.0.0.1".parse().unwrap(),
+            PROTO_H1,
+            &cfg,
+        ) {
             RouteDecision::NotFound => {}
             other => panic!("expected NotFound, got {other:?}"),
         }
@@ -6641,8 +6982,14 @@ mod tests {
         let (level, trend) = state;
         // Holt overshoots a step input transiently (alpha*level + beta*trend
         // ringing); after 20 steps it must have settled near 10.
-        assert!((level - 10.0).abs() < 1.0, "level must converge to ~10, got {level}");
-        assert!(trend.abs() < 0.5, "flat series must have ~0 trend, got {trend}");
+        assert!(
+            (level - 10.0).abs() < 1.0,
+            "level must converge to ~10, got {level}"
+        );
+        assert!(
+            trend.abs() < 0.5,
+            "flat series must have ~0 trend, got {trend}"
+        );
     }
 
     #[test]
@@ -6651,7 +6998,11 @@ mod tests {
         for x in 0..30 {
             state = holt_forecast(state.0, state.1, x as f64);
         }
-        assert!(state.1 > 0.5, "rising series must produce positive trend, got {}", state.1);
+        assert!(
+            state.1 > 0.5,
+            "rising series must produce positive trend, got {}",
+            state.1
+        );
     }
 
     #[test]
@@ -6697,7 +7048,9 @@ mod tests {
             b.update_forecast("a:1", 30 - i);
             b.update_forecast("b:2", 1 + i);
         }
-        let (picked, _) = b.select_upstream_predictive(&["a:1".into(), "b:2".into()]).unwrap();
+        let (picked, _) = b
+            .select_upstream_predictive(&["a:1".into(), "b:2".into()])
+            .unwrap();
         assert_eq!(picked, "a:1", "falling upstream must win the forecast");
     }
 
@@ -6775,7 +7128,10 @@ mod tests {
         sig_record(sig, 10_000_000);
         let after = sig_predict(sig);
         assert!(after > pred, "slow sample must raise the EMA");
-        assert!(after < 10_000_000, "one sample must not fully replace the EMA");
+        assert!(
+            after < 10_000_000,
+            "one sample must not fully replace the EMA"
+        );
     }
 
     #[test]
@@ -6822,6 +7178,13 @@ mod tests {
     }
 
     #[test]
+    fn prewarm_target_cap_defaults_to_const() {
+        // Without the env var the cap is the compiled-in prewarm constant.
+        std::env::remove_var("JUGGLER_PREWARM_TARGET_CAP");
+        assert_eq!(prewarm_target_cap(), PREWARM_CONNECTIONS);
+    }
+
+    #[test]
     fn settings_json_contains_all_knobs() {
         let json = settings_json();
         for name in [
@@ -6849,7 +7212,9 @@ mod tests {
         b.connections.load()["a:1"].store(2, Ordering::Relaxed);
         b.connections.load()["b:2"].store(9, Ordering::Relaxed);
         // No forecast data: must behave like least-connections.
-        let (picked, _) = b.select_upstream_predictive(&["a:1".into(), "b:2".into()]).unwrap();
+        let (picked, _) = b
+            .select_upstream_predictive(&["a:1".into(), "b:2".into()])
+            .unwrap();
         assert_eq!(picked, "a:1");
     }
 }

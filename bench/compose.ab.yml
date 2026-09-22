@@ -1,0 +1,19 @@
+# A/B overlay: publish Juggler's admin API to the host so bench/run_ab.py can
+# flip runtime knobs (pool_cap_per_upstream) between arms without rebuilding.
+#   docker compose -f bench/docker-compose.bench.yml -f bench/compose.ab.yml up -d
+services:
+  juggler:
+    ports:
+      - "50051:50051"
+      - "127.0.0.1:19090:9090"
+    environment:
+      JUGGLER_ADMIN_TOKEN: "bench"
+      JUGGLER_ADMIN_ADDR: "0.0.0.0:9090"
+      # Round-2 A/B: the prewarm TARGET becomes the arm variable (64 vs 256),
+      # injected per arm via compose interpolation (AB_PREWARM_CAP env on the
+      # host); the pool itself stays at the matrix-level 4096 in both arms.
+      JUGGLER_PREWARM_TARGET_CAP: "${AB_PREWARM_CAP:-256}"
+      # Diag round: upstream fresh-connect concurrency (semaphore permits).
+      # 256 permits at c=10k serialize the ~6k cold-connect wave into
+      # ~0.4 s batches — the suspected tail-latency mechanism.
+      JUGGLER_UPSTREAM_CONNECT_CONCURRENCY: "${AB_CONNECT_PERMITS:-256}"

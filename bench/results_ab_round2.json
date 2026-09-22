@@ -1,0 +1,3265 @@
+{
+  "meta": {
+    "design": "single-variable A/B: pool_cap_per_upstream 64 vs 256, one v0.9 binary, fresh container per round",
+    "prewarm_target": "256 (compiled const; identical in both arms)",
+    "pinned": {
+      "balancer": 0,
+      "pool_idle_timeout_secs": 300,
+      "prewarm_floor": 32
+    },
+    "rounds_per_arm": 10,
+    "concurrency": [
+      100,
+      1000,
+      10000
+    ],
+    "duration": "15s",
+    "threads": 4,
+    "host": "Docker Desktop (WSL2), 12 cores / 15.9 GiB",
+    "load_tool": "wrk 4.2.0"
+  },
+  "juggler": [
+    {
+      "arm": "prewarm64",
+      "round": 1,
+      "phase": "cold",
+      "concurrency": 100,
+      "rps": 19795.93,
+      "latency_avg_ms": 6.32,
+      "percentiles_ms": {
+        "50": 3.94,
+        "75": 7.38,
+        "90": 13.4,
+        "99": 39.89
+      },
+      "errors": 5,
+      "mem_median_mib": 60.1,
+      "mem_max_mib": 60.6,
+      "ts": "07:40:29"
+    },
+    {
+      "arm": "prewarm64",
+      "round": 1,
+      "phase": "cold",
+      "concurrency": 1000,
+      "rps": 26139.56,
+      "latency_avg_ms": 40.11,
+      "percentiles_ms": {
+        "50": 31.81,
+        "75": 51.72,
+        "90": 78.51,
+        "99": 168.55
+      },
+      "errors": 0,
+      "mem_median_mib": 93.8,
+      "mem_max_mib": 94.6,
+      "ts": "07:40:45"
+    },
+    {
+      "arm": "prewarm64",
+      "round": 1,
+      "phase": "cold",
+      "concurrency": 10000,
+      "rps": 17288.02,
+      "latency_avg_ms": 491.65,
+      "percentiles_ms": {
+        "50": 335.88,
+        "75": 535.79,
+        "90": 912.11,
+        "99": 3620.0
+      },
+      "errors": 3683,
+      "mem_median_mib": 474.9,
+      "mem_max_mib": 529.7,
+      "ts": "07:41:02"
+    },
+    {
+      "arm": "prewarm64",
+      "round": 1,
+      "phase": "warm",
+      "concurrency": 100,
+      "rps": 21309.03,
+      "latency_avg_ms": 5.35,
+      "percentiles_ms": {
+        "50": 3.83,
+        "75": 6.57,
+        "90": 10.74,
+        "99": 27.88
+      },
+      "errors": 0,
+      "mem_median_mib": 168.6,
+      "mem_max_mib": 170.0,
+      "ts": "07:41:30"
+    },
+    {
+      "arm": "prewarm64",
+      "round": 1,
+      "phase": "warm",
+      "concurrency": 1000,
+      "rps": 25779.27,
+      "latency_avg_ms": 40.14,
+      "percentiles_ms": {
+        "50": 31.41,
+        "75": 51.43,
+        "90": 78.04,
+        "99": 167.7
+      },
+      "errors": 0,
+      "mem_median_mib": 199.1,
+      "mem_max_mib": 200.5,
+      "ts": "07:41:46"
+    },
+    {
+      "arm": "prewarm64",
+      "round": 1,
+      "phase": "warm",
+      "concurrency": 10000,
+      "rps": 16015.44,
+      "latency_avg_ms": 584.78,
+      "percentiles_ms": {
+        "50": 328.12,
+        "75": 811.69,
+        "90": 1430.0,
+        "99": 2710.0
+      },
+      "errors": 1789,
+      "mem_median_mib": 583.3,
+      "mem_max_mib": 604.3,
+      "ts": "07:42:03"
+    },
+    {
+      "arm": "prewarm256",
+      "round": 1,
+      "phase": "cold",
+      "concurrency": 100,
+      "rps": 20516.59,
+      "latency_avg_ms": 5.96,
+      "percentiles_ms": {
+        "50": 3.88,
+        "75": 6.98,
+        "90": 12.34,
+        "99": 36.74
+      },
+      "errors": 2,
+      "mem_median_mib": 61.6,
+      "mem_max_mib": 62.1,
+      "ts": "07:42:25"
+    },
+    {
+      "arm": "prewarm256",
+      "round": 1,
+      "phase": "cold",
+      "concurrency": 1000,
+      "rps": 23684.78,
+      "latency_avg_ms": 43.03,
+      "percentiles_ms": {
+        "50": 33.64,
+        "75": 57.69,
+        "90": 87.18,
+        "99": 176.19
+      },
+      "errors": 0,
+      "mem_median_mib": 96.1,
+      "mem_max_mib": 100.0,
+      "ts": "07:42:41"
+    },
+    {
+      "arm": "prewarm256",
+      "round": 1,
+      "phase": "cold",
+      "concurrency": 10000,
+      "rps": 18502.84,
+      "latency_avg_ms": 559.93,
+      "percentiles_ms": {
+        "50": 358.96,
+        "75": 580.45,
+        "90": 1110.0,
+        "99": 3790.0
+      },
+      "errors": 1096,
+      "mem_median_mib": 491.7,
+      "mem_max_mib": 525.8,
+      "ts": "07:42:58"
+    },
+    {
+      "arm": "prewarm256",
+      "round": 1,
+      "phase": "warm",
+      "concurrency": 100,
+      "rps": 19189.39,
+      "latency_avg_ms": 6.34,
+      "percentiles_ms": {
+        "50": 4.18,
+        "75": 7.6,
+        "90": 13.11,
+        "99": 37.04
+      },
+      "errors": 4,
+      "mem_median_mib": 184.7,
+      "mem_max_mib": 189.9,
+      "ts": "07:43:26"
+    },
+    {
+      "arm": "prewarm256",
+      "round": 1,
+      "phase": "warm",
+      "concurrency": 1000,
+      "rps": 25526.57,
+      "latency_avg_ms": 38.71,
+      "percentiles_ms": {
+        "50": 31.88,
+        "75": 50.39,
+        "90": 73.83,
+        "99": 143.5
+      },
+      "errors": 0,
+      "mem_median_mib": 214.1,
+      "mem_max_mib": 217.7,
+      "ts": "07:43:42"
+    },
+    {
+      "arm": "prewarm256",
+      "round": 1,
+      "phase": "warm",
+      "concurrency": 10000,
+      "rps": 16241.91,
+      "latency_avg_ms": 455.02,
+      "percentiles_ms": {
+        "50": 324.27,
+        "75": 551.07,
+        "90": 920.59,
+        "99": 2510.0
+      },
+      "errors": 3919,
+      "mem_median_mib": 546.7,
+      "mem_max_mib": 593.3,
+      "ts": "07:43:59"
+    },
+    {
+      "arm": "prewarm64",
+      "round": 2,
+      "phase": "cold",
+      "concurrency": 100,
+      "rps": 21298.16,
+      "latency_avg_ms": 5.54,
+      "percentiles_ms": {
+        "50": 3.75,
+        "75": 6.66,
+        "90": 11.21,
+        "99": 32.62
+      },
+      "errors": 3,
+      "mem_median_mib": 53.6,
+      "mem_max_mib": 54.1,
+      "ts": "07:46:00"
+    },
+    {
+      "arm": "prewarm64",
+      "round": 2,
+      "phase": "cold",
+      "concurrency": 1000,
+      "rps": 26633.06,
+      "latency_avg_ms": 39.04,
+      "percentiles_ms": {
+        "50": 31.11,
+        "75": 50.9,
+        "90": 76.05,
+        "99": 160.51
+      },
+      "errors": 0,
+      "mem_median_mib": 93.5,
+      "mem_max_mib": 95.0,
+      "ts": "07:46:16"
+    },
+    {
+      "arm": "prewarm64",
+      "round": 2,
+      "phase": "cold",
+      "concurrency": 10000,
+      "rps": 17904.5,
+      "latency_avg_ms": 523.62,
+      "percentiles_ms": {
+        "50": 349.62,
+        "75": 563.53,
+        "90": 984.0,
+        "99": 3580.0
+      },
+      "errors": 1945,
+      "mem_median_mib": 477.6,
+      "mem_max_mib": 521.8,
+      "ts": "07:46:33"
+    },
+    {
+      "arm": "prewarm64",
+      "round": 2,
+      "phase": "warm",
+      "concurrency": 100,
+      "rps": 21238.91,
+      "latency_avg_ms": 5.66,
+      "percentiles_ms": {
+        "50": 3.84,
+        "75": 6.66,
+        "90": 11.12,
+        "99": 35.17
+      },
+      "errors": 11,
+      "mem_median_mib": 201.4,
+      "mem_max_mib": 204.5,
+      "ts": "07:47:01"
+    },
+    {
+      "arm": "prewarm64",
+      "round": 2,
+      "phase": "warm",
+      "concurrency": 1000,
+      "rps": 25226.96,
+      "latency_avg_ms": 41.33,
+      "percentiles_ms": {
+        "50": 32.12,
+        "75": 52.84,
+        "90": 81.03,
+        "99": 177.52
+      },
+      "errors": 0,
+      "mem_median_mib": 217.6,
+      "mem_max_mib": 218.5,
+      "ts": "07:47:18"
+    },
+    {
+      "arm": "prewarm64",
+      "round": 2,
+      "phase": "warm",
+      "concurrency": 10000,
+      "rps": 12738.1,
+      "latency_avg_ms": 589.91,
+      "percentiles_ms": {
+        "50": 399.18,
+        "75": 724.11,
+        "90": 1350.0,
+        "99": 2920.0
+      },
+      "errors": 2815,
+      "mem_median_mib": 551.4,
+      "mem_max_mib": 588.1,
+      "ts": "07:47:34"
+    },
+    {
+      "arm": "prewarm256",
+      "round": 2,
+      "phase": "cold",
+      "concurrency": 100,
+      "rps": 22553.11,
+      "latency_avg_ms": 5.18,
+      "percentiles_ms": {
+        "50": 3.57,
+        "75": 6.28,
+        "90": 10.5,
+        "99": 29.32
+      },
+      "errors": 7,
+      "mem_median_mib": 68.1,
+      "mem_max_mib": 71.0,
+      "ts": "07:47:56"
+    },
+    {
+      "arm": "prewarm256",
+      "round": 2,
+      "phase": "cold",
+      "concurrency": 1000,
+      "rps": 23892.3,
+      "latency_avg_ms": 41.67,
+      "percentiles_ms": {
+        "50": 32.49,
+        "75": 55.38,
+        "90": 84.29,
+        "99": 170.62
+      },
+      "errors": 0,
+      "mem_median_mib": 103.8,
+      "mem_max_mib": 105.9,
+      "ts": "07:48:12"
+    },
+    {
+      "arm": "prewarm256",
+      "round": 2,
+      "phase": "cold",
+      "concurrency": 10000,
+      "rps": 15805.75,
+      "latency_avg_ms": 533.78,
+      "percentiles_ms": {
+        "50": 368.5,
+        "75": 625.77,
+        "90": 1020.0,
+        "99": 3310.0
+      },
+      "errors": 2628,
+      "mem_median_mib": 482.7,
+      "mem_max_mib": 520.7,
+      "ts": "07:48:29"
+    },
+    {
+      "arm": "prewarm256",
+      "round": 2,
+      "phase": "warm",
+      "concurrency": 100,
+      "rps": 21696.24,
+      "latency_avg_ms": 5.43,
+      "percentiles_ms": {
+        "50": 3.78,
+        "75": 6.52,
+        "90": 10.84,
+        "99": 30.85
+      },
+      "errors": 21,
+      "mem_median_mib": 202.4,
+      "mem_max_mib": 206.4,
+      "ts": "07:48:57"
+    },
+    {
+      "arm": "prewarm256",
+      "round": 2,
+      "phase": "warm",
+      "concurrency": 1000,
+      "rps": 24885.78,
+      "latency_avg_ms": 41.39,
+      "percentiles_ms": {
+        "50": 33.33,
+        "75": 53.63,
+        "90": 79.79,
+        "99": 164.35
+      },
+      "errors": 0,
+      "mem_median_mib": 229.1,
+      "mem_max_mib": 229.6,
+      "ts": "07:49:13"
+    },
+    {
+      "arm": "prewarm256",
+      "round": 2,
+      "phase": "warm",
+      "concurrency": 10000,
+      "rps": 12901.59,
+      "latency_avg_ms": 544.7,
+      "percentiles_ms": {
+        "50": 368.23,
+        "75": 685.7,
+        "90": 1240.0,
+        "99": 2700.0
+      },
+      "errors": 3913,
+      "mem_median_mib": 539.1,
+      "mem_max_mib": 573.1,
+      "ts": "07:49:30"
+    },
+    {
+      "arm": "prewarm64",
+      "round": 3,
+      "phase": "cold",
+      "concurrency": 100,
+      "rps": 15319.8,
+      "latency_avg_ms": 7.8,
+      "percentiles_ms": {
+        "50": 5.2,
+        "75": 9.94,
+        "90": 17.08,
+        "99": 41.35
+      },
+      "errors": 12,
+      "mem_median_mib": 53.1,
+      "mem_max_mib": 53.9,
+      "ts": "07:51:34"
+    },
+    {
+      "arm": "prewarm64",
+      "round": 3,
+      "phase": "cold",
+      "concurrency": 1000,
+      "rps": 20387.69,
+      "latency_avg_ms": 50.98,
+      "percentiles_ms": {
+        "50": 37.36,
+        "75": 64.31,
+        "90": 101.64,
+        "99": 253.55
+      },
+      "errors": 0,
+      "mem_median_mib": 93.4,
+      "mem_max_mib": 95.4,
+      "ts": "07:51:50"
+    },
+    {
+      "arm": "prewarm64",
+      "round": 3,
+      "phase": "cold",
+      "concurrency": 10000,
+      "rps": 13968.59,
+      "latency_avg_ms": 630.48,
+      "percentiles_ms": {
+        "50": 330.78,
+        "75": 847.97,
+        "90": 1470.0,
+        "99": 3740.0
+      },
+      "errors": 2565,
+      "mem_median_mib": 496.1,
+      "mem_max_mib": 520.0,
+      "ts": "07:52:07"
+    },
+    {
+      "arm": "prewarm64",
+      "round": 3,
+      "phase": "warm",
+      "concurrency": 100,
+      "rps": 16575.55,
+      "latency_avg_ms": 7.2,
+      "percentiles_ms": {
+        "50": 4.85,
+        "75": 8.96,
+        "90": 15.28,
+        "99": 39.34
+      },
+      "errors": 32,
+      "mem_median_mib": 183.3,
+      "mem_max_mib": 191.0,
+      "ts": "07:52:35"
+    },
+    {
+      "arm": "prewarm64",
+      "round": 3,
+      "phase": "warm",
+      "concurrency": 1000,
+      "rps": 21042.17,
+      "latency_avg_ms": 50.85,
+      "percentiles_ms": {
+        "50": 37.88,
+        "75": 63.99,
+        "90": 101.07,
+        "99": 241.46
+      },
+      "errors": 31,
+      "mem_median_mib": 212.4,
+      "mem_max_mib": 214.1,
+      "ts": "07:52:51"
+    },
+    {
+      "arm": "prewarm64",
+      "round": 3,
+      "phase": "warm",
+      "concurrency": 10000,
+      "rps": 12722.69,
+      "latency_avg_ms": 611.03,
+      "percentiles_ms": {
+        "50": 409.52,
+        "75": 815.11,
+        "90": 1370.0,
+        "99": 2740.0
+      },
+      "errors": 2829,
+      "mem_median_mib": 557.4,
+      "mem_max_mib": 604.1,
+      "ts": "07:53:08"
+    },
+    {
+      "arm": "prewarm256",
+      "round": 3,
+      "phase": "cold",
+      "concurrency": 100,
+      "rps": 18366.87,
+      "latency_avg_ms": 6.42,
+      "percentiles_ms": {
+        "50": 4.22,
+        "75": 7.81,
+        "90": 13.28,
+        "99": 37.88
+      },
+      "errors": 0,
+      "mem_median_mib": 59.5,
+      "mem_max_mib": 61.0,
+      "ts": "07:53:30"
+    },
+    {
+      "arm": "prewarm256",
+      "round": 3,
+      "phase": "cold",
+      "concurrency": 1000,
+      "rps": 24084.24,
+      "latency_avg_ms": 39.9,
+      "percentiles_ms": {
+        "50": 31.65,
+        "75": 54.07,
+        "90": 81.09,
+        "99": 152.1
+      },
+      "errors": 0,
+      "mem_median_mib": 94.2,
+      "mem_max_mib": 97.1,
+      "ts": "07:53:46"
+    },
+    {
+      "arm": "prewarm256",
+      "round": 3,
+      "phase": "cold",
+      "concurrency": 10000,
+      "rps": 17074.91,
+      "latency_avg_ms": 546.48,
+      "percentiles_ms": {
+        "50": 357.32,
+        "75": 623.07,
+        "90": 1160.0,
+        "99": 3340.0
+      },
+      "errors": 1698,
+      "mem_median_mib": 500.0,
+      "mem_max_mib": 519.7,
+      "ts": "07:54:03"
+    },
+    {
+      "arm": "prewarm256",
+      "round": 3,
+      "phase": "warm",
+      "concurrency": 100,
+      "rps": 18086.76,
+      "latency_avg_ms": 6.33,
+      "percentiles_ms": {
+        "50": 4.41,
+        "75": 7.95,
+        "90": 13.25,
+        "99": 32.58
+      },
+      "errors": 9,
+      "mem_median_mib": 177.7,
+      "mem_max_mib": 178.2,
+      "ts": "07:54:31"
+    },
+    {
+      "arm": "prewarm256",
+      "round": 3,
+      "phase": "warm",
+      "concurrency": 1000,
+      "rps": 24736.73,
+      "latency_avg_ms": 40.52,
+      "percentiles_ms": {
+        "50": 33.26,
+        "75": 52.96,
+        "90": 78.32,
+        "99": 151.43
+      },
+      "errors": 0,
+      "mem_median_mib": 205.0,
+      "mem_max_mib": 208.1,
+      "ts": "07:54:47"
+    },
+    {
+      "arm": "prewarm256",
+      "round": 3,
+      "phase": "warm",
+      "concurrency": 10000,
+      "rps": 13999.06,
+      "latency_avg_ms": 539.25,
+      "percentiles_ms": {
+        "50": 363.44,
+        "75": 688.22,
+        "90": 1260.0,
+        "99": 2480.0
+      },
+      "errors": 3577,
+      "mem_median_mib": 538.0,
+      "mem_max_mib": 580.9,
+      "ts": "07:55:04"
+    },
+    {
+      "arm": "prewarm64",
+      "round": 4,
+      "phase": "cold",
+      "concurrency": 100,
+      "rps": 20257.57,
+      "latency_avg_ms": 5.74,
+      "percentiles_ms": {
+        "50": 3.95,
+        "75": 7.07,
+        "90": 11.93,
+        "99": 31.29
+      },
+      "errors": 0,
+      "mem_median_mib": 55.6,
+      "mem_max_mib": 55.9,
+      "ts": "07:57:06"
+    },
+    {
+      "arm": "prewarm64",
+      "round": 4,
+      "phase": "cold",
+      "concurrency": 1000,
+      "rps": 25180.83,
+      "latency_avg_ms": 40.64,
+      "percentiles_ms": {
+        "50": 32.51,
+        "75": 52.75,
+        "90": 78.64,
+        "99": 160.21
+      },
+      "errors": 6,
+      "mem_median_mib": 91.6,
+      "mem_max_mib": 94.8,
+      "ts": "07:57:22"
+    },
+    {
+      "arm": "prewarm64",
+      "round": 4,
+      "phase": "cold",
+      "concurrency": 10000,
+      "rps": 16494.78,
+      "latency_avg_ms": 515.83,
+      "percentiles_ms": {
+        "50": 354.85,
+        "75": 583.69,
+        "90": 1030.0,
+        "99": 3320.0
+      },
+      "errors": 3215,
+      "mem_median_mib": 475.1,
+      "mem_max_mib": 529.2,
+      "ts": "07:57:39"
+    },
+    {
+      "arm": "prewarm64",
+      "round": 4,
+      "phase": "warm",
+      "concurrency": 100,
+      "rps": 21888.44,
+      "latency_avg_ms": 5.5,
+      "percentiles_ms": {
+        "50": 3.77,
+        "75": 6.46,
+        "90": 10.68,
+        "99": 33.1
+      },
+      "errors": 0,
+      "mem_median_mib": 176.8,
+      "mem_max_mib": 179.7,
+      "ts": "07:58:07"
+    },
+    {
+      "arm": "prewarm64",
+      "round": 4,
+      "phase": "warm",
+      "concurrency": 1000,
+      "rps": 23867.01,
+      "latency_avg_ms": 42.65,
+      "percentiles_ms": {
+        "50": 34.88,
+        "75": 55.85,
+        "90": 82.46,
+        "99": 157.44
+      },
+      "errors": 0,
+      "mem_median_mib": 207.2,
+      "mem_max_mib": 209.8,
+      "ts": "07:58:23"
+    },
+    {
+      "arm": "prewarm64",
+      "round": 4,
+      "phase": "warm",
+      "concurrency": 10000,
+      "rps": 11812.43,
+      "latency_avg_ms": 547.15,
+      "percentiles_ms": {
+        "50": 306.8,
+        "75": 719.6,
+        "90": 1370.0,
+        "99": 2840.0
+      },
+      "errors": 3630,
+      "mem_median_mib": 516.6,
+      "mem_max_mib": 564.1,
+      "ts": "07:58:40"
+    },
+    {
+      "arm": "prewarm256",
+      "round": 4,
+      "phase": "cold",
+      "concurrency": 100,
+      "rps": 20597.02,
+      "latency_avg_ms": 5.62,
+      "percentiles_ms": {
+        "50": 3.87,
+        "75": 6.82,
+        "90": 11.37,
+        "99": 31.58
+      },
+      "errors": 7,
+      "mem_median_mib": 57.8,
+      "mem_max_mib": 58.9,
+      "ts": "07:59:02"
+    },
+    {
+      "arm": "prewarm256",
+      "round": 4,
+      "phase": "cold",
+      "concurrency": 1000,
+      "rps": 23595.63,
+      "latency_avg_ms": 42.09,
+      "percentiles_ms": {
+        "50": 32.74,
+        "75": 55.86,
+        "90": 83.91,
+        "99": 178.54
+      },
+      "errors": 0,
+      "mem_median_mib": 96.8,
+      "mem_max_mib": 97.8,
+      "ts": "07:59:18"
+    },
+    {
+      "arm": "prewarm256",
+      "round": 4,
+      "phase": "cold",
+      "concurrency": 10000,
+      "rps": 14100.77,
+      "latency_avg_ms": 651.32,
+      "percentiles_ms": {
+        "50": 385.27,
+        "75": 747.22,
+        "90": 1560.0,
+        "99": 3700.0
+      },
+      "errors": 2352,
+      "mem_median_mib": 512.6,
+      "mem_max_mib": 547.3,
+      "ts": "07:59:35"
+    },
+    {
+      "arm": "prewarm256",
+      "round": 4,
+      "phase": "warm",
+      "concurrency": 100,
+      "rps": 20438.67,
+      "latency_avg_ms": 5.62,
+      "percentiles_ms": {
+        "50": 3.98,
+        "75": 6.91,
+        "90": 11.38,
+        "99": 30.24
+      },
+      "errors": 53,
+      "mem_median_mib": 199.4,
+      "mem_max_mib": 206.8,
+      "ts": "08:00:03"
+    },
+    {
+      "arm": "prewarm256",
+      "round": 4,
+      "phase": "warm",
+      "concurrency": 1000,
+      "rps": 23837.7,
+      "latency_avg_ms": 42.37,
+      "percentiles_ms": {
+        "50": 34.08,
+        "75": 55.12,
+        "90": 82.0,
+        "99": 167.91
+      },
+      "errors": 0,
+      "mem_median_mib": 215.1,
+      "mem_max_mib": 217.5,
+      "ts": "08:00:19"
+    },
+    {
+      "arm": "prewarm256",
+      "round": 4,
+      "phase": "warm",
+      "concurrency": 10000,
+      "rps": 12423.76,
+      "latency_avg_ms": 665.71,
+      "percentiles_ms": {
+        "50": 322.07,
+        "75": 1030.0,
+        "90": 1650.0,
+        "99": 3170.0
+      },
+      "errors": 1770,
+      "mem_median_mib": 743.5,
+      "mem_max_mib": 772.9,
+      "ts": "08:00:35"
+    },
+    {
+      "arm": "prewarm64",
+      "round": 5,
+      "phase": "cold",
+      "concurrency": 100,
+      "rps": 18018.65,
+      "latency_avg_ms": 6.73,
+      "percentiles_ms": {
+        "50": 4.32,
+        "75": 8.24,
+        "90": 14.61,
+        "99": 38.85
+      },
+      "errors": 0,
+      "mem_median_mib": 56.5,
+      "mem_max_mib": 58.5,
+      "ts": "08:02:38"
+    },
+    {
+      "arm": "prewarm64",
+      "round": 5,
+      "phase": "cold",
+      "concurrency": 1000,
+      "rps": 26186.36,
+      "latency_avg_ms": 38.85,
+      "percentiles_ms": {
+        "50": 31.7,
+        "75": 51.29,
+        "90": 75.58,
+        "99": 146.47
+      },
+      "errors": 0,
+      "mem_median_mib": 93.6,
+      "mem_max_mib": 94.8,
+      "ts": "08:02:54"
+    },
+    {
+      "arm": "prewarm64",
+      "round": 5,
+      "phase": "cold",
+      "concurrency": 10000,
+      "rps": 18499.75,
+      "latency_avg_ms": 500.91,
+      "percentiles_ms": {
+        "50": 369.73,
+        "75": 562.05,
+        "90": 918.3,
+        "99": 3260.0
+      },
+      "errors": 2227,
+      "mem_median_mib": 473.9,
+      "mem_max_mib": 498.9,
+      "ts": "08:03:11"
+    },
+    {
+      "arm": "prewarm64",
+      "round": 5,
+      "phase": "warm",
+      "concurrency": 100,
+      "rps": 17331.07,
+      "latency_avg_ms": 6.94,
+      "percentiles_ms": {
+        "50": 4.55,
+        "75": 8.55,
+        "90": 14.8,
+        "99": 39.65
+      },
+      "errors": 0,
+      "mem_median_mib": 151.4,
+      "mem_max_mib": 154.8,
+      "ts": "08:03:39"
+    },
+    {
+      "arm": "prewarm64",
+      "round": 5,
+      "phase": "warm",
+      "concurrency": 1000,
+      "rps": 25226.74,
+      "latency_avg_ms": 41.52,
+      "percentiles_ms": {
+        "50": 33.29,
+        "75": 53.71,
+        "90": 80.1,
+        "99": 170.69
+      },
+      "errors": 0,
+      "mem_median_mib": 183.5,
+      "mem_max_mib": 186.7,
+      "ts": "08:03:55"
+    },
+    {
+      "arm": "prewarm64",
+      "round": 5,
+      "phase": "warm",
+      "concurrency": 10000,
+      "rps": 13310.64,
+      "latency_avg_ms": 527.07,
+      "percentiles_ms": {
+        "50": 307.7,
+        "75": 708.31,
+        "90": 1330.0,
+        "99": 2870.0
+      },
+      "errors": 3413,
+      "mem_median_mib": 493.5,
+      "mem_max_mib": 522.8,
+      "ts": "08:04:12"
+    },
+    {
+      "arm": "prewarm256",
+      "round": 5,
+      "phase": "cold",
+      "concurrency": 100,
+      "rps": 18942.42,
+      "latency_avg_ms": 6.08,
+      "percentiles_ms": {
+        "50": 4.28,
+        "75": 7.62,
+        "90": 12.56,
+        "99": 31.68
+      },
+      "errors": 3,
+      "mem_median_mib": 58.4,
+      "mem_max_mib": 61.0,
+      "ts": "08:04:34"
+    },
+    {
+      "arm": "prewarm256",
+      "round": 5,
+      "phase": "cold",
+      "concurrency": 1000,
+      "rps": 22836.78,
+      "latency_avg_ms": 43.09,
+      "percentiles_ms": {
+        "50": 34.5,
+        "75": 57.75,
+        "90": 85.31,
+        "99": 168.42
+      },
+      "errors": 0,
+      "mem_median_mib": 96.2,
+      "mem_max_mib": 97.8,
+      "ts": "08:04:50"
+    },
+    {
+      "arm": "prewarm256",
+      "round": 5,
+      "phase": "cold",
+      "concurrency": 10000,
+      "rps": 18256.99,
+      "latency_avg_ms": 486.99,
+      "percentiles_ms": {
+        "50": 343.38,
+        "75": 553.74,
+        "90": 877.89,
+        "99": 3490.0
+      },
+      "errors": 2704,
+      "mem_median_mib": 478.5,
+      "mem_max_mib": 498.3,
+      "ts": "08:05:06"
+    },
+    {
+      "arm": "prewarm256",
+      "round": 5,
+      "phase": "warm",
+      "concurrency": 100,
+      "rps": 18787.72,
+      "latency_avg_ms": 6.26,
+      "percentiles_ms": {
+        "50": 4.27,
+        "75": 7.71,
+        "90": 13.07,
+        "99": 34.9
+      },
+      "errors": 18,
+      "mem_median_mib": 177.1,
+      "mem_max_mib": 179.1,
+      "ts": "08:05:35"
+    },
+    {
+      "arm": "prewarm256",
+      "round": 5,
+      "phase": "warm",
+      "concurrency": 1000,
+      "rps": 25344.76,
+      "latency_avg_ms": 41.7,
+      "percentiles_ms": {
+        "50": 31.77,
+        "75": 53.13,
+        "90": 83.17,
+        "99": 186.0
+      },
+      "errors": 0,
+      "mem_median_mib": 205.4,
+      "mem_max_mib": 206.1,
+      "ts": "08:05:51"
+    },
+    {
+      "arm": "prewarm256",
+      "round": 5,
+      "phase": "warm",
+      "concurrency": 10000,
+      "rps": 14211.36,
+      "latency_avg_ms": 550.15,
+      "percentiles_ms": {
+        "50": 357.08,
+        "75": 694.5,
+        "90": 1260.0,
+        "99": 2830.0
+      },
+      "errors": 3149,
+      "mem_median_mib": 515.9,
+      "mem_max_mib": 554.6,
+      "ts": "08:06:07"
+    },
+    {
+      "arm": "prewarm64",
+      "round": 6,
+      "phase": "cold",
+      "concurrency": 100,
+      "rps": 20982.34,
+      "latency_avg_ms": 5.7,
+      "percentiles_ms": {
+        "50": 3.81,
+        "75": 6.84,
+        "90": 11.66,
+        "99": 33.62
+      },
+      "errors": 0,
+      "mem_median_mib": 55.8,
+      "mem_max_mib": 57.0,
+      "ts": "08:08:09"
+    },
+    {
+      "arm": "prewarm64",
+      "round": 6,
+      "phase": "cold",
+      "concurrency": 1000,
+      "rps": 26263.32,
+      "latency_avg_ms": 38.72,
+      "percentiles_ms": {
+        "50": 31.04,
+        "75": 50.71,
+        "90": 76.24,
+        "99": 152.48
+      },
+      "errors": 0,
+      "mem_median_mib": 93.4,
+      "mem_max_mib": 95.1,
+      "ts": "08:08:25"
+    },
+    {
+      "arm": "prewarm64",
+      "round": 6,
+      "phase": "cold",
+      "concurrency": 10000,
+      "rps": 13379.26,
+      "latency_avg_ms": 603.96,
+      "percentiles_ms": {
+        "50": 319.63,
+        "75": 812.71,
+        "90": 1480.0,
+        "99": 3460.0
+      },
+      "errors": 3018,
+      "mem_median_mib": 438.2,
+      "mem_max_mib": 472.6,
+      "ts": "08:08:42"
+    },
+    {
+      "arm": "prewarm64",
+      "round": 6,
+      "phase": "warm",
+      "concurrency": 100,
+      "rps": 20598.9,
+      "latency_avg_ms": 5.5,
+      "percentiles_ms": {
+        "50": 3.97,
+        "75": 6.86,
+        "90": 11.15,
+        "99": 27.42
+      },
+      "errors": 0,
+      "mem_median_mib": 157.8,
+      "mem_max_mib": 163.8,
+      "ts": "08:09:10"
+    },
+    {
+      "arm": "prewarm64",
+      "round": 6,
+      "phase": "warm",
+      "concurrency": 1000,
+      "rps": 25615.97,
+      "latency_avg_ms": 40.63,
+      "percentiles_ms": {
+        "50": 32.96,
+        "75": 52.7,
+        "90": 77.95,
+        "99": 160.18
+      },
+      "errors": 0,
+      "mem_median_mib": 179.9,
+      "mem_max_mib": 180.6,
+      "ts": "08:09:26"
+    },
+    {
+      "arm": "prewarm64",
+      "round": 6,
+      "phase": "warm",
+      "concurrency": 10000,
+      "rps": 12315.6,
+      "latency_avg_ms": 671.93,
+      "percentiles_ms": {
+        "50": 402.82,
+        "75": 945.89,
+        "90": 1610.0,
+        "99": 3000.0
+      },
+      "errors": 2025,
+      "mem_median_mib": 502.1,
+      "mem_max_mib": 526.3,
+      "ts": "08:09:43"
+    },
+    {
+      "arm": "prewarm256",
+      "round": 6,
+      "phase": "cold",
+      "concurrency": 100,
+      "rps": 21421.99,
+      "latency_avg_ms": 5.39,
+      "percentiles_ms": {
+        "50": 3.76,
+        "75": 6.54,
+        "90": 10.8,
+        "99": 30.27
+      },
+      "errors": 0,
+      "mem_median_mib": 69.8,
+      "mem_max_mib": 72.2,
+      "ts": "08:10:04"
+    },
+    {
+      "arm": "prewarm256",
+      "round": 6,
+      "phase": "cold",
+      "concurrency": 1000,
+      "rps": 23635.94,
+      "latency_avg_ms": 41.8,
+      "percentiles_ms": {
+        "50": 33.63,
+        "75": 54.9,
+        "90": 81.21,
+        "99": 167.98
+      },
+      "errors": 0,
+      "mem_median_mib": 103.2,
+      "mem_max_mib": 105.3,
+      "ts": "08:10:20"
+    },
+    {
+      "arm": "prewarm256",
+      "round": 6,
+      "phase": "cold",
+      "concurrency": 10000,
+      "rps": 16115.32,
+      "latency_avg_ms": 607.84,
+      "percentiles_ms": {
+        "50": 367.91,
+        "75": 702.0,
+        "90": 1420.0,
+        "99": 3680.0
+      },
+      "errors": 2369,
+      "mem_median_mib": 481.5,
+      "mem_max_mib": 538.3,
+      "ts": "08:10:37"
+    },
+    {
+      "arm": "prewarm256",
+      "round": 6,
+      "phase": "warm",
+      "concurrency": 100,
+      "rps": 22123.1,
+      "latency_avg_ms": 5.12,
+      "percentiles_ms": {
+        "50": 3.73,
+        "75": 6.25,
+        "90": 9.97,
+        "99": 26.72
+      },
+      "errors": 27,
+      "mem_median_mib": 182.4,
+      "mem_max_mib": 184.5,
+      "ts": "08:11:05"
+    },
+    {
+      "arm": "prewarm256",
+      "round": 6,
+      "phase": "warm",
+      "concurrency": 1000,
+      "rps": 24991.38,
+      "latency_avg_ms": 41.26,
+      "percentiles_ms": {
+        "50": 31.81,
+        "75": 52.84,
+        "90": 82.22,
+        "99": 181.06
+      },
+      "errors": 0,
+      "mem_median_mib": 207.8,
+      "mem_max_mib": 212.5,
+      "ts": "08:11:21"
+    },
+    {
+      "arm": "prewarm256",
+      "round": 6,
+      "phase": "warm",
+      "concurrency": 10000,
+      "rps": 11966.21,
+      "latency_avg_ms": 651.1,
+      "percentiles_ms": {
+        "50": 411.39,
+        "75": 877.51,
+        "90": 1560.0,
+        "99": 2720.0
+      },
+      "errors": 2557,
+      "mem_median_mib": 543.4,
+      "mem_max_mib": 576.2,
+      "ts": "08:11:38"
+    },
+    {
+      "arm": "prewarm64",
+      "round": 7,
+      "phase": "cold",
+      "concurrency": 100,
+      "rps": 17392.37,
+      "latency_avg_ms": 6.64,
+      "percentiles_ms": {
+        "50": 4.55,
+        "75": 8.42,
+        "90": 14.16,
+        "99": 34.53
+      },
+      "errors": 0,
+      "mem_median_mib": 58.3,
+      "mem_max_mib": 59.1,
+      "ts": "08:13:41"
+    },
+    {
+      "arm": "prewarm64",
+      "round": 7,
+      "phase": "cold",
+      "concurrency": 1000,
+      "rps": 25491.1,
+      "latency_avg_ms": 39.96,
+      "percentiles_ms": {
+        "50": 31.24,
+        "75": 51.08,
+        "90": 77.78,
+        "99": 171.11
+      },
+      "errors": 0,
+      "mem_median_mib": 95.2,
+      "mem_max_mib": 96.0,
+      "ts": "08:13:57"
+    },
+    {
+      "arm": "prewarm64",
+      "round": 7,
+      "phase": "cold",
+      "concurrency": 10000,
+      "rps": 18195.09,
+      "latency_avg_ms": 557.19,
+      "percentiles_ms": {
+        "50": 348.4,
+        "75": 626.17,
+        "90": 1200.0,
+        "99": 3510.0
+      },
+      "errors": 1195,
+      "mem_median_mib": 459.5,
+      "mem_max_mib": 484.4,
+      "ts": "08:14:14"
+    },
+    {
+      "arm": "prewarm64",
+      "round": 7,
+      "phase": "warm",
+      "concurrency": 100,
+      "rps": 18616.84,
+      "latency_avg_ms": 6.32,
+      "percentiles_ms": {
+        "50": 4.3,
+        "75": 7.82,
+        "90": 13.35,
+        "99": 33.8
+      },
+      "errors": 0,
+      "mem_median_mib": 161.3,
+      "mem_max_mib": 163.8,
+      "ts": "08:14:42"
+    },
+    {
+      "arm": "prewarm64",
+      "round": 7,
+      "phase": "warm",
+      "concurrency": 1000,
+      "rps": 22772.57,
+      "latency_avg_ms": 46.15,
+      "percentiles_ms": {
+        "50": 36.32,
+        "75": 60.14,
+        "90": 90.95,
+        "99": 188.73
+      },
+      "errors": 0,
+      "mem_median_mib": 184.2,
+      "mem_max_mib": 185.5,
+      "ts": "08:14:58"
+    },
+    {
+      "arm": "prewarm64",
+      "round": 7,
+      "phase": "warm",
+      "concurrency": 10000,
+      "rps": 15487.8,
+      "latency_avg_ms": 508.86,
+      "percentiles_ms": {
+        "50": 329.2,
+        "75": 574.4,
+        "90": 1070.0,
+        "99": 3220.0
+      },
+      "errors": 3115,
+      "mem_median_mib": 507.8,
+      "mem_max_mib": 541.6,
+      "ts": "08:15:15"
+    },
+    {
+      "arm": "prewarm256",
+      "round": 7,
+      "phase": "cold",
+      "concurrency": 100,
+      "rps": 17832.61,
+      "latency_avg_ms": 7.04,
+      "percentiles_ms": {
+        "50": 4.2,
+        "75": 8.66,
+        "90": 16.04,
+        "99": 41.46
+      },
+      "errors": 0,
+      "mem_median_mib": 56.1,
+      "mem_max_mib": 58.5,
+      "ts": "08:15:37"
+    },
+    {
+      "arm": "prewarm256",
+      "round": 7,
+      "phase": "cold",
+      "concurrency": 1000,
+      "rps": 23696.95,
+      "latency_avg_ms": 41.2,
+      "percentiles_ms": {
+        "50": 30.96,
+        "75": 55.18,
+        "90": 86.28,
+        "99": 173.06
+      },
+      "errors": 0,
+      "mem_median_mib": 94.6,
+      "mem_max_mib": 95.7,
+      "ts": "08:15:53"
+    },
+    {
+      "arm": "prewarm256",
+      "round": 7,
+      "phase": "cold",
+      "concurrency": 10000,
+      "rps": 18573.69,
+      "latency_avg_ms": 579.04,
+      "percentiles_ms": {
+        "50": 322.48,
+        "75": 594.26,
+        "90": 1300.0,
+        "99": 3910.0
+      },
+      "errors": 1172,
+      "mem_median_mib": 460.6,
+      "mem_max_mib": 508.5,
+      "ts": "08:16:10"
+    },
+    {
+      "arm": "prewarm256",
+      "round": 7,
+      "phase": "warm",
+      "concurrency": 100,
+      "rps": 18906.56,
+      "latency_avg_ms": 6.13,
+      "percentiles_ms": {
+        "50": 4.27,
+        "75": 7.69,
+        "90": 12.76,
+        "99": 31.96
+      },
+      "errors": 0,
+      "mem_median_mib": 175.1,
+      "mem_max_mib": 175.6,
+      "ts": "08:16:38"
+    },
+    {
+      "arm": "prewarm256",
+      "round": 7,
+      "phase": "warm",
+      "concurrency": 1000,
+      "rps": 25214.01,
+      "latency_avg_ms": 41.41,
+      "percentiles_ms": {
+        "50": 32.21,
+        "75": 52.99,
+        "90": 81.22,
+        "99": 178.17
+      },
+      "errors": 0,
+      "mem_median_mib": 194.6,
+      "mem_max_mib": 196.4,
+      "ts": "08:16:54"
+    },
+    {
+      "arm": "prewarm256",
+      "round": 7,
+      "phase": "warm",
+      "concurrency": 10000,
+      "rps": 14540.95,
+      "latency_avg_ms": 495.85,
+      "percentiles_ms": {
+        "50": 306.46,
+        "75": 571.35,
+        "90": 1230.0,
+        "99": 2880.0
+      },
+      "errors": 5016,
+      "mem_median_mib": 503.1,
+      "mem_max_mib": 528.3,
+      "ts": "08:17:11"
+    },
+    {
+      "arm": "prewarm64",
+      "round": 8,
+      "phase": "cold",
+      "concurrency": 100,
+      "rps": 21070.94,
+      "latency_avg_ms": 5.63,
+      "percentiles_ms": {
+        "50": 3.8,
+        "75": 6.72,
+        "90": 11.32,
+        "99": 33.7
+      },
+      "errors": 0,
+      "mem_median_mib": 57.6,
+      "mem_max_mib": 59.5,
+      "ts": "08:19:14"
+    },
+    {
+      "arm": "prewarm64",
+      "round": 8,
+      "phase": "cold",
+      "concurrency": 1000,
+      "rps": 25350.11,
+      "latency_avg_ms": 40.04,
+      "percentiles_ms": {
+        "50": 33.03,
+        "75": 52.54,
+        "90": 76.64,
+        "99": 144.52
+      },
+      "errors": 0,
+      "mem_median_mib": 97.6,
+      "mem_max_mib": 99.0,
+      "ts": "08:19:30"
+    },
+    {
+      "arm": "prewarm64",
+      "round": 8,
+      "phase": "cold",
+      "concurrency": 10000,
+      "rps": 16477.7,
+      "latency_avg_ms": 567.49,
+      "percentiles_ms": {
+        "50": 348.21,
+        "75": 608.94,
+        "90": 1220.0,
+        "99": 3820.0
+      },
+      "errors": 2589,
+      "mem_median_mib": 418.8,
+      "mem_max_mib": 475.5,
+      "ts": "08:19:47"
+    },
+    {
+      "arm": "prewarm64",
+      "round": 8,
+      "phase": "warm",
+      "concurrency": 100,
+      "rps": 21493.19,
+      "latency_avg_ms": 5.78,
+      "percentiles_ms": {
+        "50": 3.82,
+        "75": 6.55,
+        "90": 10.94,
+        "99": 40.57
+      },
+      "errors": 0,
+      "mem_median_mib": 146.9,
+      "mem_max_mib": 147.3,
+      "ts": "08:20:15"
+    },
+    {
+      "arm": "prewarm64",
+      "round": 8,
+      "phase": "warm",
+      "concurrency": 1000,
+      "rps": 24479.57,
+      "latency_avg_ms": 43.9,
+      "percentiles_ms": {
+        "50": 33.23,
+        "75": 55.7,
+        "90": 87.09,
+        "99": 202.18
+      },
+      "errors": 8,
+      "mem_median_mib": 169.0,
+      "mem_max_mib": 169.9,
+      "ts": "08:20:31"
+    },
+    {
+      "arm": "prewarm64",
+      "round": 8,
+      "phase": "warm",
+      "concurrency": 10000,
+      "rps": 14487.81,
+      "latency_avg_ms": 517.91,
+      "percentiles_ms": {
+        "50": 347.2,
+        "75": 634.2,
+        "90": 1090.0,
+        "99": 2890.0
+      },
+      "errors": 2912,
+      "mem_median_mib": 499.8,
+      "mem_max_mib": 532.8,
+      "ts": "08:20:48"
+    },
+    {
+      "arm": "prewarm256",
+      "round": 8,
+      "phase": "cold",
+      "concurrency": 100,
+      "rps": 21097.83,
+      "latency_avg_ms": 5.37,
+      "percentiles_ms": {
+        "50": 3.84,
+        "75": 6.59,
+        "90": 10.55,
+        "99": 29.55
+      },
+      "errors": 0,
+      "mem_median_mib": 66.9,
+      "mem_max_mib": 67.1,
+      "ts": "08:21:10"
+    },
+    {
+      "arm": "prewarm256",
+      "round": 8,
+      "phase": "cold",
+      "concurrency": 1000,
+      "rps": 24243.36,
+      "latency_avg_ms": 42.75,
+      "percentiles_ms": {
+        "50": 33.64,
+        "75": 56.97,
+        "90": 87.12,
+        "99": 168.24
+      },
+      "errors": 0,
+      "mem_median_mib": 99.4,
+      "mem_max_mib": 101.0,
+      "ts": "08:21:26"
+    },
+    {
+      "arm": "prewarm256",
+      "round": 8,
+      "phase": "cold",
+      "concurrency": 10000,
+      "rps": 11336.79,
+      "latency_avg_ms": 599.9,
+      "percentiles_ms": {
+        "50": 351.9,
+        "75": 662.32,
+        "90": 1440.0,
+        "99": 3670.0
+      },
+      "errors": 3127,
+      "mem_median_mib": 452.3,
+      "mem_max_mib": 496.0,
+      "ts": "08:21:43"
+    },
+    {
+      "arm": "prewarm256",
+      "round": 8,
+      "phase": "warm",
+      "concurrency": 100,
+      "rps": 22428.84,
+      "latency_avg_ms": 5.17,
+      "percentiles_ms": {
+        "50": 3.68,
+        "75": 6.25,
+        "90": 10.15,
+        "99": 28.45
+      },
+      "errors": 0,
+      "mem_median_mib": 170.8,
+      "mem_max_mib": 171.7,
+      "ts": "08:22:11"
+    },
+    {
+      "arm": "prewarm256",
+      "round": 8,
+      "phase": "warm",
+      "concurrency": 1000,
+      "rps": 26675.49,
+      "latency_avg_ms": 38.02,
+      "percentiles_ms": {
+        "50": 30.41,
+        "75": 49.04,
+        "90": 73.5,
+        "99": 154.2
+      },
+      "errors": 0,
+      "mem_median_mib": 195.6,
+      "mem_max_mib": 198.5,
+      "ts": "08:22:27"
+    },
+    {
+      "arm": "prewarm256",
+      "round": 8,
+      "phase": "warm",
+      "concurrency": 10000,
+      "rps": 13367.66,
+      "latency_avg_ms": 576.7,
+      "percentiles_ms": {
+        "50": 375.49,
+        "75": 696.65,
+        "90": 1340.0,
+        "99": 2750.0
+      },
+      "errors": 3145,
+      "mem_median_mib": 510.3,
+      "mem_max_mib": 542.0,
+      "ts": "08:22:44"
+    },
+    {
+      "arm": "prewarm64",
+      "round": 9,
+      "phase": "cold",
+      "concurrency": 100,
+      "rps": 21622.19,
+      "latency_avg_ms": 5.61,
+      "percentiles_ms": {
+        "50": 3.75,
+        "75": 6.65,
+        "90": 11.43,
+        "99": 33.7
+      },
+      "errors": 0,
+      "mem_median_mib": 59.2,
+      "mem_max_mib": 59.6,
+      "ts": "08:24:47"
+    },
+    {
+      "arm": "prewarm64",
+      "round": 9,
+      "phase": "cold",
+      "concurrency": 1000,
+      "rps": 24235.75,
+      "latency_avg_ms": 42.4,
+      "percentiles_ms": {
+        "50": 32.78,
+        "75": 54.62,
+        "90": 83.61,
+        "99": 184.98
+      },
+      "errors": 1,
+      "mem_median_mib": 97.9,
+      "mem_max_mib": 99.5,
+      "ts": "08:25:03"
+    },
+    {
+      "arm": "prewarm64",
+      "round": 9,
+      "phase": "cold",
+      "concurrency": 10000,
+      "rps": 17744.58,
+      "latency_avg_ms": 594.41,
+      "percentiles_ms": {
+        "50": 343.7,
+        "75": 706.73,
+        "90": 1340.0,
+        "99": 3710.0
+      },
+      "errors": 1081,
+      "mem_median_mib": 423.6,
+      "mem_max_mib": 467.7,
+      "ts": "08:25:20"
+    },
+    {
+      "arm": "prewarm64",
+      "round": 9,
+      "phase": "warm",
+      "concurrency": 100,
+      "rps": 21502.44,
+      "latency_avg_ms": 5.39,
+      "percentiles_ms": {
+        "50": 3.79,
+        "75": 6.6,
+        "90": 10.91,
+        "99": 29.11
+      },
+      "errors": 0,
+      "mem_median_mib": 119.2,
+      "mem_max_mib": 121.7,
+      "ts": "08:25:48"
+    },
+    {
+      "arm": "prewarm64",
+      "round": 9,
+      "phase": "warm",
+      "concurrency": 1000,
+      "rps": 25080.96,
+      "latency_avg_ms": 40.6,
+      "percentiles_ms": {
+        "50": 32.99,
+        "75": 52.32,
+        "90": 77.72,
+        "99": 157.78
+      },
+      "errors": 0,
+      "mem_median_mib": 150.3,
+      "mem_max_mib": 151.1,
+      "ts": "08:26:04"
+    },
+    {
+      "arm": "prewarm64",
+      "round": 9,
+      "phase": "warm",
+      "concurrency": 10000,
+      "rps": 16195.35,
+      "latency_avg_ms": 596.39,
+      "percentiles_ms": {
+        "50": 372.67,
+        "75": 717.0,
+        "90": 1400.0,
+        "99": 3060.0
+      },
+      "errors": 1377,
+      "mem_median_mib": 509.7,
+      "mem_max_mib": 521.2,
+      "ts": "08:26:21"
+    },
+    {
+      "arm": "prewarm256",
+      "round": 9,
+      "phase": "cold",
+      "concurrency": 100,
+      "rps": 18077.07,
+      "latency_avg_ms": 6.51,
+      "percentiles_ms": {
+        "50": 4.36,
+        "75": 8.14,
+        "90": 13.94,
+        "99": 34.22
+      },
+      "errors": 0,
+      "mem_median_mib": 56.5,
+      "mem_max_mib": 57.2,
+      "ts": "08:26:43"
+    },
+    {
+      "arm": "prewarm256",
+      "round": 9,
+      "phase": "cold",
+      "concurrency": 1000,
+      "rps": 22525.52,
+      "latency_avg_ms": 43.05,
+      "percentiles_ms": {
+        "50": 34.5,
+        "75": 57.94,
+        "90": 85.64,
+        "99": 163.1
+      },
+      "errors": 0,
+      "mem_median_mib": 98.6,
+      "mem_max_mib": 104.9,
+      "ts": "08:26:59"
+    },
+    {
+      "arm": "prewarm256",
+      "round": 9,
+      "phase": "cold",
+      "concurrency": 10000,
+      "rps": 12693.3,
+      "latency_avg_ms": 626.15,
+      "percentiles_ms": {
+        "50": 298.8,
+        "75": 943.81,
+        "90": 1610.0,
+        "99": 3350.0
+      },
+      "errors": 2428,
+      "mem_median_mib": 465.3,
+      "mem_max_mib": 496.0,
+      "ts": "08:27:15"
+    },
+    {
+      "arm": "prewarm256",
+      "round": 9,
+      "phase": "warm",
+      "concurrency": 100,
+      "rps": 13901.86,
+      "latency_avg_ms": 8.87,
+      "percentiles_ms": {
+        "50": 5.67,
+        "75": 11.18,
+        "90": 19.5,
+        "99": 50.48
+      },
+      "errors": 0,
+      "mem_median_mib": 160.5,
+      "mem_max_mib": 166.5,
+      "ts": "08:27:44"
+    },
+    {
+      "arm": "prewarm256",
+      "round": 9,
+      "phase": "warm",
+      "concurrency": 1000,
+      "rps": 21832.26,
+      "latency_avg_ms": 46.47,
+      "percentiles_ms": {
+        "50": 36.95,
+        "75": 60.4,
+        "90": 91.43,
+        "99": 184.33
+      },
+      "errors": 0,
+      "mem_median_mib": 186.7,
+      "mem_max_mib": 187.5,
+      "ts": "08:28:00"
+    },
+    {
+      "arm": "prewarm256",
+      "round": 9,
+      "phase": "warm",
+      "concurrency": 10000,
+      "rps": 14503.06,
+      "latency_avg_ms": 629.62,
+      "percentiles_ms": {
+        "50": 363.85,
+        "75": 876.23,
+        "90": 1540.0,
+        "99": 2870.0
+      },
+      "errors": 1955,
+      "mem_median_mib": 530.5,
+      "mem_max_mib": 543.3,
+      "ts": "08:28:16"
+    },
+    {
+      "arm": "prewarm64",
+      "round": 10,
+      "phase": "cold",
+      "concurrency": 100,
+      "rps": 21820.49,
+      "latency_avg_ms": 5.35,
+      "percentiles_ms": {
+        "50": 3.69,
+        "75": 6.44,
+        "90": 10.66,
+        "99": 30.4
+      },
+      "errors": 0,
+      "mem_median_mib": 54.4,
+      "mem_max_mib": 54.8,
+      "ts": "08:30:20"
+    },
+    {
+      "arm": "prewarm64",
+      "round": 10,
+      "phase": "cold",
+      "concurrency": 1000,
+      "rps": 22547.93,
+      "latency_avg_ms": 45.55,
+      "percentiles_ms": {
+        "50": 35.14,
+        "75": 58.78,
+        "90": 91.65,
+        "99": 187.64
+      },
+      "errors": 0,
+      "mem_median_mib": 93.8,
+      "mem_max_mib": 95.0,
+      "ts": "08:30:36"
+    },
+    {
+      "arm": "prewarm64",
+      "round": 10,
+      "phase": "cold",
+      "concurrency": 10000,
+      "rps": 18734.6,
+      "latency_avg_ms": 458.91,
+      "percentiles_ms": {
+        "50": 345.07,
+        "75": 521.09,
+        "90": 792.11,
+        "99": 3000.0
+      },
+      "errors": 2942,
+      "mem_median_mib": 440.4,
+      "mem_max_mib": 474.9,
+      "ts": "08:30:53"
+    },
+    {
+      "arm": "prewarm64",
+      "round": 10,
+      "phase": "warm",
+      "concurrency": 100,
+      "rps": 21519.93,
+      "latency_avg_ms": 5.32,
+      "percentiles_ms": {
+        "50": 3.82,
+        "75": 6.52,
+        "90": 10.61,
+        "99": 27.76
+      },
+      "errors": 26,
+      "mem_median_mib": 138.2,
+      "mem_max_mib": 139.8,
+      "ts": "08:31:21"
+    },
+    {
+      "arm": "prewarm64",
+      "round": 10,
+      "phase": "warm",
+      "concurrency": 1000,
+      "rps": 23020.47,
+      "latency_avg_ms": 44.87,
+      "percentiles_ms": {
+        "50": 36.01,
+        "75": 58.2,
+        "90": 87.0,
+        "99": 177.22
+      },
+      "errors": 0,
+      "mem_median_mib": 168.2,
+      "mem_max_mib": 169.2,
+      "ts": "08:31:37"
+    },
+    {
+      "arm": "prewarm64",
+      "round": 10,
+      "phase": "warm",
+      "concurrency": 10000,
+      "rps": 15809.59,
+      "latency_avg_ms": 502.99,
+      "percentiles_ms": {
+        "50": 339.6,
+        "75": 617.44,
+        "90": 1110.0,
+        "99": 2530.0
+      },
+      "errors": 3012,
+      "mem_median_mib": 496.9,
+      "mem_max_mib": 514.6,
+      "ts": "08:31:54"
+    },
+    {
+      "arm": "prewarm256",
+      "round": 10,
+      "phase": "cold",
+      "concurrency": 100,
+      "rps": 21943.45,
+      "latency_avg_ms": 5.37,
+      "percentiles_ms": {
+        "50": 3.62,
+        "75": 6.42,
+        "90": 10.88,
+        "99": 31.08
+      },
+      "errors": 0,
+      "mem_median_mib": 63.2,
+      "mem_max_mib": 64.8,
+      "ts": "08:32:16"
+    },
+    {
+      "arm": "prewarm256",
+      "round": 10,
+      "phase": "cold",
+      "concurrency": 1000,
+      "rps": 23648.43,
+      "latency_avg_ms": 42.95,
+      "percentiles_ms": {
+        "50": 32.04,
+        "75": 55.6,
+        "90": 87.27,
+        "99": 198.29
+      },
+      "errors": 0,
+      "mem_median_mib": 98.8,
+      "mem_max_mib": 100.6,
+      "ts": "08:32:32"
+    },
+    {
+      "arm": "prewarm256",
+      "round": 10,
+      "phase": "cold",
+      "concurrency": 10000,
+      "rps": 17718.44,
+      "latency_avg_ms": 509.12,
+      "percentiles_ms": {
+        "50": 342.41,
+        "75": 545.45,
+        "90": 941.57,
+        "99": 3650.0
+      },
+      "errors": 2923,
+      "mem_median_mib": 446.6,
+      "mem_max_mib": 492.5,
+      "ts": "08:32:49"
+    },
+    {
+      "arm": "prewarm256",
+      "round": 10,
+      "phase": "warm",
+      "concurrency": 100,
+      "rps": 21895.6,
+      "latency_avg_ms": 5.14,
+      "percentiles_ms": {
+        "50": 3.77,
+        "75": 6.37,
+        "90": 10.17,
+        "99": 25.93
+      },
+      "errors": 0,
+      "mem_median_mib": 163.3,
+      "mem_max_mib": 163.9,
+      "ts": "08:33:17"
+    },
+    {
+      "arm": "prewarm256",
+      "round": 10,
+      "phase": "warm",
+      "concurrency": 1000,
+      "rps": 23773.21,
+      "latency_avg_ms": 43.91,
+      "percentiles_ms": {
+        "50": 33.14,
+        "75": 56.22,
+        "90": 89.32,
+        "99": 190.35
+      },
+      "errors": 0,
+      "mem_median_mib": 189.9,
+      "mem_max_mib": 191.7,
+      "ts": "08:33:33"
+    },
+    {
+      "arm": "prewarm256",
+      "round": 10,
+      "phase": "warm",
+      "concurrency": 10000,
+      "rps": 15766.52,
+      "latency_avg_ms": 554.46,
+      "percentiles_ms": {
+        "50": 335.27,
+        "75": 693.02,
+        "90": 1360.0,
+        "99": 2660.0
+      },
+      "errors": 2168,
+      "mem_median_mib": 517.9,
+      "mem_max_mib": 550.0,
+      "ts": "08:33:49"
+    }
+  ],
+  "nginx_control": [
+    {
+      "arm": "nginx",
+      "round": 1,
+      "phase": "cold",
+      "concurrency": 100,
+      "rps": 17418.04,
+      "latency_avg_ms": 6.09,
+      "percentiles_ms": {
+        "50": 5.04,
+        "75": 8.0,
+        "90": 11.83,
+        "99": 25.22
+      },
+      "errors": 0,
+      "mem_median_mib": 110.2,
+      "mem_max_mib": 110.4,
+      "ts": "07:44:16"
+    },
+    {
+      "arm": "nginx",
+      "round": 1,
+      "phase": "cold",
+      "concurrency": 1000,
+      "rps": 23588.95,
+      "latency_avg_ms": 42.69,
+      "percentiles_ms": {
+        "50": 33.96,
+        "75": 55.95,
+        "90": 84.07,
+        "99": 163.27
+      },
+      "errors": 0,
+      "mem_median_mib": 126.8,
+      "mem_max_mib": 127.9,
+      "ts": "07:44:32"
+    },
+    {
+      "arm": "nginx",
+      "round": 1,
+      "phase": "cold",
+      "concurrency": 10000,
+      "rps": 20685.59,
+      "latency_avg_ms": 416.37,
+      "percentiles_ms": {
+        "50": 366.01,
+        "75": 579.86,
+        "90": 783.8,
+        "99": 1190.0
+      },
+      "errors": 0,
+      "mem_median_mib": 272.8,
+      "mem_max_mib": 285.3,
+      "ts": "07:44:49"
+    },
+    {
+      "arm": "nginx",
+      "round": 1,
+      "phase": "warm",
+      "concurrency": 100,
+      "rps": 18693.12,
+      "latency_avg_ms": 5.71,
+      "percentiles_ms": {
+        "50": 4.59,
+        "75": 7.21,
+        "90": 10.73,
+        "99": 24.71
+      },
+      "errors": 2,
+      "mem_median_mib": 136.9,
+      "mem_max_mib": 137.5,
+      "ts": "07:45:05"
+    },
+    {
+      "arm": "nginx",
+      "round": 1,
+      "phase": "warm",
+      "concurrency": 1000,
+      "rps": 22102.16,
+      "latency_avg_ms": 46.18,
+      "percentiles_ms": {
+        "50": 35.96,
+        "75": 61.85,
+        "90": 91.42,
+        "99": 183.07
+      },
+      "errors": 0,
+      "mem_median_mib": 149.3,
+      "mem_max_mib": 150.7,
+      "ts": "07:45:21"
+    },
+    {
+      "arm": "nginx",
+      "round": 1,
+      "phase": "warm",
+      "concurrency": 10000,
+      "rps": 22067.89,
+      "latency_avg_ms": 392.74,
+      "percentiles_ms": {
+        "50": 333.98,
+        "75": 544.38,
+        "90": 742.09,
+        "99": 1140.0
+      },
+      "errors": 0,
+      "mem_median_mib": 272.8,
+      "mem_max_mib": 282.2,
+      "ts": "07:45:37"
+    },
+    {
+      "arm": "nginx",
+      "round": 2,
+      "phase": "cold",
+      "concurrency": 100,
+      "rps": 17131.25,
+      "latency_avg_ms": 6.5,
+      "percentiles_ms": {
+        "50": 5.07,
+        "75": 8.24,
+        "90": 12.56,
+        "99": 31.55
+      },
+      "errors": 0,
+      "mem_median_mib": 110.2,
+      "mem_max_mib": 110.6,
+      "ts": "07:49:48"
+    },
+    {
+      "arm": "nginx",
+      "round": 2,
+      "phase": "cold",
+      "concurrency": 1000,
+      "rps": 25071.88,
+      "latency_avg_ms": 40.68,
+      "percentiles_ms": {
+        "50": 32.89,
+        "75": 53.3,
+        "90": 78.64,
+        "99": 149.78
+      },
+      "errors": 0,
+      "mem_median_mib": 127.2,
+      "mem_max_mib": 128.3,
+      "ts": "07:50:04"
+    },
+    {
+      "arm": "nginx",
+      "round": 2,
+      "phase": "cold",
+      "concurrency": 10000,
+      "rps": 19903.41,
+      "latency_avg_ms": 432.89,
+      "percentiles_ms": {
+        "50": 364.92,
+        "75": 588.36,
+        "90": 827.99,
+        "99": 1360.0
+      },
+      "errors": 0,
+      "mem_median_mib": 264.8,
+      "mem_max_mib": 290.2,
+      "ts": "07:50:21"
+    },
+    {
+      "arm": "nginx",
+      "round": 2,
+      "phase": "warm",
+      "concurrency": 100,
+      "rps": 14242.73,
+      "latency_avg_ms": 7.66,
+      "percentiles_ms": {
+        "50": 7.31,
+        "75": 11.34,
+        "90": 14.46,
+        "99": 33.15
+      },
+      "errors": 0,
+      "mem_median_mib": 137.7,
+      "mem_max_mib": 138.1,
+      "ts": "07:50:37"
+    },
+    {
+      "arm": "nginx",
+      "round": 2,
+      "phase": "warm",
+      "concurrency": 1000,
+      "rps": 24466.64,
+      "latency_avg_ms": 41.72,
+      "percentiles_ms": {
+        "50": 33.04,
+        "75": 54.49,
+        "90": 81.54,
+        "99": 156.64
+      },
+      "errors": 0,
+      "mem_median_mib": 150.1,
+      "mem_max_mib": 151.6,
+      "ts": "07:50:53"
+    },
+    {
+      "arm": "nginx",
+      "round": 2,
+      "phase": "warm",
+      "concurrency": 10000,
+      "rps": 18268.97,
+      "latency_avg_ms": 468.44,
+      "percentiles_ms": {
+        "50": 398.83,
+        "75": 632.34,
+        "90": 911.92,
+        "99": 1300.0
+      },
+      "errors": 17,
+      "mem_median_mib": 266.9,
+      "mem_max_mib": 280.6,
+      "ts": "07:51:10"
+    },
+    {
+      "arm": "nginx",
+      "round": 3,
+      "phase": "cold",
+      "concurrency": 100,
+      "rps": 17048.96,
+      "latency_avg_ms": 6.62,
+      "percentiles_ms": {
+        "50": 5.15,
+        "75": 8.15,
+        "90": 12.44,
+        "99": 34.61
+      },
+      "errors": 8,
+      "mem_median_mib": 110.0,
+      "mem_max_mib": 110.4,
+      "ts": "07:55:21"
+    },
+    {
+      "arm": "nginx",
+      "round": 3,
+      "phase": "cold",
+      "concurrency": 1000,
+      "rps": 23609.23,
+      "latency_avg_ms": 43.2,
+      "percentiles_ms": {
+        "50": 34.41,
+        "75": 56.61,
+        "90": 83.47,
+        "99": 168.49
+      },
+      "errors": 0,
+      "mem_median_mib": 125.7,
+      "mem_max_mib": 127.9,
+      "ts": "07:55:37"
+    },
+    {
+      "arm": "nginx",
+      "round": 3,
+      "phase": "cold",
+      "concurrency": 10000,
+      "rps": 21270.45,
+      "latency_avg_ms": 412.0,
+      "percentiles_ms": {
+        "50": 350.79,
+        "75": 567.25,
+        "90": 794.25,
+        "99": 1270.0
+      },
+      "errors": 0,
+      "mem_median_mib": 272.9,
+      "mem_max_mib": 289.0,
+      "ts": "07:55:54"
+    },
+    {
+      "arm": "nginx",
+      "round": 3,
+      "phase": "warm",
+      "concurrency": 100,
+      "rps": 17961.89,
+      "latency_avg_ms": 5.92,
+      "percentiles_ms": {
+        "50": 4.88,
+        "75": 7.65,
+        "90": 10.96,
+        "99": 23.73
+      },
+      "errors": 0,
+      "mem_median_mib": 137.3,
+      "mem_max_mib": 138.3,
+      "ts": "07:56:10"
+    },
+    {
+      "arm": "nginx",
+      "round": 3,
+      "phase": "warm",
+      "concurrency": 1000,
+      "rps": 23133.1,
+      "latency_avg_ms": 44.01,
+      "percentiles_ms": {
+        "50": 34.79,
+        "75": 57.45,
+        "90": 86.11,
+        "99": 169.72
+      },
+      "errors": 2,
+      "mem_median_mib": 150.0,
+      "mem_max_mib": 151.3,
+      "ts": "07:56:26"
+    },
+    {
+      "arm": "nginx",
+      "round": 3,
+      "phase": "warm",
+      "concurrency": 10000,
+      "rps": 19980.32,
+      "latency_avg_ms": 433.82,
+      "percentiles_ms": {
+        "50": 375.95,
+        "75": 572.73,
+        "90": 833.46,
+        "99": 1310.0
+      },
+      "errors": 0,
+      "mem_median_mib": 263.6,
+      "mem_max_mib": 279.3,
+      "ts": "07:56:42"
+    },
+    {
+      "arm": "nginx",
+      "round": 4,
+      "phase": "cold",
+      "concurrency": 100,
+      "rps": 17231.48,
+      "latency_avg_ms": 6.4,
+      "percentiles_ms": {
+        "50": 5.06,
+        "75": 8.15,
+        "90": 12.36,
+        "99": 30.33
+      },
+      "errors": 6,
+      "mem_median_mib": 110.3,
+      "mem_max_mib": 110.7,
+      "ts": "08:00:53"
+    },
+    {
+      "arm": "nginx",
+      "round": 4,
+      "phase": "cold",
+      "concurrency": 1000,
+      "rps": 24153.33,
+      "latency_avg_ms": 42.4,
+      "percentiles_ms": {
+        "50": 34.06,
+        "75": 55.53,
+        "90": 81.95,
+        "99": 157.88
+      },
+      "errors": 0,
+      "mem_median_mib": 127.1,
+      "mem_max_mib": 128.0,
+      "ts": "08:01:09"
+    },
+    {
+      "arm": "nginx",
+      "round": 4,
+      "phase": "cold",
+      "concurrency": 10000,
+      "rps": 20006.43,
+      "latency_avg_ms": 436.2,
+      "percentiles_ms": {
+        "50": 361.64,
+        "75": 588.5,
+        "90": 823.73,
+        "99": 1560.0
+      },
+      "errors": 0,
+      "mem_median_mib": 269.0,
+      "mem_max_mib": 286.2,
+      "ts": "08:01:26"
+    },
+    {
+      "arm": "nginx",
+      "round": 4,
+      "phase": "warm",
+      "concurrency": 100,
+      "rps": 14751.56,
+      "latency_avg_ms": 7.64,
+      "percentiles_ms": {
+        "50": 5.73,
+        "75": 9.54,
+        "90": 15.21,
+        "99": 37.94
+      },
+      "errors": 0,
+      "mem_median_mib": 138.0,
+      "mem_max_mib": 138.7,
+      "ts": "08:01:42"
+    },
+    {
+      "arm": "nginx",
+      "round": 4,
+      "phase": "warm",
+      "concurrency": 1000,
+      "rps": 24207.75,
+      "latency_avg_ms": 42.98,
+      "percentiles_ms": {
+        "50": 33.78,
+        "75": 56.06,
+        "90": 84.1,
+        "99": 171.52
+      },
+      "errors": 0,
+      "mem_median_mib": 150.4,
+      "mem_max_mib": 151.7,
+      "ts": "08:01:58"
+    },
+    {
+      "arm": "nginx",
+      "round": 4,
+      "phase": "warm",
+      "concurrency": 10000,
+      "rps": 18873.24,
+      "latency_avg_ms": 513.93,
+      "percentiles_ms": {
+        "50": 371.14,
+        "75": 652.97,
+        "90": 956.69,
+        "99": 2610.0
+      },
+      "errors": 252,
+      "mem_median_mib": 280.6,
+      "mem_max_mib": 294.5,
+      "ts": "08:02:14"
+    },
+    {
+      "arm": "nginx",
+      "round": 5,
+      "phase": "cold",
+      "concurrency": 100,
+      "rps": 17314.94,
+      "latency_avg_ms": 6.28,
+      "percentiles_ms": {
+        "50": 5.03,
+        "75": 8.08,
+        "90": 12.23,
+        "99": 28.86
+      },
+      "errors": 14,
+      "mem_median_mib": 113.4,
+      "mem_max_mib": 113.6,
+      "ts": "08:06:25"
+    },
+    {
+      "arm": "nginx",
+      "round": 5,
+      "phase": "cold",
+      "concurrency": 1000,
+      "rps": 20911.99,
+      "latency_avg_ms": 49.42,
+      "percentiles_ms": {
+        "50": 38.96,
+        "75": 65.17,
+        "90": 96.18,
+        "99": 193.27
+      },
+      "errors": 0,
+      "mem_median_mib": 129.9,
+      "mem_max_mib": 132.1,
+      "ts": "08:06:41"
+    },
+    {
+      "arm": "nginx",
+      "round": 5,
+      "phase": "cold",
+      "concurrency": 10000,
+      "rps": 19486.73,
+      "latency_avg_ms": 444.25,
+      "percentiles_ms": {
+        "50": 395.47,
+        "75": 620.54,
+        "90": 826.32,
+        "99": 1170.0
+      },
+      "errors": 0,
+      "mem_median_mib": 281.9,
+      "mem_max_mib": 293.1,
+      "ts": "08:06:57"
+    },
+    {
+      "arm": "nginx",
+      "round": 5,
+      "phase": "warm",
+      "concurrency": 100,
+      "rps": 16937.91,
+      "latency_avg_ms": 6.72,
+      "percentiles_ms": {
+        "50": 5.09,
+        "75": 8.5,
+        "90": 12.61,
+        "99": 35.72
+      },
+      "errors": 0,
+      "mem_median_mib": 140.7,
+      "mem_max_mib": 141.3,
+      "ts": "08:07:13"
+    },
+    {
+      "arm": "nginx",
+      "round": 5,
+      "phase": "warm",
+      "concurrency": 1000,
+      "rps": 24987.4,
+      "latency_avg_ms": 39.77,
+      "percentiles_ms": {
+        "50": 32.51,
+        "75": 51.83,
+        "90": 76.52,
+        "99": 147.43
+      },
+      "errors": 0,
+      "mem_median_mib": 152.8,
+      "mem_max_mib": 153.8,
+      "ts": "08:07:29"
+    },
+    {
+      "arm": "nginx",
+      "round": 5,
+      "phase": "warm",
+      "concurrency": 10000,
+      "rps": 19628.45,
+      "latency_avg_ms": 437.16,
+      "percentiles_ms": {
+        "50": 363.64,
+        "75": 614.12,
+        "90": 858.98,
+        "99": 1270.0
+      },
+      "errors": 0,
+      "mem_median_mib": 270.9,
+      "mem_max_mib": 281.8,
+      "ts": "08:07:46"
+    },
+    {
+      "arm": "nginx",
+      "round": 6,
+      "phase": "cold",
+      "concurrency": 100,
+      "rps": 17417.45,
+      "latency_avg_ms": 6.39,
+      "percentiles_ms": {
+        "50": 5.0,
+        "75": 8.11,
+        "90": 12.23,
+        "99": 31.96
+      },
+      "errors": 15,
+      "mem_median_mib": 110.5,
+      "mem_max_mib": 111.2,
+      "ts": "08:11:56"
+    },
+    {
+      "arm": "nginx",
+      "round": 6,
+      "phase": "cold",
+      "concurrency": 1000,
+      "rps": 24563.49,
+      "latency_avg_ms": 41.01,
+      "percentiles_ms": {
+        "50": 33.4,
+        "75": 53.81,
+        "90": 79.06,
+        "99": 150.32
+      },
+      "errors": 0,
+      "mem_median_mib": 127.5,
+      "mem_max_mib": 127.8,
+      "ts": "08:12:12"
+    },
+    {
+      "arm": "nginx",
+      "round": 6,
+      "phase": "cold",
+      "concurrency": 10000,
+      "rps": 20245.4,
+      "latency_avg_ms": 438.59,
+      "percentiles_ms": {
+        "50": 366.1,
+        "75": 600.92,
+        "90": 850.84,
+        "99": 1480.0
+      },
+      "errors": 0,
+      "mem_median_mib": 266.3,
+      "mem_max_mib": 279.6,
+      "ts": "08:12:29"
+    },
+    {
+      "arm": "nginx",
+      "round": 6,
+      "phase": "warm",
+      "concurrency": 100,
+      "rps": 16861.84,
+      "latency_avg_ms": 6.42,
+      "percentiles_ms": {
+        "50": 5.02,
+        "75": 8.14,
+        "90": 12.34,
+        "99": 28.3
+      },
+      "errors": 0,
+      "mem_median_mib": 137.6,
+      "mem_max_mib": 138.5,
+      "ts": "08:12:44"
+    },
+    {
+      "arm": "nginx",
+      "round": 6,
+      "phase": "warm",
+      "concurrency": 1000,
+      "rps": 24442.97,
+      "latency_avg_ms": 41.16,
+      "percentiles_ms": {
+        "50": 33.61,
+        "75": 54.53,
+        "90": 79.61,
+        "99": 152.28
+      },
+      "errors": 0,
+      "mem_median_mib": 149.4,
+      "mem_max_mib": 151.5,
+      "ts": "08:13:00"
+    },
+    {
+      "arm": "nginx",
+      "round": 6,
+      "phase": "warm",
+      "concurrency": 10000,
+      "rps": 21658.49,
+      "latency_avg_ms": 399.03,
+      "percentiles_ms": {
+        "50": 339.2,
+        "75": 542.25,
+        "90": 751.81,
+        "99": 1230.0
+      },
+      "errors": 0,
+      "mem_median_mib": 263.5,
+      "mem_max_mib": 287.8,
+      "ts": "08:13:17"
+    },
+    {
+      "arm": "nginx",
+      "round": 7,
+      "phase": "cold",
+      "concurrency": 100,
+      "rps": 18145.19,
+      "latency_avg_ms": 5.86,
+      "percentiles_ms": {
+        "50": 4.81,
+        "75": 7.66,
+        "90": 11.28,
+        "99": 24.05
+      },
+      "errors": 9,
+      "mem_median_mib": 112.2,
+      "mem_max_mib": 112.5,
+      "ts": "08:17:29"
+    },
+    {
+      "arm": "nginx",
+      "round": 7,
+      "phase": "cold",
+      "concurrency": 1000,
+      "rps": 23025.94,
+      "latency_avg_ms": 43.11,
+      "percentiles_ms": {
+        "50": 34.84,
+        "75": 57.84,
+        "90": 84.47,
+        "99": 149.01
+      },
+      "errors": 0,
+      "mem_median_mib": 129.3,
+      "mem_max_mib": 129.7,
+      "ts": "08:17:45"
+    },
+    {
+      "arm": "nginx",
+      "round": 7,
+      "phase": "cold",
+      "concurrency": 10000,
+      "rps": 21120.81,
+      "latency_avg_ms": 414.8,
+      "percentiles_ms": {
+        "50": 346.23,
+        "75": 553.75,
+        "90": 786.19,
+        "99": 1380.0
+      },
+      "errors": 0,
+      "mem_median_mib": 262.1,
+      "mem_max_mib": 282.4,
+      "ts": "08:18:02"
+    },
+    {
+      "arm": "nginx",
+      "round": 7,
+      "phase": "warm",
+      "concurrency": 100,
+      "rps": 16977.78,
+      "latency_avg_ms": 6.28,
+      "percentiles_ms": {
+        "50": 5.43,
+        "75": 9.0,
+        "90": 12.11,
+        "99": 23.79
+      },
+      "errors": 0,
+      "mem_median_mib": 139.6,
+      "mem_max_mib": 140.5,
+      "ts": "08:18:18"
+    },
+    {
+      "arm": "nginx",
+      "round": 7,
+      "phase": "warm",
+      "concurrency": 1000,
+      "rps": 22669.63,
+      "latency_avg_ms": 45.34,
+      "percentiles_ms": {
+        "50": 35.74,
+        "75": 59.74,
+        "90": 89.94,
+        "99": 179.49
+      },
+      "errors": 0,
+      "mem_median_mib": 151.9,
+      "mem_max_mib": 152.9,
+      "ts": "08:18:34"
+    },
+    {
+      "arm": "nginx",
+      "round": 7,
+      "phase": "warm",
+      "concurrency": 10000,
+      "rps": 21277.06,
+      "latency_avg_ms": 398.04,
+      "percentiles_ms": {
+        "50": 340.21,
+        "75": 534.95,
+        "90": 754.49,
+        "99": 1170.0
+      },
+      "errors": 0,
+      "mem_median_mib": 270.0,
+      "mem_max_mib": 286.2,
+      "ts": "08:18:51"
+    },
+    {
+      "arm": "nginx",
+      "round": 8,
+      "phase": "cold",
+      "concurrency": 100,
+      "rps": 17007.34,
+      "latency_avg_ms": 6.44,
+      "percentiles_ms": {
+        "50": 5.07,
+        "75": 8.33,
+        "90": 12.71,
+        "99": 29.41
+      },
+      "errors": 3,
+      "mem_median_mib": 114.8,
+      "mem_max_mib": 115.2,
+      "ts": "08:23:02"
+    },
+    {
+      "arm": "nginx",
+      "round": 8,
+      "phase": "cold",
+      "concurrency": 1000,
+      "rps": 25041.8,
+      "latency_avg_ms": 40.0,
+      "percentiles_ms": {
+        "50": 32.47,
+        "75": 52.72,
+        "90": 77.71,
+        "99": 140.63
+      },
+      "errors": 0,
+      "mem_median_mib": 131.6,
+      "mem_max_mib": 132.5,
+      "ts": "08:23:18"
+    },
+    {
+      "arm": "nginx",
+      "round": 8,
+      "phase": "cold",
+      "concurrency": 10000,
+      "rps": 19739.47,
+      "latency_avg_ms": 451.72,
+      "percentiles_ms": {
+        "50": 370.01,
+        "75": 604.25,
+        "90": 886.79,
+        "99": 1660.0
+      },
+      "errors": 13,
+      "mem_median_mib": 277.7,
+      "mem_max_mib": 288.7,
+      "ts": "08:23:35"
+    },
+    {
+      "arm": "nginx",
+      "round": 8,
+      "phase": "warm",
+      "concurrency": 100,
+      "rps": 13593.64,
+      "latency_avg_ms": 7.72,
+      "percentiles_ms": {
+        "50": 7.82,
+        "75": 11.42,
+        "90": 14.15,
+        "99": 27.79
+      },
+      "errors": 8,
+      "mem_median_mib": 142.0,
+      "mem_max_mib": 142.8,
+      "ts": "08:23:51"
+    },
+    {
+      "arm": "nginx",
+      "round": 8,
+      "phase": "warm",
+      "concurrency": 1000,
+      "rps": 24708.17,
+      "latency_avg_ms": 41.48,
+      "percentiles_ms": {
+        "50": 33.37,
+        "75": 55.74,
+        "90": 82.94,
+        "99": 152.08
+      },
+      "errors": 0,
+      "mem_median_mib": 154.8,
+      "mem_max_mib": 156.2,
+      "ts": "08:24:07"
+    },
+    {
+      "arm": "nginx",
+      "round": 8,
+      "phase": "warm",
+      "concurrency": 10000,
+      "rps": 21150.49,
+      "latency_avg_ms": 403.77,
+      "percentiles_ms": {
+        "50": 338.08,
+        "75": 552.85,
+        "90": 797.79,
+        "99": 1170.0
+      },
+      "errors": 0,
+      "mem_median_mib": 270.4,
+      "mem_max_mib": 285.8,
+      "ts": "08:24:24"
+    },
+    {
+      "arm": "nginx",
+      "round": 9,
+      "phase": "cold",
+      "concurrency": 100,
+      "rps": 15996.64,
+      "latency_avg_ms": 7.43,
+      "percentiles_ms": {
+        "50": 5.35,
+        "75": 9.1,
+        "90": 14.71,
+        "99": 42.6
+      },
+      "errors": 8,
+      "mem_median_mib": 110.5,
+      "mem_max_mib": 111.5,
+      "ts": "08:28:34"
+    },
+    {
+      "arm": "nginx",
+      "round": 9,
+      "phase": "cold",
+      "concurrency": 1000,
+      "rps": 24088.03,
+      "latency_avg_ms": 42.33,
+      "percentiles_ms": {
+        "50": 34.27,
+        "75": 56.51,
+        "90": 83.75,
+        "99": 148.62
+      },
+      "errors": 0,
+      "mem_median_mib": 127.7,
+      "mem_max_mib": 128.6,
+      "ts": "08:28:50"
+    },
+    {
+      "arm": "nginx",
+      "round": 9,
+      "phase": "cold",
+      "concurrency": 10000,
+      "rps": 18978.5,
+      "latency_avg_ms": 464.42,
+      "percentiles_ms": {
+        "50": 400.09,
+        "75": 637.64,
+        "90": 866.17,
+        "99": 1420.0
+      },
+      "errors": 15,
+      "mem_median_mib": 277.2,
+      "mem_max_mib": 286.3,
+      "ts": "08:29:07"
+    },
+    {
+      "arm": "nginx",
+      "round": 9,
+      "phase": "warm",
+      "concurrency": 100,
+      "rps": 17376.77,
+      "latency_avg_ms": 6.53,
+      "percentiles_ms": {
+        "50": 4.86,
+        "75": 7.97,
+        "90": 12.17,
+        "99": 34.11
+      },
+      "errors": 1,
+      "mem_median_mib": 137.7,
+      "mem_max_mib": 138.1,
+      "ts": "08:29:23"
+    },
+    {
+      "arm": "nginx",
+      "round": 9,
+      "phase": "warm",
+      "concurrency": 1000,
+      "rps": 20690.74,
+      "latency_avg_ms": 49.05,
+      "percentiles_ms": {
+        "50": 39.09,
+        "75": 65.08,
+        "90": 95.57,
+        "99": 188.85
+      },
+      "errors": 0,
+      "mem_median_mib": 150.9,
+      "mem_max_mib": 151.7,
+      "ts": "08:29:39"
+    },
+    {
+      "arm": "nginx",
+      "round": 9,
+      "phase": "warm",
+      "concurrency": 10000,
+      "rps": 21942.85,
+      "latency_avg_ms": 405.62,
+      "percentiles_ms": {
+        "50": 340.68,
+        "75": 545.92,
+        "90": 782.09,
+        "99": 1230.0
+      },
+      "errors": 0,
+      "mem_median_mib": 273.0,
+      "mem_max_mib": 284.7,
+      "ts": "08:29:55"
+    },
+    {
+      "arm": "nginx",
+      "round": 10,
+      "phase": "cold",
+      "concurrency": 100,
+      "rps": 17499.43,
+      "latency_avg_ms": 6.24,
+      "percentiles_ms": {
+        "50": 4.98,
+        "75": 8.01,
+        "90": 12.14,
+        "99": 29.24
+      },
+      "errors": 0,
+      "mem_median_mib": 110.8,
+      "mem_max_mib": 111.1,
+      "ts": "08:34:07"
+    },
+    {
+      "arm": "nginx",
+      "round": 10,
+      "phase": "cold",
+      "concurrency": 1000,
+      "rps": 24640.86,
+      "latency_avg_ms": 40.44,
+      "percentiles_ms": {
+        "50": 33.15,
+        "75": 52.54,
+        "90": 77.38,
+        "99": 142.67
+      },
+      "errors": 11,
+      "mem_median_mib": 127.8,
+      "mem_max_mib": 128.8,
+      "ts": "08:34:23"
+    },
+    {
+      "arm": "nginx",
+      "round": 10,
+      "phase": "cold",
+      "concurrency": 10000,
+      "rps": 19054.4,
+      "latency_avg_ms": 456.46,
+      "percentiles_ms": {
+        "50": 395.07,
+        "75": 634.26,
+        "90": 854.27,
+        "99": 1380.0
+      },
+      "errors": 0,
+      "mem_median_mib": 262.5,
+      "mem_max_mib": 278.4,
+      "ts": "08:34:40"
+    },
+    {
+      "arm": "nginx",
+      "round": 10,
+      "phase": "warm",
+      "concurrency": 100,
+      "rps": 18185.6,
+      "latency_avg_ms": 5.87,
+      "percentiles_ms": {
+        "50": 4.71,
+        "75": 7.66,
+        "90": 11.23,
+        "99": 24.01
+      },
+      "errors": 30,
+      "mem_median_mib": 137.9,
+      "mem_max_mib": 139.0,
+      "ts": "08:34:56"
+    },
+    {
+      "arm": "nginx",
+      "round": 10,
+      "phase": "warm",
+      "concurrency": 1000,
+      "rps": 24345.73,
+      "latency_avg_ms": 41.24,
+      "percentiles_ms": {
+        "50": 33.74,
+        "75": 55.62,
+        "90": 81.18,
+        "99": 147.51
+      },
+      "errors": 0,
+      "mem_median_mib": 150.7,
+      "mem_max_mib": 151.3,
+      "ts": "08:35:12"
+    },
+    {
+      "arm": "nginx",
+      "round": 10,
+      "phase": "warm",
+      "concurrency": 10000,
+      "rps": 21667.51,
+      "latency_avg_ms": 404.83,
+      "percentiles_ms": {
+        "50": 343.65,
+        "75": 564.25,
+        "90": 787.06,
+        "99": 1160.0
+      },
+      "errors": 0,
+      "mem_median_mib": 271.8,
+      "mem_max_mib": 285.0,
+      "ts": "08:35:28"
+    }
+  ]
+}
