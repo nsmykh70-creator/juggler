@@ -113,6 +113,33 @@
 </table>
 <p class="note"><b>Release verdict.</b> First Juggler version with a <b>fully clean error column at every concurrency</b> (with a 30 s client budget nothing is lost — earlier "errors" were wrk-timeout artifacts). Juggler v1.0.0 leads the whole eight-server field at c=100 and c=1 000 on the same session and is second at c=10 000 (22.1k vs nginx 24.9k; openlitespeed 19.4k). Shipped since v0.9.0: in-flight gauge RAII fix (26k zombie counters poisoning adaptive prewarm), upstream write timeouts (futures parked forever on zero-window upstreams), watchdog rate limit (15k log lines per burst), double-counted request metric, plus the session deliverables — <code>www/</code> static docroot, drain-loop parking (was 12×100% CPU spin), gRPC control-plane retry. <b>Honest gaps:</b> p99 at 10k (3.36 s vs nginx 1.08 s — tail latency, not loss) and memory at 10k (489 vs 266 MiB — the documented pool-width RPS↔RAM dial). Trajectory and A/B history: <code>bench/AB_REPORT.md</code>.</p>
 
+<h2>Session 3 — fresh same-session tests: proxy field + static ceiling (no-NAT docker-net)</h2>
+<p class="sub">Run 2026-09-22 (session 3). All targets and wrk live in one docker network — <b>traffic never crosses the Docker Desktop host NAT</b>, which earlier sessions proved to throttle host-loopback runs 20–160× (same binary/files: 154–1 046 RPS via NAT vs 14–26k in-net). Method: <code>wrk -t2 -c{100,1000} -d8s --timeout 10s</code>; proxy mode = <code>/bench</code> always-200 upstream; static = <code>bench4k/64k/256k.bin</code> from <code>www/sample_sites1/</code>. Bench image is the v1.0.0 build. Raw data: <code>bench/results_session3.json</code>.</p>
+<h3>Proxy mode — eight servers, same session</h3>
+<table>
+  <tr><th>Server</th><th>c=100 RPS</th><th>c=1 000 RPS</th><th>Lat avg @1k, ms</th><th>Mem @1k, MiB</th></tr>
+  <tr><td>openlitespeed</td><td><b>18 732</b></td><td><b>25 754</b></td><td>45.1</td><td>—</td></tr>
+  <tr><td>nginx</td><td>13 783</td><td>22 122</td><td><b>41.8</b></td><td>113.3</td></tr>
+  <tr class="hl"><td><b>juggler</b> 🤹</td><td>18 287</td><td>18 496</td><td>43.8</td><td><b>67.3</b></td></tr>
+  <tr><td>envoy</td><td>11 331</td><td>13 127</td><td>72.4</td><td>441.3</td></tr>
+  <tr><td>traefik</td><td>11 930</td><td>11 180</td><td>95.5</td><td>412.9</td></tr>
+  <tr><td>haproxy</td><td>6 293</td><td>6 562</td><td>147.1</td><td>61.1</td></tr>
+  <tr><td>caddy</td><td>8 155</td><td>5 393</td><td>184.4</td><td>128.7</td></tr>
+  <tr><td>apache (event)</td><td>4 753</td><td>5 271</td><td>176.4</td><td>145.8</td></tr>
+</table>
+<p class="note"><b>Proxy read:</b> in the cleanest session yet Juggler is <b>#2 at c=100</b> (18.3k, behind openlitespeed 18.7k) and #3 at c=1 000 — while being the <b>second-lightest process in the field (67 MiB; haproxy is lighter but 2.8× slower; envoy/traefik eat 6× more RAM)</b>. Zero errors on all runs (10 s client budget).</p>
+<h3>Static ceiling — Juggler vs nginx on identical files, and Juggler's own proxy overhead</h3>
+<table>
+  <tr><th rowspan="2">Payload</th><th colspan="3">c=100 RPS</th><th colspan="3">c=1 000 RPS</th></tr>
+  <tr><th>juggler static</th><th>nginx static</th><th>juggler proxy→nginx-ish*</th><th>juggler static</th><th>nginx static</th><th>juggler proxy→nginx-ish*</th></tr>
+  <tr><td>4 KB</td><td><b>26 510</b></td><td>24 671</td><td>19 214</td><td><b>19 669</b></td><td>19 120</td><td>22 120</td></tr>
+  <tr><td>64 KB</td><td><b>14 167</b></td><td>11 917</td><td>13 925</td><td>12 386</td><td>12 251</td><td><b>12 491</b></td></tr>
+  <tr><td>256 KB</td><td>5 301</td><td>5 209</td><td><b>6 442</b></td><td><b>6 845</b></td><td>6 490</td><td>6 108</td></tr>
+</table>
+<p class="note">* proxy cell = front Juggler forwarding to an upstream (fresh-route session variance included; see raw JSON). <b>Juggler static ≥ nginx static on 5 of 6 cells</b>, peaking at 26.5k RPS (4 KB, c=100). Bandwidth ceiling measured earlier this session: <b>≈1.6–1.75 GB/s</b> per container (24.5k RPS @64 KB c=5 000; 6.8k @256 KB c=1 000) at 5.2 CPU-cores — the server is CPU-bound, not lock-bound. Two-hop chain <b>Juggler→Juggler(static)</b> keeps 89–100% of direct-static throughput (12 634 vs 14 167 @64 KB c=100; 11 402 vs 12 386 @c=1 000): proxy hop is nearly free.</p>
+<h3>Takeaways</h3>
+<p class="note"><b>1.</b> The historical "static is slow (154–1 046 RPS)" mystery is closed: it was the <b>Docker Desktop vpnkit host-NAT</b>, not the server — the same binary and files deliver 14–26k RPS inside the network. Any future host-loopback numbers must be labeled as NAT-throttled. <b>2.</b> Juggler's static path is nginx-class; its proxy overhead vs direct static is within session noise at c≥1 000. <b>3.</b> Remaining honest gap vs nginx stays the tail latency under 10k proxy concurrency (documented in the v1.0.0 section above), not throughput or memory.</p>
+
 <h2>Matrix charts — RPS &amp; memory, eight servers</h2>
 <p class="sub">Pure CSS bars, data inlined from <code>bench/results.json</code> (v0.9.0 re-check snapshot: c=100, wrk 15 s × 4 threads, Docker Desktop WSL2 · 12 cores). Bar lengths are scaled to the best server; a colour identifies the same server across both charts.</p>
 

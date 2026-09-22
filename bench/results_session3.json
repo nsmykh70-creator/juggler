@@ -1,0 +1,99 @@
+{
+ "meta": {
+  "date": "2026-09-22 12:27",
+  "host": "Windows 10, Docker Desktop (WSL2, 8 CPUs), wrk 4.2 in docker-net (no NAT)",
+  "method": "wrk -t2 -c{100,1000} -d8s --timeout 10s; /bench = always-200 tiny body (proxy mode); static = bench4k/64k/256k.bin from www/sample_sites1; same docker network, no host NAT",
+  "note": "Session 3. Same-session comparisons valid; cross-session drift to v0.8/v0.9 tables is large (proven by controls)."
+ },
+ "proxy_matrix": {
+  "c100": {
+   "juggler": 18287.19,
+   "nginx": 13783.2,
+   "openlitespeed": 18732.44,
+   "envoy": 11331.47,
+   "traefik": 11930.41,
+   "caddy": 8154.96,
+   "haproxy": 6292.94,
+   "apache": 4752.85
+  },
+  "c1000": {
+   "juggler": 18495.71,
+   "nginx": 22121.87,
+   "openlitespeed": 25754.12,
+   "envoy": 13127.25,
+   "traefik": 11179.72,
+   "caddy": 5392.63,
+   "haproxy": 6561.97,
+   "apache": 5271.13
+  },
+  "latency_avg_ms_c1000": {
+   "juggler": 43.8,
+   "nginx": 41.8,
+   "openlitespeed": 45.1,
+   "envoy": 72.4,
+   "traefik": 95.5,
+   "caddy": 184.4,
+   "haproxy": 147.1,
+   "apache": 176.4
+  },
+  "mem_mib_c1000": {
+   "juggler": 67.3,
+   "nginx": 113.3,
+   "envoy": 441.3,
+   "traefik": 412.9,
+   "caddy": 128.7,
+   "haproxy": 61.1,
+   "apache": 145.8,
+   "openlitespeed": null
+  }
+ },
+ "static_ceiling": {
+  "c100": {
+   "4k": {
+    "juggler_proxy": 19214.35,
+    "juggler_static": 26510.07,
+    "nginx_static": 24671.24
+   },
+   "64k": {
+    "juggler_proxy": 13924.6,
+    "juggler_static": 14167.12,
+    "nginx_static": 11916.88
+   },
+   "256k": {
+    "juggler_proxy": 6442.11,
+    "juggler_static": 5300.8,
+    "nginx_static": 5209.3
+   }
+  },
+  "c1000": {
+   "4k": {
+    "juggler_proxy": 22120.35,
+    "juggler_static": 19668.96,
+    "nginx_static": 19119.69
+   },
+   "64k": {
+    "juggler_proxy": 12490.56,
+    "juggler_static": 12385.61,
+    "nginx_static": 12251.22
+   },
+   "256k": {
+    "juggler_proxy": 6108.12,
+    "juggler_static": 6845.39,
+    "nginx_static": 6490.24
+   }
+  }
+ },
+ "chain_2hop_juggler_to_juggler": {
+  "c100": {
+   "64k": 12633.76,
+   "256k": 5437.72
+  },
+  "c1000": {
+   "64k": 11401.94,
+   "256k": 7006.79
+  }
+ },
+ "juggler_versions": {
+  "bench_image": "v1.0.0 build (predates host-side limiter/handoff fixes)"
+ }
+}

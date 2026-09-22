@@ -4,6 +4,7 @@
 not after (fold swaps counters each second). Also captures handoff steering
 distribution and shard acceptance balance. Writes bench/probe_live.json."""
 import json
+import os
 import subprocess
 import threading
 import time
@@ -11,10 +12,11 @@ import time
 import urllib.request
 
 BASE = "http://127.0.0.1:9090/api/stats"
-DURATION = int(__import__("os").environ.get("PROBE_SECS", "20"))
-CONC = int(__import__("os").environ.get("PROBE_CONC", "200"))
-THREADS = int(__import__("os").environ.get("PROBE_THREADS", "4"))
-WRK_SECS = int(__import__("os").environ.get("PROBE_WRK_SECS", "15"))
+DURATION = int(os.environ.get("PROBE_SECS", "20"))
+CONC = int(os.environ.get("PROBE_CONC", "200"))
+THREADS = int(os.environ.get("PROBE_THREADS", "4"))
+WRK_SECS = int(os.environ.get("PROBE_WRK_SECS", "15"))
+TARGET = os.environ.get("PROBE_TARGET", "http://host.docker.internal:8085/api")
 
 
 def get_stats():
@@ -44,8 +46,7 @@ def main():
     wrk = subprocess.Popen(
         [
             "docker", "exec", "bench-wrk", "sh", "-c",
-            f"wrk -t{THREADS} -c{CONC} -d{WRK_SECS}s --timeout 30s "
-            "http://host.docker.internal:8085/api",
+            f"wrk -t{THREADS} -c{CONC} -d{WRK_SECS}s --timeout 30s {TARGET}",
         ],
         stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True,
     )
