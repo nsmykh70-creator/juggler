@@ -5430,14 +5430,11 @@ where
                 buf_pool(shard_idx).put(buf);
                 return Ok(());
             }
-            let chunk = client.read_buf(&mut buf).await?;
-            if chunk == 0 {
-                if served > 1 {
-                    KEEPALIVE_CONNECTIONS_TOTAL.inc();
-                }
-                buf_pool(shard_idx).put(buf);
-                return Ok(()); // client closed the connection
-            }
+            // Try the buffer FIRST: a pipelined request may already be
+            // complete here. Parsing before the blocking read keeps a
+            // pipeline (or a head split across TCP segments that fully
+            // arrived with an earlier read) from stalling until the client
+            // sends yet more bytes — nginx-class pipelining behavior.
             if let Some(req) = parse_request(&buf) {
                 let need = req.body_offset + req.content_length();
                 if buf.len() >= need {
@@ -5445,6 +5442,14 @@ where
                     record_stage(shard_idx, STAGE_PARSE, parse_t0);
                     break req;
                 }
+            }
+            let chunk = client.read_buf(&mut buf).await?;
+            if chunk == 0 {
+                if served > 1 {
+                    KEEPALIVE_CONNECTIONS_TOTAL.inc();
+                }
+                buf_pool(shard_idx).put(buf);
+                return Ok(()); // client closed the connection
             }
         };
 
@@ -6071,6 +6076,34 @@ pub fn build_h1_request_from_parts(
 mod tests {
     use super::*;
     use std::time::Duration;
+
+    // ---- HTTP/1.1 pipelining ----
+
+    #[test]
+    fn parse_request_handles_pipelined_requests() {
+        // Two complete requests in one buffer: the first must parse with a
+        // body_offset pointing at the second request's start, so the
+        // connection loop can consume request 1 and immediately serve
+        // request 2 without another socket read.
+        let buf = b"GET /a HTTP/1.1\r\nHost: x\r\n\r\nGET /b HTTP/1.1\r\nHost: x\r\n\r\n";
+        let req = parse_request(buf).expect("first pipelined request parses");
+        assert_eq!(req.path(buf), "/a");
+        assert_eq!(req.content_length(), 0);
+        // "GET /a HTTP/1.1\r\n" (16) + "Host: x\r\n" (10) + "\r\n" (2) = 28.
+        assert_eq!(req.body_offset, 28);
+        // After consuming request 1, the remainder parses as request 2.
+        let rest = &buf[req.body_offset..];
+        let req2 = parse_request(rest).expect("second pipelined request parses");
+        assert_eq!(req2.path(rest), "/b");
+    }
+
+    #[test]
+    fn parse_request_partial_pipeline_returns_none_until_complete() {
+        // A head with no terminating CRLFCRLF must not parse: the read
+        // loop keeps waiting instead of serving a half-formed request.
+        let buf = b"GET /a HTTP/1.1\r\nHost: x\r\nGET /b HTTP/1.1\r\n";
+        assert!(parse_request(buf).is_none());
+    }
 
     // ---- Pythia shard steering ----
 
