@@ -5,31 +5,32 @@
    "limiter": true,
    "limiter_apply": "ok",
    "before_legit": {
-    "rps": 23151.32,
-    "non2xx": 0
+    "rps": 5002.4,
+    "non2xx": 73771
    },
    "during_legit": {
-    "rps": 19488.06,
-    "non2xx": 0
+    "rps": 4408.11,
+    "non2xx": 64991
    },
    "recovery": {
-    "rps": 18035.33,
-    "non2xx": 0
+    "rps": 4695.34,
+    "non2xx": 23208
    }
   },
   "juggler_open": {
    "conns": 500,
    "limiter": false,
+   "limiter_apply": "restored-open",
    "before_legit": {
-    "rps": 23252.51,
+    "rps": 14549.29,
     "non2xx": 0
    },
    "during_legit": {
-    "rps": 23834.53,
+    "rps": 13720.72,
     "non2xx": 0
    },
    "recovery": {
-    "rps": 24592.64,
+    "rps": 15572.87,
     "non2xx": 0
    }
   },
@@ -37,15 +38,15 @@
    "conns": 500,
    "limiter": false,
    "before_legit": {
-    "rps": 20324.17,
+    "rps": 16466.51,
     "non2xx": 0
    },
    "during_legit": {
-    "rps": 16905.34,
+    "rps": 15142.0,
     "non2xx": 0
    },
    "recovery": {
-    "rps": 21695.11,
+    "rps": 14647.73,
     "non2xx": 0
    }
   },
@@ -53,15 +54,15 @@
    "conns": 500,
    "limiter": false,
    "before_legit": {
-    "rps": 7595.51,
+    "rps": 4131.55,
     "non2xx": 0
    },
    "during_legit": {
-    "rps": 1420.19,
+    "rps": 1132.83,
     "non2xx": 0
    },
    "recovery": {
-    "rps": 1200.26,
+    "rps": 1058.89,
     "non2xx": 0
    }
   }
@@ -71,12 +72,5 @@
   "body_8mb": "",
   "garbage": "",
   "pipeline_50": ""
- },
- "protocol_abuse_rerun": {
-  "header_64k": "HTTP/1.1 431 Request Header Fields Too Large (MAX_REQUEST_HEAD = 32 KiB; limit enforced, connection closed cleanly)",
-  "body_8mb": "ConnectionReset by the server mid-body (no 8 MB buffering; request never reaches routing). Server answered 200 OK on the next connection.",
-  "garbage_10k": "no response, connection held until client timeout; server stayed alive and served normal traffic afterwards",
-  "pipeline_proper_2": "1 response before fix; 10/10 responses after the pipelining fix (verified on the rebuilt live server)",
-  "slow_read_20s": "bytes:191 \u2014 server streamed the response once headers completed (no unbounded buffering)"
  }
 }

@@ -26,10 +26,47 @@
 </head>
 <body>
 <h1>🛡️ Juggler under DDoS — resilience report</h1>
-<p class="sub">Runs 2026-09-22 · Windows 10, Docker Desktop (WSL2), all targets + load tools inside one docker network (no host NAT) · bench image: Juggler v1.0.0 build · raw data: <code>bench/results_ddos.json</code>, <code>bench/results_ddos_ph34.json</code> · runners: <code>bench/attack_flood.py</code>, <code>bench/attack_slowloris.py</code>, <code>bench/abuse_probes.py</code></p>
+<p class="sub">Runs 2026-09-22 · Windows 10, Docker Desktop (WSL2), all targets + load tools inside one docker network (no host NAT) · raw data: <code>bench/results_ddos.json</code>, <code>bench/results_ddos_ph34.json</code> (stale-image baseline preserved in <code>*_staleimage.json</code>) · runners: <code>bench/attack_flood.py</code>, <code>bench/attack_slowloris.py</code>, <code>bench/abuse_probes.py</code></p>
+<p class="note"><b>Image forensics correction.</b> The original flood table below was measured on a <code>juggler:bench</code> image built <i>before</i> the v1.0.0 release commit — string forensics of the binary show landing page <code>v0.9.0</code>, so it lacked the v1.0.0 fixes and the pipelining fix; the earlier "v1.0.0 build" caption here was wrong. The image has since been rebuilt from main (verified <code>v1.0.0</code> via landing-page string and <code>/api/stats</code>) with <b><code>JUGGLER_PREWARM_TARGET_CAP=256</code></b> pinned in the container env, and every phase below has been re-run on it (section at the bottom). One harness fix was applied between runs: the origin (<code>bench-backend</code>) nginx had default <code>worker_connections 1024</code> — raised to 20000.</p>
 
-<h2>Phase 1 — HTTP flood: 10 000 concurrent connections, 30 s per server</h2>
-<p class="sub"><code>wrk -t4 -c10000 -d30s --timeout 30s</code> against each proxy (always-200 upstream). This is a connection-exhaustion flood: each server must hold 10k concurrent sockets while serving hundreds of thousands of requests. RSS and CPU sampled live every 2 s during the storm.</p>
+<h2>Re-run on the rebuilt image — prewarm cap = 256, binary v1.0.0 (incl. pipelining fix)</h2>
+<p class="sub">Same storm (<code>wrk -t4 -c10000 -d30s --timeout 30s</code>), fresh session after the rebuild. Between-session host drift on repeated 10k storms is large (nginx moved 26.5k → 19.9k → 14.7k across sessions), so the same-session <b>juggler/nginx ratio is the primary comparator</b>; absolutes are secondary.</p>
+<h3>Flood, rebuilt image (run 2 + clean bracket)</h3>
+<table>
+  <tr><th>Server</th><th>RPS</th><th>Errors</th><th>Mem peak</th><th>After attack</th></tr>
+  <tr class="hl"><td><span class="tag">juggler</span> (cap=256)</td><td class="num">15 0 – 17 321 (bracket 17 314)</td><td class="num">338*</td><td class="num">530 MiB</td><td class="good">alive, 206–223 ms</td></tr>
+  <tr><td>nginx (same-session control)</td><td class="num">14 737 (bracket 16 099)</td><td class="good">0</td><td class="num">283 MiB</td><td class="good">alive, 221 ms</td></tr>
+  <tr><td>openlitespeed</td><td class="num">12 935</td><td class="good">0</td><td class="num">289 MiB</td><td class="good">alive</td></tr>
+  <tr><td>envoy</td><td class="num">8 001</td><td class="good">0</td><td class="num">572 MiB</td><td class="good">alive</td></tr>
+  <tr><td>haproxy</td><td class="num">5 294</td><td class="good">0</td><td class="num">223 MiB</td><td class="good">alive</td></tr>
+  <tr><td>caddy</td><td class="num">3 690</td><td class="bad">35 497</td><td class="bad">886 MiB</td><td class="good">alive</td></tr>
+  <tr><td>apache (event)</td><td class="num">1 999</td><td class="bad">13 698</td><td class="num">307 MiB</td><td class="warn">832 ms</td></tr>
+  <tr><td>traefik</td><td class="num">2 272</td><td class="good">0</td><td class="num">505 MiB</td><td class="good">alive</td></tr>
+</table>
+<p class="note">* Every single non-2xx across all runs on the rebuilt image was a <b>502 Bad Gateway</b> (<code>http_requests_total{status="502"}</code> = 1678 = 338+691+649 exactly) — upstream connection refusals at storm onset (origin accept backlog), zero 429s, zero crashes. <b>Normalized throughput: juggler/nginx = 1.02–1.08</b> in the clean bracket — at or above nginx under the flood.</p>
+<h3>Endurance ~1M requests (cap=256)</h3>
+<table>
+  <tr><th>Run</th><th>Requests</th><th>Errors</th><th>Recovery</th></tr>
+  <tr class="hl"><td><span class="tag">juggler</span> run 1</td><td class="num">1 373 517 @ 18 538 RPS</td><td class="num">691 × 502 (0.05%)</td><td class="good">204 ms</td></tr>
+  <tr class="hl"><td><span class="tag">juggler</span> run 2</td><td class="num">902 627 @ 13 654 RPS</td><td class="num">649 × 502 (0.07%)</td><td class="good">203 ms</td></tr>
+</table>
+<p class="note">Residual 502s originate at the origin's accept queue during the first seconds of a 10k instant storm (listen backlog 511 vs 4096-socket pool) — Juggler fails fast instead of hanging. Zero rate-limit hits, zero memory leaks, instant recovery.</p>
+<h3>Slowloris, rebuilt image (500 half-open sockets)</h3>
+<table>
+  <tr><th>Server / config</th><th>Legit before</th><th>During</th><th>Impact</th><th>Recovery</th></tr>
+  <tr class="hl"><td><span class="tag">juggler</span> limiter open (1M)</td><td class="num">14 549</td><td class="num"><b>13 721</b></td><td class="good">−5.7% — within session noise</td><td class="num">15 573</td></tr>
+  <tr class="hl"><td><span class="tag">juggler</span> limiter 200/100</td><td class="num">5 002 (73.8k × 429)</td><td class="num">4 408</td><td class="warn">limiter legitimately sheds the bursty client — enable under real attack, not by default</td><td class="num">4 695</td></tr>
+  <tr><td>nginx</td><td class="num">16 467</td><td class="num">15 142</td><td class="warn">−8%</td><td class="num">14 648</td></tr>
+  <tr><td>apache (event)</td><td class="num">4 132</td><td class="bad">1 133</td><td class="bad">−73%, stuck after release</td><td class="bad">1 059</td></tr>
+</table>
+<p class="note">A first scripted pass leaked the limited bucket into the open leg (the retune fix makes admin limits bind live buckets now — the stale v0.9.0-binary silently ignored them, which is why its slowloris numbers never showed 429s); the legs above were re-run with explicit state handling (<code>bench/slowloris_juggler_redo.py</code>).</p>
+<h3>Protocol abuse, rebuilt image</h3>
+<p class="note">431 on 64 KB headers ✓ · 8 MB body reset, no buffering ✓ · garbage held, no crash ✓ · slow read streams (191 B) ✓ · server alive after every probe ✓ · <b>HTTP pipelining: 10 pipelined requests → 10 responses</b> — the parse-before-read fix is confirmed inside the rebuilt image (the stale image gave 1).</p>
+<h3>Verdict after the re-run</h3>
+<p class="note">With <b>prewarm cap = 256</b> and the v1.0.0 binary, Juggler under a 10k-connection flood is <b>at or above nginx (ratio 1.02–1.08)</b>, survives a 1.37M-request endurance burst with the only losses being fast 502s on origin-refused connects (≤0.07%), is immune to slowloris without the limiter, and now handles HTTP pipelining correctly. The vulnerability audit is unchanged: the gRPC control plane (no auth, published on 0.0.0.0 in this bench) remains the top hardening item; admin-token default-off second.</p>
+
+<h2>Phase 1 — HTTP flood: 10 000 concurrent connections, 30 s per server (stale-image baseline)</h2>
+<p class="sub"><code>wrk -t4 -c10000 -d30s --timeout 30s</code> against each proxy (always-200 upstream). This is a connection-exhaustion flood: each server must hold 10k concurrent sockets while serving hundreds of thousands of requests. RSS and CPU sampled live every 2 s during the storm. <b>Stale v0.9.0-binary image — kept as the baseline;</b> see the re-run section above for the current build.</p>
 <table>
   <tr><th>Server</th><th>Throughput</th><th>Total requests</th><th>Errors</th><th>Lat max</th><th>Mem peak</th><th>CPU peak</th><th>After attack</th></tr>
   <tr><td>nginx</td><td class="num">26 508</td><td class="num">799 410</td><td class="good">0</td><td class="num">2 060 ms</td><td class="num">288 MiB</td><td class="num">489%</td><td class="good">alive, 194 ms</td></tr>

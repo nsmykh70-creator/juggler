@@ -96,6 +96,11 @@ def slowloris_round(name: str, host: str, port: int, target: str,
     if limiter_on:
         admin_settings({"rate_limit_tokens": 200, "rate_limit_refill": 100})
         result["limiter_apply"] = "ok"
+    else:
+        # The previous limited round's bucket must not leak into the open
+        # round: the retune fix makes admin limits bind live buckets now.
+        admin_settings({"rate_limit_tokens": 1_000_000, "rate_limit_refill": 1_000_000})
+        result["limiter_apply"] = "restored-open"
 
     attack = Slowloris(host, port)
     attack.start()

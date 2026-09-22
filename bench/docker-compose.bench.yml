@@ -10,6 +10,7 @@ services:
     container_name: bench-juggler
     ports:
       - "50051:50051"   # host grpc_client.py access for hot-reload
+      - "127.0.0.1:19090:9090"  # host admin-API access for bench runners
     environment:
       JUGGLER_HTTP_ADDR: 0.0.0.0:8443
       JUGGLER_GRPC_ADDR: 0.0.0.0:50051

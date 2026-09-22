@@ -1,0 +1,180 @@
+{
+ "meta": {
+  "date": "2026-09-22 12:39",
+  "method": "HTTP flood: wrk -t4 -c10000 -d30s --timeout 30s per server, always-200 upstream, docker-net, RSS sampled every 2s during the storm"
+ },
+ "flood": {
+  "juggler": {
+   "rps": 22345.78,
+   "requests": 672842,
+   "lat_max_ms": 9700.0,
+   "sock_errors": {
+    "connect": 0,
+    "read": 0,
+    "write": 0,
+    "timeout": 0
+   },
+   "non2xx": 0,
+   "total_errors": 0,
+   "mem_peak_mib": 525.3,
+   "mem_last_mib": 183.4,
+   "cpu_peak_pct": 634.59,
+   "recovery": {
+    "alive": true,
+    "first_byte_ms": 197
+   }
+  },
+  "nginx": {
+   "rps": 26507.5,
+   "requests": 799410,
+   "lat_max_ms": 2060.0,
+   "sock_errors": {
+    "connect": 0,
+    "read": 0,
+    "write": 0,
+    "timeout": 0
+   },
+   "non2xx": 0,
+   "total_errors": 0,
+   "mem_peak_mib": 288.5,
+   "mem_last_mib": 235.0,
+   "cpu_peak_pct": 488.81,
+   "recovery": {
+    "alive": true,
+    "first_byte_ms": 194
+   }
+  },
+  "apache": {
+   "rps": 3663.27,
+   "requests": 110244,
+   "sock_errors": {
+    "connect": 0,
+    "read": 30206,
+    "write": 0,
+    "timeout": 0
+   },
+   "non2xx": 0,
+   "total_errors": 30206,
+   "mem_peak_mib": 285.7,
+   "mem_last_mib": 280.8,
+   "cpu_peak_pct": 1064.6,
+   "recovery": {
+    "alive": true,
+    "first_byte_ms": 233
+   }
+  },
+  "caddy": {
+   "rps": 2628.01,
+   "requests": 79100,
+   "sock_errors": {
+    "connect": 0,
+    "read": 0,
+    "write": 0,
+    "timeout": 0
+   },
+   "non2xx": 17,
+   "total_errors": 17,
+   "mem_peak_mib": 453.8,
+   "mem_last_mib": 1.407,
+   "cpu_peak_pct": 1121.95,
+   "recovery": {
+    "alive": false,
+    "first_byte_ms": 348
+   }
+  },
+  "haproxy": {
+   "rps": 7420.36,
+   "requests": 223032,
+   "sock_errors": {
+    "connect": 0,
+    "read": 0,
+    "write": 0,
+    "timeout": 0
+   },
+   "non2xx": 0,
+   "total_errors": 0,
+   "mem_peak_mib": 228.4,
+   "mem_last_mib": 189.2,
+   "cpu_peak_pct": 211.35,
+   "recovery": {
+    "alive": true,
+    "first_byte_ms": 193
+   }
+  },
+  "envoy": {
+   "rps": 13967.45,
+   "requests": 420358,
+   "lat_max_ms": 2630.0,
+   "sock_errors": {
+    "connect": 0,
+    "read": 0,
+    "write": 0,
+    "timeout": 0
+   },
+   "non2xx": 0,
+   "total_errors": 0,
+   "mem_peak_mib": 533.2,
+   "mem_last_mib": 478.0,
+   "cpu_peak_pct": 806.34,
+   "recovery": {
+    "alive": true,
+    "first_byte_ms": 181
+   }
+  },
+  "traefik": {
+   "rps": 4673.38,
+   "requests": 140575,
+   "sock_errors": {
+    "connect": 0,
+    "read": 0,
+    "write": 0,
+    "timeout": 0
+   },
+   "non2xx": 0,
+   "total_errors": 0,
+   "mem_peak_mib": 1015.0,
+   "mem_last_mib": 2.563,
+   "cpu_peak_pct": 1130.84,
+   "recovery": {
+    "alive": true,
+    "first_byte_ms": 220
+   }
+  },
+  "openlitespeed": {
+   "rps": 24977.34,
+   "requests": 752182,
+   "lat_max_ms": 1450.0,
+   "sock_errors": {
+    "connect": 0,
+    "read": 0,
+    "write": 0,
+    "timeout": 0
+   },
+   "non2xx": 0,
+   "total_errors": 0,
+   "mem_peak_mib": 292.9,
+   "mem_last_mib": 277.8,
+   "cpu_peak_pct": 567.56,
+   "recovery": {
+    "alive": true,
+    "first_byte_ms": 188
+   }
+  }
+ },
+ "endurance_juggler": {
+  "rps": 15561.67,
+  "requests": 936394,
+  "sock_errors": {
+   "connect": 0,
+   "read": 0,
+   "write": 0,
+   "timeout": 0
+  },
+  "non2xx": 0,
+  "total_errors": 0,
+  "recovery": {
+   "alive": true,
+   "first_byte_ms": 208
+  }
+ }
+}

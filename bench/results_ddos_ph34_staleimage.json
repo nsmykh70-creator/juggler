@@ -1,0 +1,82 @@
+{
+ "slowloris": {
+  "juggler_limited": {
+   "conns": 500,
+   "limiter": true,
+   "limiter_apply": "ok",
+   "before_legit": {
+    "rps": 23151.32,
+    "non2xx": 0
+   },
+   "during_legit": {
+    "rps": 19488.06,
+    "non2xx": 0
+   },
+   "recovery": {
+    "rps": 18035.33,
+    "non2xx": 0
+   }
+  },
+  "juggler_open": {
+   "conns": 500,
+   "limiter": false,
+   "before_legit": {
+    "rps": 23252.51,
+    "non2xx": 0
+   },
+   "during_legit": {
+    "rps": 23834.53,
+    "non2xx": 0
+   },
+   "recovery": {
+    "rps": 24592.64,
+    "non2xx": 0
+   }
+  },
+  "nginx": {
+   "conns": 500,
+   "limiter": false,
+   "before_legit": {
+    "rps": 20324.17,
+    "non2xx": 0
+   },
+   "during_legit": {
+    "rps": 16905.34,
+    "non2xx": 0
+   },
+   "recovery": {
+    "rps": 21695.11,
+    "non2xx": 0
+   }
+  },
+  "apache": {
+   "conns": 500,
+   "limiter": false,
+   "before_legit": {
+    "rps": 7595.51,
+    "non2xx": 0
+   },
+   "during_legit": {
+    "rps": 1420.19,
+    "non2xx": 0
+   },
+   "recovery": {
+    "rps": 1200.26,
+    "non2xx": 0
+   }
+  }
+ },
+ "protocol_abuse": {
+  "header_64k": "",
+  "body_8mb": "",
+  "garbage": "",
+  "pipeline_50": ""
+ },
+ "protocol_abuse_rerun": {
+  "header_64k": "HTTP/1.1 431 Request Header Fields Too Large (MAX_REQUEST_HEAD = 32 KiB; limit enforced, connection closed cleanly)",
+  "body_8mb": "ConnectionReset by the server mid-body (no 8 MB buffering; request never reaches routing). Server answered 200 OK on the next connection.",
+  "garbage_10k": "no response, connection held until client timeout; server stayed alive and served normal traffic afterwards",
+  "pipeline_proper_2": "1 response before fix; 10/10 responses after the pipelining fix (verified on the rebuilt live server)",
+  "slow_read_20s": "bytes:191 \u2014 server streamed the response once headers completed (no unbounded buffering)"
+ }
+}

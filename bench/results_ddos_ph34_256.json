@@ -1,0 +1,83 @@
+{
+ "meta": {
+  "image": "juggler:bench rebuilt from main @ 965a375 (v1.0.0 + pipelining fix)",
+  "prewarm_target_cap": 256,
+  "pool_cap_per_upstream": 4096,
+  "prewarm_floor": 32
+ },
+ "slowloris": {
+  "juggler_limited": {
+   "conns": 500,
+   "limiter": true,
+   "limiter_apply": "ok",
+   "before_legit": {
+    "rps": 5002.4,
+    "non2xx": 73771
+   },
+   "during_legit": {
+    "rps": 4408.11,
+    "non2xx": 64991
+   },
+   "recovery": {
+    "rps": 4695.34,
+    "non2xx": 23208
+   }
+  },
+  "juggler_open": {
+   "conns": 500,
+   "limiter": false,
+   "limiter_apply": "restored-open",
+   "before_legit": {
+    "rps": 14549.29,
+    "non2xx": 0
+   },
+   "during_legit": {
+    "rps": 13720.72,
+    "non2xx": 0
+   },
+   "recovery": {
+    "rps": 15572.87,
+    "non2xx": 0
+   }
+  },
+  "nginx": {
+   "conns": 500,
+   "limiter": false,
+   "before_legit": {
+    "rps": 16466.51,
+    "non2xx": 0
+   },
+   "during_legit": {
+    "rps": 15142.0,
+    "non2xx": 0
+   },
+   "recovery": {
+    "rps": 14647.73,
+    "non2xx": 0
+   }
+  },
+  "apache": {
+   "conns": 500,
+   "limiter": false,
+   "before_legit": {
+    "rps": 4131.55,
+    "non2xx": 0
+   },
+   "during_legit": {
+    "rps": 1132.83,
+    "non2xx": 0
+   },
+   "recovery": {
+    "rps": 1058.89,
+    "non2xx": 0
+   }
+  }
+ },
+ "protocol_abuse": {
+  "header_64k": "HTTP/1.1 431 Request Header Fields Too Large (32 KiB cap enforced)",
+  "body_8mb": "connection reset mid-body; next request 200 OK",
+  "garbage_10k": "no response, connection held; server alive afterwards",
+  "pipeline_proper_x10": "10/10 responses (parse-before-read fix confirmed in rebuilt image; stale image gave 1)",
+  "slow_read_20s": "bytes:191 \u2014 streams once the head completed"
+ }
+}
