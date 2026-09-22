@@ -66,7 +66,15 @@ def apply_routes(routes_dict):
     with grpc.insecure_channel(SERVER_ADDR) as channel:
         stub = pb2_grpc.ControlPlaneStub(channel)
         request = pb2.UpdateConfigRequest(routes=pb_routes)
-        response = stub.UpdateConfig(request, timeout=5)
+        # Server-side authz: mutating RPCs require Authorization: Bearer
+        # <JUGGLER_GRPC_TOKEN> (or the admin token fallback). Send it when
+        # configured so existing deployments keep working unmodified.
+        import os
+        metadata = []
+        tok = os.environ.get("JUGGLER_GRPC_TOKEN") or os.environ.get("JUGGLER_ADMIN_TOKEN")
+        if tok:
+            metadata.append(("authorization", f"Bearer {tok}"))
+        response = stub.UpdateConfig(request, timeout=5, metadata=metadata)
         return response.success, response.message
 
 

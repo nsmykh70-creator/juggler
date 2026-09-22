@@ -1506,6 +1506,7 @@ fn persist_settings() {
     // process later loads.
     #[cfg(test)]
     return;
+    #[allow(unreachable_code)]
     let s = settings();
     let file = SettingsFile {
         balancer: Some(s.balancer.get()),
@@ -2173,6 +2174,14 @@ fn run_plugin_filters(
 pub struct MyControlPlane {
     shared_config: Arc<ArcSwap<ServerConfig>>,
     routes_file: String,
+    /// Control-plane auth (mirrors the admin API):
+    /// - Some(token): every mutating RPC requires `authorization: Bearer <token>`;
+    /// - None + loopback bind: unauthenticated local management is allowed;
+    /// - None + non-loopback bind: FAIL-CLOSED — mutating RPCs are denied
+    ///   because an exposed, unauthenticated config write is a takeover.
+    auth_token: Option<String>,
+    /// Whether the control-plane listener address is loopback-only.
+    loopback_bind: bool,
 }
 
 impl MyControlPlane {
@@ -2180,6 +2189,53 @@ impl MyControlPlane {
         Self {
             shared_config,
             routes_file,
+            auth_token: None,
+            loopback_bind: true,
+        }
+    }
+
+    /// Production-safe wiring: token from JUGGLER_GRPC_TOKEN (falling back to
+    /// JUGGLER_ADMIN_TOKEN), plus whether the bind address is loopback.
+    pub fn with_auth(mut self, bind_addr: std::net::SocketAddr) -> Self {
+        self.auth_token = std::env::var("JUGGLER_GRPC_TOKEN")
+            .or_else(|_| std::env::var("JUGGLER_ADMIN_TOKEN"))
+            .ok()
+            .filter(|t| !t.is_empty());
+        self.loopback_bind = bind_addr.ip().is_loopback();
+        if self.auth_token.is_none() && !self.loopback_bind {
+            println!(
+                "🚫 gRPC Control Plane on {} has NO token: mutating RPCs are DENIED (fail-closed). \
+                 Set JUGGLER_GRPC_TOKEN to enable remote management.",
+                bind_addr
+            );
+        } else if self.auth_token.is_some() {
+            println!("🔑 gRPC Control Plane auth enabled (Bearer token required)");
+        }
+        self
+    }
+
+    /// Authorization gate for mutating RPCs. Returns Err with the gRPC status
+    /// to reject; Ok(()) means the call may proceed.
+    fn authorize(&self, request: &Request<UpdateConfigRequest>) -> Result<(), Status> {
+        match (&self.auth_token, self.loopback_bind) {
+            (Some(expected), _) => {
+                let got = request
+                    .metadata()
+                    .get("authorization")
+                    .and_then(|v| v.to_str().ok())
+                    .unwrap_or("");
+                if got.eq_ignore_ascii_case(&format!("Bearer {expected}")) {
+                    Ok(())
+                } else {
+                    Err(Status::unauthenticated(
+                        "control-plane mutation requires Authorization: Bearer <JUGGLER_GRPC_TOKEN>",
+                    ))
+                }
+            }
+            (None, true) => Ok(()), // loopback management, auth disabled by config
+            (None, false) => Err(Status::permission_denied(
+                "control-plane bound to a non-loopback address without a token: mutations disabled (fail-closed)",
+            )),
         }
     }
 }
@@ -2190,6 +2246,7 @@ impl ControlPlane for MyControlPlane {
         &self,
         request: Request<UpdateConfigRequest>,
     ) -> Result<Response<UpdateConfigResponse>, Status> {
+        self.authorize(&request)?;
         let req = request.into_inner();
         let mut new_routes = HashMap::new();
         for (path, grpc_route) in req.routes {
@@ -2451,6 +2508,63 @@ impl RawRequest {
                 .then(|| std::str::from_utf8(&buf[vs as usize..ve as usize]).unwrap_or(""))
         })
     }
+
+    /// True when the request body is chunked-framed (Transfer-Encoding
+    /// contains the `chunked` coding). RFC 7230 3.3.1: TE overrides CL.
+    pub fn is_chunked(&self, buf: &[u8]) -> bool {
+        self.header(buf, b"transfer-encoding")
+            .map(|v| v.to_ascii_lowercase().contains("chunked"))
+            .unwrap_or(false)
+    }
+}
+
+/// Decode a chunked body in place: replaces the raw chunk framing (sizes,
+/// CRLFs, trailers) with the decoded payload bytes. Returns Err on any
+/// malformed framing (non-hex size, missing CRLF, missing terminator) —
+/// the caller must reject the request rather than forward ambiguous bytes.
+fn decode_chunked_body(body: &mut Vec<u8>, raw: &[u8]) -> Result<(), ()> {
+    let mut decoded: Vec<u8> = Vec::with_capacity(raw.len());
+    let mut pos = 0usize;
+    loop {
+        // chunk-size line: hex [ ;ext ] CRLF
+        let Some(line_end) = raw[pos..]
+            .windows(2)
+            .position(|w| w == b"\r\n")
+            .map(|p| pos + p)
+        else {
+            return Err(());
+        };
+        let size_str = std::str::from_utf8(&raw[pos..line_end]).map_err(|_| ())?;
+        let size_hex = size_str.split(';').next().unwrap_or("").trim();
+        if size_hex.is_empty() {
+            return Err(());
+        }
+        let size = usize::from_str_radix(size_hex, 16).map_err(|_| ())?;
+        pos = line_end + 2;
+        if size == 0 {
+            // trailers: consume until the blank line that ends the body
+            while pos + 2 <= raw.len() {
+                if &raw[pos..pos + 2] == b"\r\n" {
+                    break;
+                }
+                if let Some(p) = raw[pos..].windows(2).position(|w| w == b"\r\n") {
+                    pos += p + 2;
+                } else {
+                    break;
+                }
+            }
+            break;
+        }
+        if pos + size + 2 > raw.len() || &raw[pos + size..pos + size + 2] != b"\r\n" {
+            return Err(());
+        }
+        decoded.extend_from_slice(&raw[pos..pos + size]);
+        pos += size + 2;
+    }
+    // Only the parsed prefix is meaningful; trailing bytes after the
+    // terminator belong to a pipelined request and stay in `buf`.
+    *body = decoded;
+    Ok(())
 }
 
 /// Parse a complete HTTP/1.x request. Returns `None` if the data does not
@@ -2519,7 +2633,7 @@ pub fn parse_request(buf: &[u8]) -> Option<RawRequest> {
 
     // ---- headers: one pass, ranges only; resolve CL + Connection here ----
     let mut headers = Vec::new();
-    let mut content_length_parsed = 0usize;
+    let mut content_length_parsed: Option<usize> = None;
     let mut connection_close = false;
     let mut connection_keepalive10 = false;
     for line in lines {
@@ -2529,9 +2643,25 @@ pub fn parse_request(buf: &[u8]) -> Option<RawRequest> {
         let (k, v) = line.split_at(colon);
         let v = v[1..].trim();
         let k = k.trim_end();
+        // Field values must be printable ASCII (RFC 7230 3.2: visible chars
+        // + space/HT only). Bare CR, NUL or other control bytes in a value
+        // are a smuggling-shaped signature — reject the whole request.
+        if v.bytes().any(|b| b < 0x20 && b != b'\t' || b == 0x7f) {
+            return None;
+        }
         if k.eq_ignore_ascii_case("content-length") {
-            // Inline parse: no String, no trim-alloc.
-            content_length_parsed = v.trim().parse().unwrap_or(0);
+            // Duplicate CL: equal values are tolerated (some clients send
+            // them), CONFLICTING values are a desync signature — RFC 7230
+            // 3.3.3 says reject or replace; we reject.
+            let parsed: usize = match v.trim().parse() {
+                Ok(n) => n,
+                Err(_) => return None, // non-numeric CL: reject, not 0
+            };
+            match content_length_parsed {
+                None => content_length_parsed = Some(parsed),
+                Some(prev) if prev == parsed => {}
+                Some(_) => return None,
+            }
         } else if k.eq_ignore_ascii_case("connection") {
             if v.eq_ignore_ascii_case("close") {
                 connection_close = true;
@@ -2558,7 +2688,7 @@ pub fn parse_request(buf: &[u8]) -> Option<RawRequest> {
         version: (version, version_end),
         headers,
         body_offset: header_end + 4,
-        content_length_parsed,
+        content_length_parsed: content_length_parsed.unwrap_or(0),
         keep_alive_parsed,
     })
 }
@@ -3054,6 +3184,17 @@ fn admin_stats_json() -> String {
 }
 
 /// Serve one admin connection: minimal HTTP/1.1, bearer-token auth on /api.
+/// Authorization level derived from the configured admin token.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum AuthMode {
+    /// Token present and matched: full read+write surface.
+    Mutating,
+    /// No token configured: read-only surface, mutations answer 403.
+    ReadOnly,
+    /// Token configured but not presented/matched: everything answers 401.
+    Denied,
+}
+
 async fn serve_admin_connection(mut stream: tokio::net::TcpStream) -> std::io::Result<()> {
     use tokio::io::{AsyncReadExt, AsyncWriteExt};
     let mut buf = vec![0u8; 8192];
@@ -3111,23 +3252,43 @@ async fn serve_admin_connection(mut stream: tokio::net::TcpStream) -> std::io::R
     let path_only = path.split('?').next().unwrap_or(path);
 
     let token = std::env::var("JUGGLER_ADMIN_TOKEN").ok();
-    let auth_ok = match &token {
-        None => true, // auth disabled by default (local management)
+    // Production-safe default: with no token configured the admin surface is
+    // READ-ONLY (stats/routes/settings GET still work for local monitoring)
+    // and every mutating endpoint answers 403 — forgetting to set the token
+    // must never silently expose a config-write API.
+    let auth_mode = match &token {
         Some(expected) => {
             let bearer = format!("Bearer {expected}");
-            data.windows(bearer.len())
+            if data
+                .windows(bearer.len())
                 .any(|w| w.eq_ignore_ascii_case(bearer.as_bytes()))
+            {
+                AuthMode::Mutating
+            } else {
+                AuthMode::Denied
+            }
         }
+        None => AuthMode::ReadOnly,
     };
 
-    let (status, ctype, body): (u16, &str, String) = match (path_only, auth_ok) {
-        (_, false) => (
+    let (status, ctype, body): (u16, &str, String) = match (path_only, auth_mode) {
+        (_, AuthMode::Denied) => (
             401,
             "text/plain; charset=utf-8",
             "unauthorized: set Authorization: Bearer <JUGGLER_ADMIN_TOKEN>".into(),
         ),
-        ("/api/stats", true) => (200, "application/json", admin_stats_json()),
-        ("/api/routes", true) if method == "POST" => {
+        ("/api/routes", AuthMode::ReadOnly) if method == "POST" => (
+            403,
+            "text/plain; charset=utf-8",
+            "forbidden: admin is read-only while JUGGLER_ADMIN_TOKEN is unset (fail-closed)".into(),
+        ),
+        ("/api/settings", AuthMode::ReadOnly) if method == "POST" => (
+            403,
+            "text/plain; charset=utf-8",
+            "forbidden: admin is read-only while JUGGLER_ADMIN_TOKEN is unset (fail-closed)".into(),
+        ),
+        ("/api/stats", _) => (200, "application/json", admin_stats_json()),
+        ("/api/routes", AuthMode::Mutating) if method == "POST" => {
             // Body after the head: accept full routes JSON (same schema as
             // routes.json / gRPC UpdateConfig) — validated before store.
             let body_bytes = &data[head_end..];
@@ -3146,14 +3307,14 @@ async fn serve_admin_connection(mut stream: tokio::net::TcpStream) -> std::io::R
                 Err(e) => (400, "text/plain; charset=utf-8", format!("bad JSON: {e}")),
             }
         }
-        ("/api/routes", true) => {
+        ("/api/routes", _) => {
             // GET: current routes as JSON.
             let cfg = ADMIN_CONFIG
                 .get_or_init(|| Arc::new(ArcSwap::from_pointee(ServerConfig::default())));
             let json = serde_json::to_string_pretty(cfg.load().as_ref()).unwrap_or_default();
             (200, "application/json", json)
         }
-        ("/api/settings", true) if method == "POST" => {
+        ("/api/settings", AuthMode::Mutating) if method == "POST" => {
             // Partial update: {"name": value, ...}; values are clamped to
             // knob bounds, unknown names rejected. Persisted to settings.json.
             let body_bytes = &data[head_end..];
@@ -3171,8 +3332,8 @@ async fn serve_admin_connection(mut stream: tokio::net::TcpStream) -> std::io::R
                 Err(e) => (400, "text/plain; charset=utf-8", format!("bad JSON: {e}")),
             }
         }
-        ("/api/settings", true) => (200, "application/json", settings_json()),
-        ("/", true) => {
+        ("/api/settings", _) => (200, "application/json", settings_json()),
+        ("/", _) => {
             // SPA shell: live sections poll /api/stats client-side; the
             // settings card is static (no auto-refresh to clobber inputs).
             (200, "text/html; charset=utf-8", admin_ui_html().to_string())
@@ -3187,6 +3348,8 @@ async fn serve_admin_connection(mut stream: tokio::net::TcpStream) -> std::io::R
             "OK"
         } else if status == 401 {
             "Unauthorized"
+        } else if status == 403 {
+            "Forbidden"
         } else if status == 400 {
             "Bad Request"
         } else {
@@ -5085,7 +5248,7 @@ fn run_shard(
                         .build()
                         .expect("grpc runtime failed");
                     rt.block_on(async {
-                        let svc = MyControlPlane::new(grpc_cfg, routes_file);
+                        let svc = MyControlPlane::new(grpc_cfg, routes_file).with_auth(grpc_addr);
                         // A transport-level failure (bind race, transient port
                         // conflict with WSL relay etc.) must NOT kill the
                         // control plane forever — hot-reload of routes via
@@ -5442,6 +5605,10 @@ where
         let parse_t0 = Instant::now();
         let req = loop {
             if buf.len() > MAX_REQUEST_HEAD {
+                // RFC-correct rejection: deliver 431 BEFORE closing. The
+                // scoped drain (shutdown write half, short read drain, then
+                // drop) makes the status actually reach the client instead
+                // of racing RST with the attacker's unread overflow bytes.
                 client
                     .write_all(&http_response(
                         "431 Request Header Fields Too Large",
@@ -5449,6 +5616,7 @@ where
                         false,
                     ))
                     .await?;
+                drain_and_close(&mut client).await;
                 buf_pool(shard_idx).put(buf);
                 return Ok(());
             }
@@ -5485,6 +5653,32 @@ where
         // Body bytes live after the header block; the WASM pipeline (run
         // inside resolve_route) may rewrite them before forwarding.
         let mut body: Vec<u8> = buf[req.body_offset.min(buf.len())..].to_vec();
+        // A chunked request carries its body as chunk framing, not raw bytes:
+        // decode the chunk stream into the real body here. The forwarded
+        // request is always re-framed with Content-Length (build_forwarded
+        // _request strips TE), so the origin sees exactly one framing.
+        if req.is_chunked(&buf) {
+            let raw_body_start = req.body_offset.min(buf.len());
+            let raw_body = buf[raw_body_start..].to_vec();
+            match decode_chunked_body(&mut body, &raw_body) {
+                Ok(()) => {}
+                Err(()) => {
+                    // Malformed chunk framing (bad size, missing terminator):
+                    // reject outright — passing it through would smuggle
+                    // attacker-controlled bytes into the upstream body.
+                    client
+                        .write_all(&http_response(
+                            "400 Bad Request",
+                            "malformed chunked encoding",
+                            false,
+                        ))
+                        .await?;
+                    drain_and_close(&mut client).await;
+                    buf_pool(shard_idx).put(buf);
+                    return Ok(());
+                }
+            }
+        }
 
         record_stage(shard_idx, STAGE_ROUTE, route_t0);
 
@@ -5619,11 +5813,32 @@ where
             if served > 1 {
                 KEEPALIVE_CONNECTIONS_TOTAL.inc();
             }
+            drain_and_close(&mut client).await;
             buf_pool(shard_idx).put(buf);
             return Ok(());
         }
         consume_consumed_request(&mut buf, &req);
     }
+}
+
+/// Graceful close: half-close the write side (so the peer sees our final
+/// bytes) and briefly drain the read side so the kernel can deliver a
+/// FIN-ACK instead of a spurious RST when unread request bytes remain.
+async fn drain_and_close<S>(client: &mut S)
+where
+    S: tokio::io::AsyncRead + AsyncWriteExt + Unpin + Send,
+{
+    let _ = client.flush().await;
+    let mut sink = [0u8; 512];
+    let deadline = Instant::now() + Duration::from_millis(50);
+    while Instant::now() < deadline {
+        match tokio::time::timeout(Duration::from_millis(20), client.read(&mut sink)).await {
+            Ok(Ok(0)) | Err(_) => break,
+            Ok(Ok(_)) => continue,
+            Ok(Err(_)) => break,
+        }
+    }
+    let _ = client.shutdown().await;
 }
 
 /// Drop the bytes of the request that was just handled from the buffer so
@@ -5659,20 +5874,48 @@ fn build_forwarded_request(
         .sum();
     let mut out = Vec::with_capacity(head_len + body.len() + extras_len + 128);
 
-    // Copy the head (without the final blank-line CRLF), rewriting the
-    // Content-Length line inline when the body size changed.
+    // Re-emit the head line-by-line (raw spans, zero per-line allocs):
+    // - drop every Transfer-Encoding line — the forwarded body is always
+    //   re-framed with an explicit Content-Length, so exactly one body
+    //   framing may reach the origin (forwarding TE + CL is the classic
+    //   smuggling-adjacent ambiguity);
+    // - rewrite Content-Length inline when the body size changed.
     let cl_differs = req.content_length() != body.len();
-    if cl_differs {
-        match find_header_line(&raw[..head_end], b"content-length") {
-            Some((ls, le)) => {
-                out.extend_from_slice(&raw[..ls]);
-                out.extend_from_slice(format!("Content-Length: {}\r\n", body.len()).as_bytes());
-                out.extend_from_slice(&raw[le..head_end]);
+    // A request with a CL already has it copied/rewritten below; a chunked
+    // (or CL-less) request needs the explicit CL appended after the loop.
+    let mut wrote_cl = !cl_differs && req.content_length() == 0;
+    {
+        let mut off = 0usize;
+        while off < head_end {
+            let end = raw[off..head_end]
+                .windows(2)
+                .position(|w| w == b"\r\n")
+                .map(|p| off + p + 2)
+                .unwrap_or(head_end);
+            let line = &raw[off..end];
+            let name = match line.iter().position(|&b| b == b':') {
+                Some(ci) => &line[..ci],
+                None => &line[..0],
+            };
+            let is_te = name.eq_ignore_ascii_case(b"transfer-encoding");
+            let is_cl = name.eq_ignore_ascii_case(b"content-length");
+            if !is_te {
+                if is_cl && cl_differs {
+                    out.extend_from_slice(format!("Content-Length: {}\r\n", body.len()).as_bytes());
+                    wrote_cl = true;
+                } else {
+                    out.extend_from_slice(line);
+                    if is_cl {
+                        wrote_cl = true;
+                    }
+                }
             }
-            None => out.extend_from_slice(&raw[..head_end]),
+            off = end;
         }
-    } else {
-        out.extend_from_slice(&raw[..head_end]);
+    }
+    // A chunked request had no CL line to rewrite: add the explicit one.
+    if !wrote_cl {
+        out.extend_from_slice(format!("Content-Length: {}\r\n", body.len()).as_bytes());
     }
 
     // Injected headers, written directly into the output (zero temp allocs).
@@ -5703,6 +5946,8 @@ fn build_forwarded_request(
 
 /// Locate a header line (case-insensitive name) inside a raw request head.
 /// Returns (line_start, line_end) with `line_end` past the trailing CRLF.
+/// (kept for quick diagnostics; not on the hot path)
+#[allow(dead_code)]
 fn find_header_line(head: &[u8], name: &[u8]) -> Option<(usize, usize)> {
     let name_str = std::str::from_utf8(name).ok()?;
     let mut off = 0usize;
@@ -6123,6 +6368,43 @@ mod tests {
     }
 
     #[test]
+    fn parse_request_rejects_conflicting_content_length() {
+        // Smuggling signature (RFC 7230 3.3.3): conflicting duplicate CL must
+        // be rejected outright, never "pick one and continue".
+        let buf = b"POST /echo HTTP/1.1\r\nHost: x\r\nContent-Length: 5\r\nContent-Length: 3\r\n\r\nabcde";
+        assert!(
+            parse_request(buf).is_none(),
+            "conflicting CL must fail parsing"
+        );
+
+        // Equal duplicate CL stays tolerated (real clients emit it).
+        let buf = b"POST /echo HTTP/1.1\r\nHost: x\r\nContent-Length: 5\r\nContent-Length: 5\r\n\r\nabcde";
+        let req = parse_request(buf).expect("equal duplicate CL must parse");
+        assert_eq!(req.content_length(), 5);
+
+        // Non-numeric CL must not silently become 0 (that desyncs framing).
+        let buf = b"POST /echo HTTP/1.1\r\nHost: x\r\nContent-Length: 0x10\r\n\r\n";
+        assert!(
+            parse_request(buf).is_none(),
+            "non-numeric CL must fail parsing"
+        );
+    }
+
+    #[test]
+    fn parse_request_rejects_control_chars_in_header_values() {
+        // Bare CR inside a value is a header-injection signature.
+        let buf = b"GET /echo HTTP/1.1\r\nHost: x\r\nX-Bad: a\rb: c\r\n\r\n";
+        assert!(
+            parse_request(buf).is_none(),
+            "CR in value must fail parsing"
+        );
+
+        // HTAB in a value stays legal (RFC 7230 field-content).
+        let buf = b"GET /echo HTTP/1.1\r\nHost: x\r\nX-Ok: a\tb\r\n\r\n";
+        assert!(parse_request(buf).is_some(), "TAB in value must parse");
+    }
+
+    #[test]
     fn parse_request_handles_pipelined_requests() {
         // Two complete requests in one buffer: the first must parse with a
         // body_offset pointing at the second request's start, so the
@@ -6386,6 +6668,7 @@ mod tests {
     /// Legacy `(String, Vec<(String,String)>)` parser kept ONLY for the
     /// allocation benchmark below: proves the zero-copy rewrite head-to-head
     /// in one process.
+    #[allow(clippy::type_complexity)]
     fn parse_request_legacy(
         buf: &[u8],
     ) -> Option<(String, String, String, Vec<(String, String)>, usize)> {
@@ -7275,7 +7558,7 @@ mod tests {
     #[test]
     fn update_shard_stats_resizes_and_folds() {
         update_shard_stats(&[5, 0, 7]);
-        let snap = shard_stats_snapshot();
+        let _snap = shard_stats_snapshot();
         // Snapshot is driven by shard_counters() (empty in unit tests), but
         // update must not panic and the state vector must resize.
         let st = shard_holt_state().lock().unwrap();
@@ -7473,5 +7756,32 @@ mod tests {
             .select_upstream_predictive(&["a:1".into(), "b:2".into()])
             .unwrap();
         assert_eq!(picked, "a:1");
+    }
+}
+
+#[cfg(test)]
+mod chunk_decode_tests {
+    use super::*;
+
+    #[test]
+    fn decode_chunked_body_happy_path_and_trailers() {
+        let mut body = Vec::new();
+        let raw = b"3\r\nabc\r\n5\r\nhello\r\n0\r\nX-Tr: 1\r\n\r\n".to_vec();
+        decode_chunked_body(&mut body, &raw).expect("valid chunk stream must decode");
+        assert_eq!(body, b"abchello");
+    }
+
+    #[test]
+    fn decode_chunked_body_rejects_malformed_framing() {
+        let mut body = Vec::new();
+        // non-hex size
+        let raw = b"ZZZZ\r\n0\r\n\r\n".to_vec();
+        assert!(decode_chunked_body(&mut body, &raw).is_err());
+        // missing CRLF after data
+        let raw = b"3\r\nabc0\r\n\r\n".to_vec();
+        assert!(decode_chunked_body(&mut body, &raw).is_err());
+        // truncated terminator
+        let raw = b"3\r\nabc\r\n".to_vec();
+        assert!(decode_chunked_body(&mut body, &raw).is_err());
     }
 }

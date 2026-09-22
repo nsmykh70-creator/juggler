@@ -9,6 +9,9 @@ services:
     environment:
       JUGGLER_ADMIN_TOKEN: "bench"
       JUGGLER_ADMIN_ADDR: "0.0.0.0:9090"
+      # Control-plane authz (security pass fix): gRPC mutating RPCs require
+      # this Bearer token; probes without it must get UNAUTHENTICATED.
+      JUGGLER_GRPC_TOKEN: "bench"
       # Round-2 A/B: the prewarm TARGET becomes the arm variable (64 vs 256),
       # injected per arm via compose interpolation (AB_PREWARM_CAP env on the
       # host); the pool itself stays at the matrix-level 4096 in both arms.
