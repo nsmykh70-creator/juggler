@@ -69,6 +69,96 @@
     },
     "phase6_misc": {
       "missing": "tmp_phase6_misc_results_ph6.json"
+    },
+    "phase7_operational": {
+      "meta": {
+        "ts": "2026-09-22 21:00",
+        "target": "hardened image (83/83 tests)"
+      },
+      "bruteforce_throttle": {
+        "B1_60_wrong_tokens": {
+          "first_batch": "19x401 then 41x429 (latch at 20 fails)",
+          "latched_all_429": true,
+          "verdict": "PASS"
+        },
+        "B2_legit_token_after_burst": {
+          "status": 200,
+          "note": "correct token resets the latch",
+          "verdict": "PASS"
+        },
+        "B3_dataplane_during_attack": {
+          "probes": "alive, p99 25.4 ms",
+          "verdict": "PASS"
+        }
+      },
+      "config_fuzzing": {
+        "F1_degenerate_routes": {
+          "rejected_400": [
+            "empty_routes_obj",
+            "routes_null",
+            "no_routes_key",
+            "empty_upstream",
+            "metadata_upstream(egress)",
+            "loopback_upstream(egress)",
+            "truncated_json"
+          ],
+          "accepted_but_safe": {
+            "dup_path_keys": "last-wins by serde, config consistent",
+            "huge_2k_routes": "applied atomically; /bench 404 is EXPECTED (route replaced); fuzz route itself served 200; no crash; restore immediate",
+            "invalid_upstream_url|port_zero|negative_port": "502 responses (connect fails fast) — degraded route, never a crash",
+            "huge_path_60k": "404 (route added but unused); server healthy"
+          },
+          "crashes": 0,
+          "partial_configs": 0,
+          "verdict": "PASS (with egress-policy hardening closing metadata/loopback)"
+        },
+        "F2_degenerate_settings": {
+          "rejected_400": [
+            "timeout_zero",
+            "timeout_huge",
+            "negative_tokens",
+            "wrong_type",
+            "unknown_knob"
+          ],
+          "clamped_ok": [
+            "huge_tokens(1e18)"
+          ],
+          "verdict": "PASS"
+        },
+        "F3_concurrent_update_plus_traffic": {
+          "requests": 2488,
+          "all_200": true,
+          "transport_breaks": 0,
+          "writers": 8,
+          "duration_s": 15,
+          "config_consistent_after": true,
+          "verdict": "PASS — atomicity: never a partial config"
+        },
+        "F4_update_during_upstream_failure": {
+          "dead_phase": "502 only",
+          "recovered_all_200": true,
+          "no_transport_breaks": true,
+          "verdict": "PASS"
+        }
+      },
+      "limiter_semantics": {
+        "burst600_at_200_100": {
+          "ok": 296,
+          "429": 304
+        },
+        "after_2s_pause": "bucket refilled (~200), burst served",
+        "steady_20rps_at_refill_100": "100/100 ok — legit steady traffic unaffected",
+        "open_1M": "200/200 burst, 0 x 429",
+        "nat_note": "all test sources share one docker-network IP: a per-IP bucket IS the NAT case — semantics measured directly",
+        "verdict": "PASS — documented burst/steady semantics"
+      },
+      "egress_policy": {
+        "loopback_upstream": "400 rejected",
+        "metadata_169_254": "400 rejected",
+        "override": "JUGGLER_ALLOW_PRIVATE_UPSTREAMS=1",
+        "hostname_upstreams": "unaffected (routing by config, dial by resolve)",
+        "verdict": "PASS (new hardening, live-verified)"
+      }
     }
   }
 }

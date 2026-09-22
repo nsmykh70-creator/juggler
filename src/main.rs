@@ -2260,6 +2260,16 @@ impl ControlPlane for MyControlPlane {
                     "route {path} must define at least one upstream address"
                 )));
             }
+            if grpc_route
+                .upstream_addrs
+                .iter()
+                .any(|a| upstream_addr_forbidden(a))
+            {
+                return Err(Status::invalid_argument(
+                    "upstream target is loopback/link-local (metadata pivot); \
+                     set JUGGLER_ALLOW_PRIVATE_UPSTREAMS=1 to allow",
+                ));
+            }
             let security = grpc_route.security.unwrap_or_default();
             let response_headers: Vec<(String, String)> =
                 security.response_headers.into_iter().collect();
@@ -3195,8 +3205,63 @@ enum AuthMode {
     Denied,
 }
 
+/// Admin brute-force throttle: per-source-IP failed-token counter with a
+/// sliding window. After ADMIN_AUTH_FAIL_LIMIT failures inside the window
+/// the source answers 429 (Retry-After) until the window drains. A correct
+/// token resets the counter, so a legitimate operator who fat-fingers the
+/// token a few times is never locked out.
+const ADMIN_AUTH_WINDOW: Duration = Duration::from_secs(60);
+const ADMIN_AUTH_FAIL_LIMIT: u32 = 20;
+
+fn admin_fail_map() -> &'static Mutex<HashMap<IpAddr, (u32, Instant)>> {
+    static MAP: OnceLock<Mutex<HashMap<IpAddr, (u32, Instant)>>> = OnceLock::new();
+    MAP.get_or_init(|| Mutex::new(HashMap::new()))
+}
+
+fn admin_auth_note_failure(ip: IpAddr) {
+    let mut map = admin_fail_map().lock().unwrap();
+    let e = map
+        .entry(ip)
+        .and_modify(|(n, at)| {
+            if at.elapsed() > ADMIN_AUTH_WINDOW {
+                *n = 0;
+                *at = Instant::now();
+            }
+            *n += 1;
+        })
+        .or_insert_with(|| (1u32, Instant::now()));
+    let _ = e; // entry already updated
+               // Opportunistic prune so a scan from rotating addresses cannot grow the
+               // map unboundedly.
+    if map.len() > 4096 {
+        map.retain(|_, (_, at)| at.elapsed() <= ADMIN_AUTH_WINDOW);
+    }
+}
+
+/// Returns Some(retry_after_secs) while the source is throttled.
+fn admin_auth_throttled(ip: IpAddr) -> Option<u64> {
+    let map = admin_fail_map().lock().unwrap();
+    match map.get(&ip) {
+        Some((n, at)) if *n >= ADMIN_AUTH_FAIL_LIMIT && at.elapsed() <= ADMIN_AUTH_WINDOW => Some(
+            ADMIN_AUTH_WINDOW
+                .saturating_sub(at.elapsed())
+                .as_secs()
+                .max(1),
+        ),
+        _ => None,
+    }
+}
+
+fn admin_auth_note_success(ip: IpAddr) {
+    admin_fail_map().lock().unwrap().remove(&ip);
+}
+
 async fn serve_admin_connection(mut stream: tokio::net::TcpStream) -> std::io::Result<()> {
     use tokio::io::{AsyncReadExt, AsyncWriteExt};
+    let peer_ip = stream
+        .peer_addr()
+        .map(|a| a.ip())
+        .unwrap_or(std::net::IpAddr::from([127u8, 0, 0, 1]));
     let mut buf = vec![0u8; 8192];
     let mut n = tokio::time::timeout(std::time::Duration::from_secs(10), stream.read(&mut buf))
         .await
@@ -3263,13 +3328,30 @@ async fn serve_admin_connection(mut stream: tokio::net::TcpStream) -> std::io::R
                 .windows(bearer.len())
                 .any(|w| w.eq_ignore_ascii_case(bearer.as_bytes()))
             {
+                admin_auth_note_success(peer_ip);
                 AuthMode::Mutating
             } else {
+                admin_auth_note_failure(peer_ip);
                 AuthMode::Denied
             }
         }
         None => AuthMode::ReadOnly,
     };
+    // Brute-force throttle: a source with too many failed token attempts in
+    // the window is shed BEFORE any handler work. Legitimate operators are
+    // unaffected (failures expire; successful auth resets the counter).
+    if let Some(retry_after) = admin_auth_throttled(peer_ip) {
+        let body = "429: too many failed admin authentications; retry later".to_string();
+        let resp = format!(
+            "HTTP/1.1 429 Too Many Requests\r\nContent-Type: text/plain; charset=utf-8\r\nContent-Length: {}\r\nConnection: close\r\nRetry-After: {}\r\n\r\n{}",
+            body.len(),
+            retry_after,
+            body
+        );
+        stream.write_all(resp.as_bytes()).await?;
+        stream.flush().await?;
+        return Ok(());
+    }
 
     let (status, ctype, body): (u16, &str, String) = match (path_only, auth_mode) {
         (_, AuthMode::Denied) => (
@@ -3366,6 +3448,59 @@ async fn serve_admin_connection(mut stream: tokio::net::TcpStream) -> std::io::R
 
 /// Atomically swap the shared config from the admin API (same validation
 /// path as the gRPC Control Plane: persist + registry + health + prewarm).
+/// Egress policy for configured upstreams (S4 from the security pass):
+/// link-local, loopback and unspecified upstream targets are rejected by
+/// default so a leaked control-plane credential cannot silently pivot the
+/// proxy at metadata endpoints (169.254.169.254) or internal services.
+/// Operators who legitimately proxy to such targets (e.g. a local sidecar)
+/// opt out with JUGGLER_ALLOW_PRIVATE_UPSTREAMS=1.
+fn upstream_addr_forbidden(addr: &str) -> bool {
+    if std::env::var("JUGGLER_ALLOW_PRIVATE_UPSTREAMS")
+        .map(|v| v == "1" || v.eq_ignore_ascii_case("true"))
+        .unwrap_or(false)
+    {
+        return false;
+    }
+    let host = addr.rsplit_once(':').map(|(h, _)| h).unwrap_or(addr);
+    let host = host.trim_start_matches('[').trim_end_matches(']');
+    let host = host
+        .trim_start_matches("http://")
+        .trim_start_matches("https://");
+    let Ok(ip) = host.parse::<IpAddr>() else {
+        // Hostnames cannot be classified statically; resolution-time policy
+        // would need DNS rebinding defense — out of scope here.
+        return false;
+    };
+    match ip {
+        IpAddr::V4(v4) => v4.is_loopback() || v4.is_link_local() || v4.is_unspecified(),
+        IpAddr::V6(v6) => {
+            v6.is_loopback() || (v6.segments()[0] & 0xffc0) == 0xfe80 || v6.is_unspecified()
+        }
+    }
+}
+
+fn validate_upstream_egress(routes: &HashMap<String, RouteConfig>) -> Result<(), String> {
+    let bad: Vec<String> = routes
+        .iter()
+        .flat_map(|(path, r)| {
+            r.upstream_addrs
+                .iter()
+                .filter(|a| upstream_addr_forbidden(a))
+                .map(|a| format!("{path} -> {a}"))
+                .collect::<Vec<_>>()
+        })
+        .collect();
+    if bad.is_empty() {
+        Ok(())
+    } else {
+        Err(format!(
+            "upstream targets point at loopback/link-local addresses (metadata/SSRF pivot): {} \
+             — set JUGGLER_ALLOW_PRIVATE_UPSTREAMS=1 to override",
+            bad.join(", ")
+        ))
+    }
+}
+
 async fn apply_admin_config(new_cfg: ServerConfig) -> anyhow::Result<String> {
     for (path, r) in &new_cfg.routes {
         if !path.starts_with('/') {
@@ -3375,6 +3510,7 @@ async fn apply_admin_config(new_cfg: ServerConfig) -> anyhow::Result<String> {
             anyhow::bail!("route {path} must define at least one upstream");
         }
     }
+    validate_upstream_egress(&new_cfg.routes).map_err(anyhow::Error::msg)?;
     // Static docroot routes must survive admin hot-reload exactly like they
     // survive gRPC Control Plane updates: merge over the posted routes.
     let merged_routes = merge_static_routes(&default_static_root(), new_cfg.routes);
@@ -7035,7 +7171,9 @@ mod tests {
         routes.insert(
             "/api".into(),
             PbRouteConfig {
-                upstream_addrs: vec!["127.0.0.1:7001".into()],
+                // hostname upstream (loopback targets are rejected by the
+                // default egress policy)
+                upstream_addrs: vec!["test-upstream:7001".into()],
                 wasm_plugin: None,
                 security: None,
             },
@@ -7783,5 +7921,71 @@ mod chunk_decode_tests {
         // truncated terminator
         let raw = b"3\r\nabc\r\n".to_vec();
         assert!(decode_chunked_body(&mut body, &raw).is_err());
+    }
+}
+
+#[cfg(test)]
+mod hardening_tests {
+    use super::*;
+
+    #[test]
+    fn egress_policy_blocks_metadata_and_loopback() {
+        // The override test mutates the shared process env; serialize both
+        // so ordering cannot flip the policy mid-assert.
+        let _g = EGRESS_ENV_LOCK.lock().unwrap();
+        std::env::remove_var("JUGGLER_ALLOW_PRIVATE_UPSTREAMS");
+        assert!(upstream_addr_forbidden("169.254.169.254:80"));
+        assert!(upstream_addr_forbidden("127.0.0.1:9000"));
+        assert!(upstream_addr_forbidden("0.0.0.0:80"));
+        assert!(upstream_addr_forbidden("[::1]:9000"));
+        assert!(upstream_addr_forbidden("[fe80::1]:9000"));
+        // Public and hostname upstreams stay allowed.
+        assert!(!upstream_addr_forbidden("backend:9000"));
+        assert!(!upstream_addr_forbidden("93.184.216.34:443"));
+    }
+
+    static EGRESS_ENV_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
+    #[test]
+    fn egress_policy_override_env() {
+        let _g = EGRESS_ENV_LOCK.lock().unwrap();
+        std::env::set_var("JUGGLER_ALLOW_PRIVATE_UPSTREAMS", "1");
+        assert!(!upstream_addr_forbidden("127.0.0.1:9000"));
+        std::env::remove_var("JUGGLER_ALLOW_PRIVATE_UPSTREAMS");
+        assert!(upstream_addr_forbidden("127.0.0.1:9000"));
+    }
+
+    #[test]
+    fn admin_bruteforce_throttle_latches_and_expires() {
+        let ip = IpAddr::from([192, 0, 2, 77]); // TEST-NET, isolated per test
+        for _ in 0..ADMIN_AUTH_FAIL_LIMIT {
+            admin_auth_note_failure(ip);
+        }
+        assert!(
+            admin_auth_throttled(ip).is_some(),
+            "after the fail limit the source must be throttled"
+        );
+        // A valid login clears the latch.
+        admin_auth_note_success(ip);
+        assert!(admin_auth_throttled(ip).is_none());
+    }
+
+    #[test]
+    fn validate_upstream_egress_reports_route() {
+        let _g = EGRESS_ENV_LOCK.lock().unwrap();
+        std::env::remove_var("JUGGLER_ALLOW_PRIVATE_UPSTREAMS");
+        let mut routes = HashMap::new();
+        routes.insert(
+            "/evil".to_string(),
+            RouteConfig {
+                upstream_addrs: vec!["169.254.169.254:80".to_string()],
+                wasm_plugin: None,
+                security: SecurityConfig::default(),
+                static_dir: None,
+            },
+        );
+        assert!(validate_upstream_egress(&routes).is_err());
+        routes.get_mut("/evil").unwrap().upstream_addrs = vec!["backend:9000".to_string()];
+        assert!(validate_upstream_egress(&routes).is_ok());
     }
 }

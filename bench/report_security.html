@@ -2,7 +2,7 @@
 <html lang="ru">
 <head>
 <meta charset="utf-8">
-<title>Juggler Security Pass — 6 фаз, 31 тест</title>
+<title>Juggler Security Pass — 7 фаз, 40 тестов</title>
 <style>
   body{font-family:'Segoe UI',system-ui,sans-serif;margin:0;background:#0d1117;color:#c9d1d9;line-height:1.5}
   .wrap{max-width:1080px;margin:0 auto;padding:32px 24px}
@@ -40,7 +40,7 @@
 <tr><td>Security blocker</td><td>gRPC unauthenticated control-plane</td><td class="pass">ЗАКРЫТ: Bearer authz на mutating RPC, без токена — UNAUTHENTICATED (0.02 s), fail-closed при внешнем bind без токена; live-верифицировано</td></tr>
 <tr><td>Medium hardening</td><td>conflicting CL, malformed chunk size</td><td class="pass">ЗАКРЫТ: конфликтный CL и нечисловой CL → отказ парсинга; юнит-тесты; live-верифицировано (запрос с двойным CL не доходит до upstream)</td></tr>
 <tr><td>Protocol hygiene</td><td>431 vs RST, lone-CR, malformed JSON status</td><td class="pass">ЗАКРЫТ: 431 реально доставляется (drain-before-close), lone-CR отклоняется, malformed JSON отвечал 400 и раньше</td></tr>
-<tr><td>Operational</td><td>admin brute-force backoff</td><td class="warn">BACKLOG: 200 попыток/0.3 с без rate limit на auth-фейлы</td></tr>
+<tr><td>Operational</td><td>admin brute-force backoff, config fuzzing, limiter semantics, egress policy</td><td class="pass">ЗАКРЫТО (Phase 7): brute-force → 429 latch с reset верным токеном; config-fuzz 14+7 кейсов → 0 крэшей, atomicity под 8 писателями; limiter burst/steady измерен; metadata/loopback upstream отклоняются по умолчанию</td></tr>
 <tr><td>Resolved ранее</td><td>absolute-form URI, pipelining liveness</td><td class="pass">ЗАКРЫТЫ (фикс + live-верификация + тесты)</td></tr>
 </table>
 
@@ -159,13 +159,31 @@
 <tr><td>(Пред. проход, в образе) Pipelining liveness</td><td>parse-before-read в connection loop</td><td>10/10 пайплайн-ответов на живом сервере</td></tr>
 </table>
 
+<h2>Phase 7 — Operational hardening (backlog → реализовано, live-верифицировано 21:00)</h2>
+<table>
+<tr><th>Тест</th><th>Атака / сценарий</th><th>Наблюдение</th><th>Вердикт</th><th>Severity</th></tr>
+<tr><td>B1</td><td>Admin brute-force: 60 неверных токенов подряд</td><td>19×401, затем <b>429</b> на всех последующих (latch после 20 фейлов за окно 60 с, Retry-After)</td><td class="pass">PASS</td><td><span class="badge b-info">info</span></td></tr>
+<tr><td>B2</td><td>Легитимный токен после брутфорса</td><td><b>200</b> — верный токен сбрасывает latch; оператор не залочен</td><td class="pass">PASS</td><td><span class="badge b-info">info</span></td></tr>
+<tr><td>B3</td><td>Data plane во время брутфорса</td><td>Жив, p99 25.4 мс — admin-атака не задевает прокси-трафик</td><td class="pass">PASS</td><td><span class="badge b-info">info</span></td></tr>
+<tr><td>F1</td><td>14 дегенеративных конфигов (empty/null/2k routes/дубликаты/port 0/±overflow/60KB path/truncated/metadata/loopback)</td><td>Явно невалидные → <b>400</b> (включая egress-блокировку metadata/loopback). Структурно валидные, но «плохие» цели (port 0, битый URL) → 502 fast-fail на запросе, конфиг атомарен; 2k маршрутов применяются без crash/partial. <b>0 крэшей, 0 частичных конфигов</b></td><td class="pass">PASS</td><td><span class="badge b-info">info</span></td></tr>
+<tr><td>F2</td><td>Дегенеративные settings (timeout 0/1e18, tokens −5/1e18, wrong type, unknown knob)</td><td>Все вне границ → <b>400</b>; huge tokens клампится; сервер жив</td><td class="pass">PASS</td><td><span class="badge b-info">info</span></td></tr>
+<tr><td>F3</td><td><b>Concurrency atomicity:</b> 8 писателей update_config + трафик, 15 с</td><td>2 488 запросов — <b>все 200</b>, 0 транспортных разрывов; после шторма конфиг ровно канонический. <b>Частично применённого конфига не существует</b> (ArcSwap swap)</td><td class="pass">PASS</td><td><span class="badge b-info">info</span></td></tr>
+<tr><td>F4</td><td>Обновление конфига во время смерти upstream</td><td>Фаза смерти: только 502; переключение на живой upstream под трафиком → полное восстановление 200, без разрывов</td><td class="pass">PASS</td><td><span class="badge b-info">info</span></td></tr>
+<tr><td>L1</td><td>Limiter semantics (NAT: все источники = один IP docker-сети)</td><td>burst 600 @200/100 → 296×200 + 304×429 (bucket сработал ровно по семантике); пауза 2 с → refill, burst обслужен; steady 20 rps при refill 100 → <b>100/100 OK</b>; open (1M) → 0×429. Легитимный steady-трафик не страдает, burst режется предсказуемо</td><td class="pass">PASS</td><td><span class="badge b-info">info</span></td></tr>
+<tr><td>E7</td><td><b>Egress policy</b> (новый hardening): upstream на 127.0.0.1 / 169.254.169.254 / link-local</td><td><b>400</b> «metadata/SSRF pivot» на оба; hostname-upstream не затронут; override <code>JUGGLER_ALLOW_PRIVATE_UPSTREAMS=1</code> для легитимных кейсов</td><td class="pass">PASS</td><td><span class="badge b-info">info</span></td></tr>
+</table>
+
+<div class="note"><b>Новые защиты в коде (unit-тесты, suite 83/83, clippy 0):</b> admin brute-force throttle (per-IP окно 60 с / лимит 20 фейлов / 429 + сброс при верном токене), egress-политика upstream'ов (reject loopback/link-local/unspecified по умолчанию, env-override), валидация применена и в admin API, и в gRPC ControlPlane.</div>
+
 <h2>Backlog (не блокирует релиз)</h2>
 <table>
 <tr><th>Приоритет</th><th>Пункт</th><th>Обоснование</th></tr>
-<tr><td>1</td><td>Admin brute-force backoff при 0.0.0.0-развёртывании</td><td>200 попыток/0.3 с — без rate limit на auth-фейлы; следующий тест: неверные токены + правильный во время атаки + latency легитимного запроса</td></tr>
-<tr><td>2</td><td>Rate-limiter tuning matrix (NAT за одним IP, burst/steady)</td><td>per-IP limiter: тысячи пользователей за NAT выглядят одним источником</td></tr>
-<tr><td>3</td><td>Configuration fuzzing (routes=0/huge/invalid/timeout=0, concurrent update+traffic)</td><td>критерий: no crash / deadlock / частично применённый конфиг — atomicity уже есть positive-control (V2)</td></tr>
-<tr><td>4</td><td>Egress policy/allowlist для upstream'ов (S4)</td><td>оператор всё ещё может создать маршрут на metadata-IP; это не client-controlled SSRF, но network-level policy не исследована</td></tr>
+<tr><td>—</td><td><s>Admin brute-force backoff</s></td><td class="pass">РЕАЛИЗОВАНО И ВЕРИФИЦИРОВАНО (Phase 7, B1–B3)</td></tr>
+<tr><td>—</td><td><s>Configuration fuzzing</s></td><td class="pass">ПРОГНАН: atomicity подтверждена под concurrent-нагрузкой (Phase 7, F1–F4)</td></tr>
+<tr><td>—</td><td><s>Limiter NAT/burst/steady matrix</s></td><td class="pass">ИЗМЕРЕНА: burst режется, steady не страдает (Phase 7, L1)</td></tr>
+<tr><td>—</td><td><s>Egress policy для upstream'ов</s></td><td class="pass">РЕАЛИЗОВАНО: metadata/loopback отклоняются по умолчанию (Phase 7, E7)</td></tr>
+<tr><td>1</td><td>DNS-rebinding defense для hostname-upstream'ов</td><td>egress-политика классифицирует IP-цели статически; hostname, резолвящийся в приватный IP, требует re-resolve-time проверки</td></tr>
+<tr><td>2</td><td>Multi-source admin throttle (ротация IP атакующим)</td><td>текущий latch per-IP; ротация адресов разбавляет счётчик (map prune ограничивает память, но не агрессивность)</td></tr>
 </table>
 
 <h2>Сырые данные</h2>
