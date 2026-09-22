@@ -26,6 +26,8 @@
   .b-info{background:#21262d;color:#8b949e}
   code{background:#161b22;padding:1px 6px;border-radius:4px;font-size:.9em;color:#79c0ff}
   .note{background:#161b22;border-left:3px solid #58a6ff;padding:10px 14px;margin:12px 0;border-radius:0 6px 6px 0}
+  .audit{background:#1d1a10;border-left:3px solid #d29922;padding:10px 14px;margin:12px 0;border-radius:0 6px 6px 0}
+  .audit b:first-child::before{content:"⏳ "}
   .fix{background:#12261e;border-left:3px solid #3fb950;padding:10px 14px;margin:12px 0;border-radius:0 6px 6px 0}
   a{color:#58a6ff}
 </style>
@@ -42,7 +44,10 @@
 <tr><td>Protocol hygiene</td><td>431 vs RST, lone-CR, malformed JSON status</td><td class="pass">ЗАКРЫТ: 431 реально доставляется (drain-before-close), lone-CR отклоняется, malformed JSON отвечал 400 и раньше</td></tr>
 <tr><td>Operational</td><td>admin brute-force backoff, config fuzzing, limiter semantics, egress policy</td><td class="pass">ЗАКРЫТО (Phase 7): brute-force → 429 latch с reset верным токеном; config-fuzz 14+7 кейсов → 0 крэшей, atomicity под 8 писателями; limiter burst/steady измерен; metadata/loopback upstream отклоняются по умолчанию</td></tr>
 <tr><td>Resolved ранее</td><td>absolute-form URI, pipelining liveness</td><td class="pass">ЗАКРЫТЫ (фикс + live-верификация + тесты)</td></tr>
+<tr><td>Residual risk (defence-in-depth)</td><td>DNS rebinding для hostname-upstream'ов; multi-source admin brute-force (ротация IP вокруг per-IP latch)</td><td class="warn">BACKLOG: оба не release-blocker'ы; первый требует resolve-time проверки, второй — deployment-dependent (global auth budget ≠ per-IP latch при внешнем 0.0.0.0 admin)</td></tr>
 </table>
+
+<div class="note"><b>Читатель, внимание:</b> жёлтые «audit»-блоки по тексту — история наблюдений <u>до</u> hardening (на исходном бинаре v1.0.0-кандидата); текущие вердикты — в таблицах (PASS / PASS — RESOLVED / PASS — superseded). Историческая severity сохранена внутри строк.</div>
 
 <h3>Hardening-коммит — реверификация на живом сервере</h3>
 <table>
@@ -67,7 +72,7 @@
 <tr><td>A1</td><td>GET /api/stats без токена</td><td><code>401 Unauthorized</code>, конфиг не изменился</td><td class="pass">PASS</td><td><span class="badge b-info">info</span></td></tr>
 <tr><td>A2</td><td>GET с неверным токеном</td><td><code>401 Unauthorized</code></td><td class="pass">PASS</td><td><span class="badge b-info">info</span></td></tr>
 <tr><td>A3</td><td>PUT /api/routes с валидным токеном (positive control)</td><td><code>200 OK</code>, маршрут применился</td><td class="pass">PASS</td><td><span class="badge b-info">info</span></td></tr>
-<tr><td>A5</td><td>Brute force: 200 неверных токенов подряд</td><td>200/200 отклонены за 0.3 с, сервер здоров</td><td class="pass">PASS</td><td><span class="badge b-info">info</span></td></tr>
+<tr><td>A5</td><td>Brute force: 200 неверных токенов подряд</td><td>SUPERSEDED by Phase 7 B1–B3: на исходном бинаре 200/200 отклонялись (все 401); в финальном образе после 20 фейлов в окне источник получает <b>429</b> — не 200×401</td><td class="pass">PASS — superseded</td><td><span class="badge b-info">info</span></td></tr>
 <tr><td>A6</td><td>Malformed JSON в PUT</td><td>После hardening: <code>400 Bad Request</code>* — см. замечание ниже</td><td class="pass">PASS</td><td><span class="badge b-info">info</span></td></tr>
 <tr><td>A7</td><td>gRPC :50051 атакован plain HTTP/1.1 PUT</td><td>Соединение сброшено (RST), конфиг не изменён — h2-only порт</td><td class="pass">PASS</td><td><span class="badge b-info">info</span></td></tr>
 <tr><td>A8</td><td>gRPC :50051 — unauthenticated HTTP/2 preface</td><td>RESOLVED: mutating RPC требует Bearer; без/с неверным токеном — <code>UNAUTHENTICATED</code>, внешний bind без токена fail-closed (live-реверификация 20:04). Историческая severity: <span class="badge b-high">high</span></td><td class="pass">PASS — RESOLVED</td><td><span class="badge b-info">resolved</span></td></tr>
@@ -75,7 +80,7 @@
 
 <div class="note"><b>*A6 (обновлено после hardening):</b> на исходном бинаре malformed JSON получал 200 с error-полем в теле (fail-closed содержательно, fail-open по статусу). В финальном образе админ-обработчик отвечает <b>400</b> на непарсящийся JSON и на пустой routes-документ — live-верифицировано (2026-09-22): <code>{invalid json</code> → 400 + сообщение парсера, <code>{"routes": []}</code> → 400 (отказ от wiping всех маршрутов одной опечаткой). Конфиг при этом не менялся в обоих случаях.</div>
 
-<div class="note"><b>A8 — была подтверждённой уязвимостью №1, ЗАКРЫТА hardening-коммитом:</b> при публикации gRPC на 0.0.0.0 без токена любой сосед по сети мог достучаться до update_config. Теперь mutating RPC требует <code>Authorization: Bearer &lt;JUGGLER_GRPC_TOKEN&gt;</code>; без токена при внешнем bind — fail-closed DENIED. Live-верификация: unauth → <code>UNAUTHENTICATED</code> 0.02 s, auth → конфиг применён. Для «локального управления» остаётся режим loopback-bind без токена (по умолчанию <code>127.0.0.1:50051</code>).</div>
+<div class="audit"><b>A8 (история, audit-trail — не текущее состояние) — была подтверждённой уязвимостью №1, ЗАКРЫТА hardening-коммитом:</b> при публикации gRPC на 0.0.0.0 без токена любой сосед по сети мог достучаться до update_config. Теперь mutating RPC требует <code>Authorization: Bearer &lt;JUGGLER_GRPC_TOKEN&gt;</code>; без токена при внешнем bind — fail-closed DENIED. Live-верификация: unauth → <code>UNAUTHENTICATED</code> 0.02 s, auth → конфиг применён. Для «локального управления» остаётся режим loopback-bind без токена (по умолчанию <code>127.0.0.1:50051</code>).</div>
 
 <h2>Phase 4 — SSRF / routing abuse</h2>
 <table>
@@ -101,7 +106,7 @@
 <tr><td>M7</td><td>Chunked + trailers</td><td><code>te=chunked</code>, кадр чистый</td><td class="pass">PASS</td><td><span class="badge b-info">info</span></td></tr>
 <tr><td>M8</td><td>Здоровый запрос после malformed-соединения</td><td>200 на новом соединении</td><td class="pass">PASS</td><td><span class="badge b-info">info</span></td></tr>
 </table>
-<div class="note"><b>*M6 (история до hardening, audit-trail):</b> на исходном бинаре echo показал, что Juggler передал один непрерывный поток, интерпретируя не-числовую chunk-строку как данные — desync не было, но семантика нарушалась. В финальном образе жёсткое отклонение (400) реализовано и live-верифицировано — вердикт в таблице обновлён на PASS — RESOLVED.</div>
+<div class="audit"><b>*M6 (история до hardening, audit-trail — не текущее состояние):</b> на исходном бинаре echo показал, что Juggler передал один непрерывный поток, интерпретируя не-числовую chunk-строку как данные — desync не было, но семантика нарушалась. В финальном образе жёсткое отклонение (400) реализовано и live-верифицировано — вердикт в таблице обновлён на PASS — RESOLVED.</div>
 
 <h2>Phase 1 — Grammar fuzzer HTTP-парсера (1200 структурированных мутаций)</h2>
 <table>
@@ -124,7 +129,7 @@
 <tr><td>E5</td><td>60 заголовков × 8KB (~480KB head)</td><td>RESOLVED после hardening: клиент получает явный <b>431 Request Header Fields Too Large</b> (drain-before-close, live V4). До hardening было RST без статуса — сервер жив после, легитимный трафик 200</td><td class="pass">PASS — RESOLVED</td><td><span class="badge b-info">resolved</span></td></tr>
 <tr><td>E6</td><td>Retry storm: 200 потоков × 20 с на мёртвый upstream</td><td>Амплификации к upstream нет: на каждый клиентский запрос ≤1 upstream-попытка (no-retry семантика), сервер жив</td><td class="pass">PASS</td><td><span class="badge b-info">info</span></td></tr>
 </table>
-<div class="note"><b>*E5 (история до hardening, audit-trail):</b> переполнение head-лимита рвало соединение RST-ом вместо ответа 431. В финальном образе 431 доставляется (drain-before-close) — вердикт в таблице обновлён.</div>
+<div class="audit"><b>*E5 (история до hardening, audit-trail — не текущее состояние):</b> переполнение head-лимита рвало соединение RST-ом вместо ответа 431. В финальном образе 431 доставляется (drain-before-close) — вердикт в таблице обновлён.</div>
 <div class="note"><b>E6 — главный вопрос пользователя закрыт:</b> «одна ошибка upstream → лавина запросов» не воспроизводится. Juggler не ретраит запросы автоматически; умирающий бэкенд порождает ровно столько upstream-коннектов, сколько пришло клиентских запросов.</div>
 
 <h2>Phase 6 — Host / path / poisoning / TLS</h2>

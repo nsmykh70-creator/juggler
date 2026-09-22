@@ -438,6 +438,22 @@ hot-reload-обновляемом и проверяемом целиком:
 Сравнение с классикой — `bench/REPORT.md`: Juggler против nginx/Apache/
 Caddy/OpenLiteSpeed по RPS, латентности и памяти.
 
+## Security testing (v1.0.0)
+
+Security testing for v1.0.0 covered HTTP parser robustness (1200 structured
+mutations), request-smuggling/desynchronization vectors, resource exhaustion,
+control-plane authorization (gRPC Bearer authz, fail-closed on external bind
+without a token), admin-API authentication with brute-force throttling,
+configuration atomicity under concurrent updates, path traversal, Host-header
+handling and upstream egress restrictions (loopback/link-local/metadata
+targets rejected by default). No crashes, hangs, partial configuration
+application, or reproduced request-smuggling paths were observed in the
+tested scenarios — verified by live attacks against a running server with
+upstream observation, not only unit tests. DNS-rebinding protection for
+hostname upstreams and distributed multi-source authentication abuse remain
+document defence-in-depth follow-ups. Full reports: `bench/report_security.html`,
+`bench/report_ddos.html`.
+
 ## Ограничения и roadmap
 
 - HTTP/2: серверные стримы обслуживаются конкурентно; апстримы пока говорят
