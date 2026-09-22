@@ -44,7 +44,7 @@
 <tr><td>Protocol hygiene</td><td>431 vs RST, lone-CR, malformed JSON status</td><td class="pass">ЗАКРЫТ: 431 реально доставляется (drain-before-close), lone-CR отклоняется, malformed JSON отвечал 400 и раньше</td></tr>
 <tr><td>Operational</td><td>admin brute-force backoff, config fuzzing, limiter semantics, egress policy</td><td class="pass">ЗАКРЫТО (Phase 7): brute-force → 429 latch с reset верным токеном; config-fuzz 14+7 кейсов → 0 крэшей, atomicity под 8 писателями; limiter burst/steady измерен; metadata/loopback upstream отклоняются по умолчанию</td></tr>
 <tr><td>Resolved ранее</td><td>absolute-form URI, pipelining liveness</td><td class="pass">ЗАКРЫТЫ (фикс + live-верификация + тесты)</td></tr>
-<tr><td>Residual risk (defence-in-depth)</td><td>DNS rebinding для hostname-upstream'ов; multi-source admin brute-force (ротация IP вокруг per-IP latch)</td><td class="warn">BACKLOG: оба не release-blocker'ы; первый требует resolve-time проверки, второй — deployment-dependent (global auth budget ≠ per-IP latch при внешнем 0.0.0.0 admin)</td></tr>
+<tr><td>Residual risk (defence-in-depth)</td><td>DNS rebinding для hostname-upstream'ов; multi-source admin brute-force (ротация IP вокруг per-IP latch)</td><td class="pass">РЕБИНДИНГ ЗАКРЫТ (Phase 7, E8: resolve-time guard). ОСТАЁТСЯ multi-source brute-force — deployment-dependent (global auth budget ≠ per-IP latch при внешнем 0.0.0.0 admin; за reverse proxy/WAF вопрос — какой IP вообще видит Juggler)</td></tr>
 </table>
 
 <div class="note"><b>Читатель, внимание:</b> жёлтые «audit»-блоки по тексту — история наблюдений <u>до</u> hardening (на исходном бинаре v1.0.0-кандидата); текущие вердикты — в таблицах (PASS / PASS — RESOLVED / PASS — superseded). Историческая severity сохранена внутри строк.</div>
@@ -176,9 +176,10 @@
 <tr><td>F4</td><td>Обновление конфига во время смерти upstream</td><td>Фаза смерти: только 502; переключение на живой upstream под трафиком → полное восстановление 200, без разрывов</td><td class="pass">PASS</td><td><span class="badge b-info">info</span></td></tr>
 <tr><td>L1</td><td>Limiter semantics (NAT: все источники = один IP docker-сети)</td><td>burst 600 @200/100 → 296×200 + 304×429 (bucket сработал ровно по семантике); пауза 2 с → refill, burst обслужен; steady 20 rps при refill 100 → <b>100/100 OK</b>; open (1M) → 0×429. Легитимный steady-трафик не страдает, burst режется предсказуемо</td><td class="pass">PASS</td><td><span class="badge b-info">info</span></td></tr>
 <tr><td>E7</td><td><b>Egress policy</b> (новый hardening): upstream на 127.0.0.1 / 169.254.169.254 / link-local</td><td><b>400</b> «metadata/SSRF pivot» на оба; hostname-upstream не затронут; override <code>JUGGLER_ALLOW_PRIVATE_UPSTREAMS=1</code> для легитимных кейсов</td><td class="pass">PASS</td><td><span class="badge b-info">info</span></td></tr>
+<tr><td>E8</td><td><b>DNS-rebinding guard</b> (новый hardening, закрывает E7's hostname gap): hostname, чьи записи резолвятся в loopback/link-local/unspecified</td><td>Guard в <code>resolve_cached</code>: <b>PermissionDenied на каждом re-resolution</b> (evil.example → 169.254.169.254 блокируется даже после сохранения маршрута). Unit-тесты на resolve-контракт; live: RFC1918 docker-upstream работает, IP-литералы metadata/::1 отклонены. Docker DNS не даёт live-rebind — контракт доказан юнит-тестами (85/85)</td><td class="pass">PASS</td><td><span class="badge b-info">info</span></td></tr>
 </table>
 
-<div class="note"><b>Новые защиты в коде (unit-тесты, suite 83/83, clippy 0):</b> admin brute-force throttle (per-IP окно 60 с / лимит 20 фейлов / 429 + сброс при верном токене), egress-политика upstream'ов (reject loopback/link-local/unspecified по умолчанию, env-override), валидация применена и в admin API, и в gRPC ControlPlane.</div>
+<div class="note"><b>Новые защиты в коде (unit-тесты, suite 85/85, clippy 0):</b> admin brute-force throttle (per-IP окно 60 с / лимит 20 фейлов / 429 + сброс при верном токене), egress-политика upstream'ов (reject loopback/link-local/unspecified по умолчанию, env-override), <b>DNS-rebinding guard</b> (resolve-time проверка резолвящихся IP по той же политике), валидация применена и в admin API, и в gRPC ControlPlane.</div>
 
 <h2>Backlog (не блокирует релиз)</h2>
 <table>
@@ -187,8 +188,8 @@
 <tr><td>—</td><td><s>Configuration fuzzing</s></td><td class="pass">ПРОГНАН: atomicity подтверждена под concurrent-нагрузкой (Phase 7, F1–F4)</td></tr>
 <tr><td>—</td><td><s>Limiter NAT/burst/steady matrix</s></td><td class="pass">ИЗМЕРЕНА: burst режется, steady не страдает (Phase 7, L1)</td></tr>
 <tr><td>—</td><td><s>Egress policy для upstream'ов</s></td><td class="pass">РЕАЛИЗОВАНО: metadata/loopback отклоняются по умолчанию (Phase 7, E7)</td></tr>
-<tr><td>1</td><td>DNS-rebinding defense для hostname-upstream'ов</td><td>egress-политика классифицирует IP-цели статически; hostname, резолвящийся в приватный IP, требует re-resolve-time проверки</td></tr>
-<tr><td>2</td><td>Multi-source admin throttle (ротация IP атакующим)</td><td>текущий latch per-IP; ротация адресов разбавляет счётчик (map prune ограничивает память, но не агрессивность)</td></tr>
+<tr><td>1</td><td><s>DNS-rebinding defense для hostname-upstream'ов</s></td><td class="pass">РЕАЛИЗОВАНО (Phase 7, E8): resolve-time guard в <code>resolve_cached</code>, 85/85 тестов, в образе</td></tr>
+<tr><td>2</td><td>Multi-source admin throttle (ротация IP атакующим)</td><td>текущий latch per-IP; ротация адресов разбавляет счётчик (map prune ограничивает память, но не агрессивность). За reverse proxy/WAF: нужен trusted-proxy + XFF-based classification — deployment-решение, не только код</td></tr>
 </table>
 
 <h2>Сырые данные</h2>

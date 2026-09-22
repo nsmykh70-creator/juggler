@@ -158,6 +158,20 @@
         "override": "JUGGLER_ALLOW_PRIVATE_UPSTREAMS=1",
         "hostname_upstreams": "unaffected (routing by config, dial by resolve)",
         "verdict": "PASS (new hardening, live-verified)"
+      },
+      "dns_rebind_guard": {
+        "implementation": "resolve_cached rejects resolutions whose records point at loopback/link-local/unspecified (PermissionDenied), re-checked on every re-resolution; shared socket_ip_forbidden predicate with config-time validation",
+        "unit_tests": [
+          "resolve_cached_refuses_private_resolving_hostname (metadata + loopback literals → PermissionDenied)",
+          "socket_ip_forbidden classes"
+        ],
+        "live": {
+          "bench_route": "200 (172.x RFC1918 allowed)",
+          "ip_literal_metadata_route": "400 config-time",
+          "v6_loopback_route": "400 config-time",
+          "note": "docker DNS cannot rebind a name live; resolve-path contract unit-verified (85/85)"
+        },
+        "verdict": "PASS (resolve-time guard live in image)"
       }
     }
   }

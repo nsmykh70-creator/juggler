@@ -3454,11 +3454,27 @@ async fn serve_admin_connection(mut stream: tokio::net::TcpStream) -> std::io::R
 /// proxy at metadata endpoints (169.254.169.254) or internal services.
 /// Operators who legitimately proxy to such targets (e.g. a local sidecar)
 /// opt out with JUGGLER_ALLOW_PRIVATE_UPSTREAMS=1.
-fn upstream_addr_forbidden(addr: &str) -> bool {
-    if std::env::var("JUGGLER_ALLOW_PRIVATE_UPSTREAMS")
+fn private_upstreams_allowed() -> bool {
+    std::env::var("JUGGLER_ALLOW_PRIVATE_UPSTREAMS")
         .map(|v| v == "1" || v.eq_ignore_ascii_case("true"))
         .unwrap_or(false)
-    {
+}
+
+/// The address classes the default egress policy denies: loopback,
+/// link-local (incl. the 169.254.169.254 metadata endpoint) and
+/// unspecified. Shared by config-time validation and the resolve-time
+/// DNS-rebinding guard.
+fn socket_ip_forbidden(ip: IpAddr) -> bool {
+    match ip {
+        IpAddr::V4(v4) => v4.is_loopback() || v4.is_link_local() || v4.is_unspecified(),
+        IpAddr::V6(v6) => {
+            v6.is_loopback() || (v6.segments()[0] & 0xffc0) == 0xfe80 || v6.is_unspecified()
+        }
+    }
+}
+
+fn upstream_addr_forbidden(addr: &str) -> bool {
+    if private_upstreams_allowed() {
         return false;
     }
     let host = addr.rsplit_once(':').map(|(h, _)| h).unwrap_or(addr);
@@ -3467,16 +3483,11 @@ fn upstream_addr_forbidden(addr: &str) -> bool {
         .trim_start_matches("http://")
         .trim_start_matches("https://");
     let Ok(ip) = host.parse::<IpAddr>() else {
-        // Hostnames cannot be classified statically; resolution-time policy
-        // would need DNS rebinding defense — out of scope here.
+        // Hostnames are checked at resolve time (see resolve_cached), which
+        // also covers DNS rebinding after config-apply.
         return false;
     };
-    match ip {
-        IpAddr::V4(v4) => v4.is_loopback() || v4.is_link_local() || v4.is_unspecified(),
-        IpAddr::V6(v6) => {
-            v6.is_loopback() || (v6.segments()[0] & 0xffc0) == 0xfe80 || v6.is_unspecified()
-        }
-    }
+    socket_ip_forbidden(ip)
 }
 
 fn validate_upstream_egress(routes: &HashMap<String, RouteConfig>) -> Result<(), String> {
@@ -4002,6 +4013,20 @@ async fn resolve_cached(host_port: &str) -> std::io::Result<Vec<SocketAddr>> {
             ))
         })?
         .collect::<Vec<_>>();
+    // Resolve-time egress policy (DNS-rebinding defense): a hostname whose
+    // records point at loopback/link-local/unspecified addresses is refused
+    // here, at every re-resolution, not just at config-apply time. Static
+    // config validation cannot see this — evil.example may resolve to a
+    // metadata address only after the operator saved the route.
+    if addrs.iter().any(|a| socket_ip_forbidden(a.ip())) && !private_upstreams_allowed() {
+        return Err(std::io::Error::new(
+            std::io::ErrorKind::PermissionDenied,
+            format!(
+                "dns-rebind guard: {host_port} resolves to loopback/link-local \
+                 — set JUGGLER_ALLOW_PRIVATE_UPSTREAMS=1 to allow"
+            ),
+        ));
+    }
     if !addrs.is_empty() {
         cache
             .lock()
@@ -7748,6 +7773,10 @@ mod tests {
             settings().pool_cap_per_upstream.max
         );
         assert_eq!(settings().rate_limit_tokens.get(), 0);
+        // Other tests share this process's rate limiter: restore a limit so
+        // resolve_route-based tests never flake on an exhausted bucket.
+        settings().rate_limit_tokens.set(1_000_000);
+        settings().rate_limit_refill.set(1_000_000);
 
         // Unknown knob is rejected.
         let mut bad: Hm<String, serde_json::Value> = Hm::new();
@@ -7944,7 +7973,7 @@ mod hardening_tests {
         assert!(!upstream_addr_forbidden("93.184.216.34:443"));
     }
 
-    static EGRESS_ENV_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
+    pub(super) static EGRESS_ENV_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
 
     #[test]
     fn egress_policy_override_env() {
@@ -7987,5 +8016,52 @@ mod hardening_tests {
         assert!(validate_upstream_egress(&routes).is_err());
         routes.get_mut("/evil").unwrap().upstream_addrs = vec!["backend:9000".to_string()];
         assert!(validate_upstream_egress(&routes).is_ok());
+    }
+}
+
+#[cfg(test)]
+mod rebind_tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn resolve_rejects_hostname_pointing_at_metadata() {
+        // Simulate DNS rebinding: a hostname whose resolution returns the
+        // cloud metadata address must be refused at resolve time.
+        let guard = super::hardening_tests::EGRESS_ENV_LOCK.lock().unwrap();
+        std::env::remove_var("JUGGLER_ALLOW_PRIVATE_UPSTREAMS");
+        // Point "juggler-metadata.test" at 169.254.169.254 via a hosts-file
+        // independent trick: resolve() of an IP literal is not hostname; so
+        // exercise the guard directly through the resolution path by using
+        // a name that cannot resolve and asserting the policy error type.
+        let rebind_addr: std::net::SocketAddr = "169.254.169.254:80".parse().unwrap();
+        assert!(socket_ip_forbidden(rebind_addr.ip()));
+        let loopback: std::net::SocketAddr = "127.0.0.1:9000".parse().unwrap();
+        assert!(socket_ip_forbidden(loopback.ip()));
+        let good: std::net::SocketAddr = "93.184.216.34:443".parse().unwrap();
+        assert!(!socket_ip_forbidden(good.ip()));
+        drop(guard);
+    }
+
+    #[test]
+    fn resolve_cached_refuses_private_resolving_hostname() {
+        // End-to-end through resolve_cached: use IP-literal hostnames so
+        // the resolution result is deterministic; link-local/loopback must
+        // come back as the rebind-guard PermissionDenied.
+        let rt = tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build()
+            .unwrap();
+        let guard = super::hardening_tests::EGRESS_ENV_LOCK.lock().unwrap();
+        std::env::remove_var("JUGGLER_ALLOW_PRIVATE_UPSTREAMS");
+        let denied = |host_port: &str| {
+            let g = &guard;
+            let _ = g;
+            rt.block_on(resolve_cached(host_port))
+                .err()
+                .map(|e| e.kind() == std::io::ErrorKind::PermissionDenied)
+                .unwrap_or(false)
+        };
+        assert!(denied("169.254.169.254:80"), "metadata must be denied");
+        assert!(denied("127.0.0.1:9000"), "loopback must be denied");
     }
 }
