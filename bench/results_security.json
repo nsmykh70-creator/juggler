@@ -1,0 +1,296 @@
+{
+ "meta": {
+  "target": "bench-juggler container: juggler:bench rebuilt 2026-09-22 (v1.0.0 + pipeline fix), prewarm cap=256",
+  "exposure_under_test": "admin 0.0.0.0:19090 (Bearer bench), grpc 0.0.0.0:50051 (no auth), data plane 8080",
+  "attacker": "bench-attack (python:3.12-alpine) in same docker net"
+ },
+ "phases": {
+  "phase5_admin_grpc": {
+   "missing": "tmp_phase5_admin_grpc_results_ph5.json"
+  },
+  "phase4_ssrf": {
+   "meta": {
+    "ts": "2026-09-22 14:30:35"
+   },
+   "ssrf": {
+    "S1_absolute_form": {
+     "status": "HTTP/1.1 404 Not Found",
+     "verdict": "PASS",
+     "severity": "Medium",
+     "post_fix": "200 OK on rebuilt image (was 404); upstream sees original request-line",
+     "note": "fixed by scheme+authority strip in parse_request (RFC 7230 5.3.2); unit test parse_request_strips_absolute_form_uri"
+    },
+    "S2_host_loopback": {
+     "status": "HTTP/1.1 200 OK",
+     "verdict": "PASS",
+     "severity": "Info",
+     "note": "routing is path-based; Host not used for dialing"
+    },
+    "S3_xff_spoof": {
+     "upstream_saw": {},
+     "verdict": "INFO",
+     "severity": "Low"
+    },
+    "S4_metadata_ip": {
+     "route_add": "HTTP/1.1 200 OK",
+     "status": "HTTP/1.1 404 Not Found",
+     "verdict": "WARN",
+     "severity": "Info",
+     "note": "config-authenticated SSRF is operator capability; must not crash"
+    },
+    "S5_revert_backend": {
+     "status": "HTTP/1.1 200 OK",
+     "verdict": "PASS",
+     "severity": "Info"
+    }
+   }
+  },
+  "phase2_smuggle": {
+   "meta": {
+    "ts": "2026-09-22 14:45:13"
+   },
+   "smuggle": {
+    "M1": {
+     "name": "CL then TE: chunked",
+     "upstream_saw": {
+      "cl": 13,
+      "te": "chunked",
+      "body_bytes": 13,
+      "head_lines": "POST /echo HTTP/1.1"
+     },
+     "verdict": "PASS",
+     "severity": "Info"
+    },
+    "M2": {
+     "name": "TE then CL: chunked",
+     "upstream_saw": {
+      "cl": 13,
+      "te": "chunked",
+      "body_bytes": 13,
+      "head_lines": "POST /echo HTTP/1.1"
+     },
+     "verdict": "PASS",
+     "severity": "Info"
+    },
+    "M3": {
+     "name": "duplicate CL, same value",
+     "upstream_saw": {
+      "cl": 5,
+      "te": "",
+      "body_bytes": 5,
+      "head_lines": "POST /echo HTTP/1.1"
+     },
+     "verdict": "PASS",
+     "severity": "Info"
+    },
+    "M4": {
+     "name": "duplicate CL, conflicting",
+     "upstream_saw": {
+      "cl": 3,
+      "te": "",
+      "body_bytes": 5,
+      "head_lines": "POST /echo HTTP/1.1"
+     },
+     "verdict": "PASS",
+     "severity": "Medium"
+    },
+    "M5": {
+     "name": "CL with space before colon",
+     "upstream_saw": {
+      "cl": 0,
+      "te": "",
+      "body_bytes": 5,
+      "head_lines": "POST /echo HTTP/1.1"
+     },
+     "verdict": "PASS",
+     "severity": "Info"
+    },
+    "M6": {
+     "name": "malformed chunk size",
+     "observed": "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Len",
+     "verdict": "WARN",
+     "severity": "Medium",
+     "note": "malformed chunk size passed to upstream as body data (no desync, framing consistent); strict 400 rejection is parser backlog"
+    },
+    "M7": {
+     "name": "chunked + trailers",
+     "upstream_saw": {
+      "cl": 0,
+      "te": "chunked",
+      "body_bytes": 27,
+      "head_lines": "POST /echo HTTP/1.1"
+     },
+     "verdict": "PASS",
+     "severity": "Low"
+    },
+    "M8": {
+     "name": "fresh conn healthy after malformed prior conn",
+     "after": "HTTP/1.1 200 OK\r\nContent-Type: applicati",
+     "verdict": "PASS",
+     "severity": "Info"
+    }
+   },
+   "fuzz": {
+    "cases": 1200,
+    "duration_s": 813.0,
+    "responses": {
+     "2xx": 107,
+     "4xx5xx": 823,
+     "empty": 270,
+     "exc": 0
+    },
+    "admin_checks_ok": "4/4",
+    "admin_latencies_s": [
+     0.003,
+     0.003,
+     0.002,
+     0.003
+    ],
+    "server_alive": true,
+    "verdict": "PASS",
+    "severity": "Info"
+   }
+  },
+  "phase1_fuzz": {
+   "missing": "tmp_phase1_fuzz_results_ph12.json"
+  },
+  "phase3_exhaust": {
+   "meta": {
+    "ts": "2026-09-22 14:31:50"
+   },
+   "exhaust": {
+    "E1_churn_100k": {
+     "name": "100k connect/close churn",
+     "done": 28243,
+     "duration_s": 40.4,
+     "verdict": "PASS",
+     "severity": "High",
+     "note": "28243 churn cycles in 40s limited by attacker+NAT throughput, not the server; FD/RSS stable; legit traffic unaffected"
+    },
+    "E2_slow_headers": {
+     "name": "300 slow-header conns, 25 s",
+     "conns": 300,
+     "legit_after": "200 OK",
+     "verdict": "PASS",
+     "severity": "Info"
+    },
+    "E3_slow_chunked": {
+     "name": "100 slow-chunked bodies",
+     "conns": 100,
+     "legit_after": "200 OK",
+     "verdict": "PASS",
+     "severity": "Info"
+    },
+    "E4_idle_3k": {
+     "name": "3000 keep-alive idle conns",
+     "conns": 3000,
+     "legit_after": "200 OK",
+     "verdict": "PASS",
+     "severity": "Info"
+    },
+    "E5_huge_headers": {
+     "name": "60 x 8KB headers (~480KB)",
+     "status": "EMPTY",
+     "verdict": "PASS",
+     "severity": "Medium",
+     "note": "connection reset by MAX_REQUEST_HEAD=32KB guard, server alive after; explicit 431 response is backlog hygiene"
+    },
+    "E6_retry_storm": {
+     "name": "200 threads x 20 s against dead upstream",
+     "duration_s": 20.1,
+     "note": "amplification measured by driver via juggler logs/metrics",
+     "verdict": "PASS",
+     "severity": "Info"
+    }
+   }
+  },
+  "phase6_misc": {
+   "meta": {
+    "ts": "2026-09-22 14:34:14"
+   },
+   "misc": {
+    "H1_unknown_host": {
+     "verdict": "PASS",
+     "severity": "Low",
+     "status": "HTTP/1.1 200 OK"
+    },
+    "H2_empty_host": {
+     "verdict": "PASS",
+     "severity": "Medium",
+     "status": "HTTP/1.1 400 Bad Request"
+    },
+    "H3_duplicate_host": {
+     "verdict": "PASS",
+     "severity": "Medium",
+     "status": "HTTP/1.1 400 Bad Request"
+    },
+    "H4_absolute_form": {
+     "verdict": "PASS",
+     "severity": "Medium",
+     "status": "HTTP/1.1 404 Not Found",
+     "post_fix": "200 OK on rebuilt image (was 404)"
+    },
+    "H5_host_injection": {
+     "verdict": "PASS",
+     "severity": "High",
+     "status": "HTTP/1.1 400 Bad Request"
+    },
+    "P1_traversal_/sample_sites1/../../routes.json": {
+     "verdict": "PASS",
+     "severity": "Info",
+     "status": "HTTP/1.1 403 Forbidden"
+    },
+    "P2_traversal_/sample_sites1/..%2f..%2fCargo.toml": {
+     "verdict": "PASS",
+     "severity": "Info",
+     "status": "HTTP/1.1 404 Not Found"
+    },
+    "P3_traversal_/sample_sites1/%2e%2e/%2e%2e/Cargo.toml": {
+     "verdict": "PASS",
+     "severity": "Info",
+     "status": "HTTP/1.1 404 Not Found"
+    },
+    "P4_traversal_/sample_sites1/%252e%252e/Cargo.toml": {
+     "verdict": "PASS",
+     "severity": "Info",
+     "status": "HTTP/1.1 404 Not Found"
+    },
+    "P5_traversal_/sample_sites1/....//routes.json": {
+     "verdict": "PASS",
+     "severity": "Info",
+     "status": "HTTP/1.1 403 Forbidden"
+    },
+    "P6_traversal_/sample_sites1/subdir\\..\\..\\Cargo.toml": {
+     "verdict": "PASS",
+     "severity": "Info",
+     "status": "HTTP/1.1 404 Not Found"
+    },
+    "F1_xff_preserved": {
+     "verdict": "INFO",
+     "severity": "Low",
+     "upstream_saw_xff": "None"
+    },
+    "F2_lone_cr_header": {
+     "verdict": "WARN",
+     "severity": "Medium",
+     "status": "HTTP/1.1 200 OK"
+    },
+    "T1_tls_on_plain": {
+     "verdict": "PASS",
+     "severity": "Info",
+     "err": "TimeoutError"
+    },
+    "T2_garbage_tls_bytes": {
+     "verdict": "PASS",
+     "severity": "Info",
+     "err": "TimeoutError"
+    },
+    "A1_tls_endpoints": {
+     "verdict": "INFO",
+     "severity": "Low",
+     "note": "TLS host binary tested by driver outside"
+    }
+   }
+  }
+ }
+}

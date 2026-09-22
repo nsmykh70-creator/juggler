@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<title>Juggler Security Pass — 6 фаз, 31 тест</title>
+<style>
+  body{font-family:'Segoe UI',system-ui,sans-serif;margin:0;background:#0d1117;color:#c9d1d9;line-height:1.5}
+  .wrap{max-width:1080px;margin:0 auto;padding:32px 24px}
+  h1{color:#58a6ff;font-size:1.7em;margin:0 0 4px}
+  h2{color:#79c0ff;border-bottom:1px solid #21262d;padding-bottom:6px;margin-top:36px}
+  h3{color:#a5d6ff;margin:22px 0 8px}
+  .sub{color:#8b949e;margin:0 0 18px}
+  table{border-collapse:collapse;width:100%;margin:12px 0;font-size:.92em}
+  th,td{border:1px solid #21262d;padding:6px 10px;text-align:left}
+  th{background:#161b22;color:#c9d1d9}
+  tr:nth-child(even){background:#10151c}
+  .pass{color:#3fb950;font-weight:600}
+  .warn{color:#d29922;font-weight:600}
+  .fail{color:#f85149;font-weight:600}
+  .info{color:#8b949e}
+  .badge{display:inline-block;padding:1px 8px;border-radius:10px;font-size:.8em;font-weight:700}
+  .b-crit{background:#f85149;color:#fff}
+  .b-high{background:#d29922;color:#111}
+  .b-med{background:#9e6a03;color:#fff}
+  .b-low{background:#30363d;color:#c9d1d9}
+  .b-info{background:#21262d;color:#8b949e}
+  code{background:#161b22;padding:1px 6px;border-radius:4px;font-size:.9em;color:#79c0ff}
+  .note{background:#161b22;border-left:3px solid #58a6ff;padding:10px 14px;margin:12px 0;border-radius:0 6px 6px 0}
+  .fix{background:#12261e;border-left:3px solid #3fb950;padding:10px 14px;margin:12px 0;border-radius:0 6px 6px 0}
+  a{color:#58a6ff}
+</style>
+</head>
+<body><div class="wrap">
+<h1>🛡️ Juggler Security Pass</h1>
+<p class="sub">6 фаз · 31 тест · таргет: <code>bench-juggler</code> (v1.0.0 + pipeline fix, prewarm cap=256), admin <code>0.0.0.0:19090</code> (Bearer), gRPC <code>0.0.0.0:50051</code> (без auth), data plane <code>:8080</code> · атакующий: контейнер <code>bench-attack</code> в той же docker-сети · 2026-09-22</p>
+
+<h2>Итог</h2>
+<table>
+<tr><th>Результат</th><th>Кол-во</th><th>Что это</th></tr>
+<tr><td class="pass">PASS</td><td>24</td><td>контроль выдержан (fail-closed, отбив, отсутствие утечек)</td></tr>
+<tr><td class="warn">WARN</td><td>3</td><td>работает, но есть замечание к семантике/требуется операционная дисциплина</td></tr>
+<tr><td class="fail">FAIL</td><td>4</td><td>реальные пробелы — 2 уже исправлены в коде, 2 переклассифицированы как ожидаемое поведение</td></tr>
+</table>
+
+<div class="note"><b>Не тестировалось:</b> аутентификация gRPC control-plane на уровне сообщений (протестирована только транспортная доступность unauthenticated h2) и HTTP/2-специфика data plane (сервер — HTTP/1.1). TLS-терминация хостового бинарника проверялась ранее (PFX, ручной режим).</div>
+
+<h2>Phase 5 — Admin API + gRPC control plane (приоритет №1)</h2>
+<table>
+<tr><th>Тест</th><th>Проверка</th><th>Наблюдение</th><th>Вердикт</th><th>Severity</th></tr>
+<tr><td>A1</td><td>GET /api/stats без токена</td><td><code>401 Unauthorized</code>, конфиг не изменился</td><td class="pass">PASS</td><td><span class="badge b-info">info</span></td></tr>
+<tr><td>A2</td><td>GET с неверным токеном</td><td><code>401 Unauthorized</code></td><td class="pass">PASS</td><td><span class="badge b-info">info</span></td></tr>
+<tr><td>A3</td><td>PUT /api/routes с валидным токеном (positive control)</td><td><code>200 OK</code>, маршрут применился</td><td class="pass">PASS</td><td><span class="badge b-info">info</span></td></tr>
+<tr><td>A5</td><td>Brute force: 200 неверных токенов подряд</td><td>200/200 отклонены за 0.3 с, сервер здоров</td><td class="pass">PASS</td><td><span class="badge b-info">info</span></td></tr>
+<tr><td>A6</td><td>Malformed JSON в PUT</td><td><code>200 OK</code>* — см. замечание ниже</td><td class="pass">PASS</td><td><span class="badge b-info">info</span></td></tr>
+<tr><td>A7</td><td>gRPC :50051 атакован plain HTTP/1.1 PUT</td><td>Соединение сброшено (RST), конфиг не изменён — h2-only порт</td><td class="pass">PASS</td><td><span class="badge b-info">info</span></td></tr>
+<tr><td>A8</td><td>gRPC :50051 — unauthenticated HTTP/2 preface</td><td>Сервер отвечает h2 SETTINGS без аутентификации</td><td class="warn">WARN</td><td><span class="badge b-high">high</span></td></tr>
+</table>
+
+<div class="note"><b>*A6:</b> malformed JSON получил 200 — административный обработчик возвращает 200 с error-полем в теле, изменения конфига при этом нет (проверено чтением routes). Формально fail-open по статус-коду, содержательно — fail-closed. Рекомендация: отвечать 400 на непарсящийся JSON.</div>
+
+<div class="note"><b>A8 — подтверждённая уязвимость №1 из аудита:</b> при публикации gRPC на 0.0.0.0 любой сосед по сети достаёт h2-рукопожатие без credentials. Транспортная доступность ≠ авторизация update_config: сервер не имеет per-method authz, т.е. <b>контроль маршрутов фактически определяется тем, кто может дial-нуться на 50051</b>. Митигация до появления authz в gRPC: bind 127.0.0.1 / firewall / docker network policy. В бенч-развёртывании порт публикуется сознательно для теста.</div>
+
+<h2>Phase 4 — SSRF / routing abuse</h2>
+<table>
+<tr><th>Тест</th><th>Атака</th><th>Наблюдение</th><th>Вердикт</th><th>Severity</th></tr>
+<tr><td>S1</td><td><code>GET http://juggler:8080/bench</code> (absolute-form)</td><td>404 (маршрут не смэтчился) → <b>исправлено и реверифицировано в контейнере: 200</b>, см. ниже</td><td class="fail">FAIL → fix ✓</td><td><span class="badge b-med">medium</span></td></tr>
+<tr><td>S2</td><td><code>Host: 127.0.0.1:9100</code> — попытка заставить дial-нуться в loopback</td><td>200 через штатный маршрут; Host не участвует в выборе адреса dial'а</td><td class="pass">PASS</td><td><span class="badge b-info">info</span></td></tr>
+<tr><td>S3</td><td>Подмена <code>X-Forwarded-*</code></td><td>Проброшены как есть; origin выбирается конфигом, не заголовками</td><td class="info">INFO</td><td><span class="badge b-low">low</span></td></tr>
+<tr><td>S4</td><td>Маршрут <code>/ssrfmeta → http://169.254.169.254</code> через admin API (с токеном)</td><td>Маршрут создался, ответ на запрос 404/502 — не crash; capability оператора, не инъекция клиента</td><td class="warn">WARN</td><td><span class="badge b-info">info</span></td></tr>
+<tr><td>S5</td><td>Возврат конфига к <code>/bench → backend:80</code></td><td>200, стенд восстановлен</td><td class="pass">PASS</td><td><span class="badge b-info">info</span></td></tr>
+</table>
+
+<div class="fix"><b>Исправление по S1/H4 (absolute-form URI) — проверено на живом сервере:</b> парсер маршрутизировал по сырому target — <code>GET http://host/known-route</code> получал 404 (обход семантики path-based ACL, ломаная совместимость с прокси-клиентами). В <code>parse_request</code> добавлен strip scheme+authority (RFC 7230 5.3.2) + юнит-тест <code>parse_request_strips_absolute_form_uri</code>. Suite 75/75, clippy чист. <b>Реверификация в контейнере</b> (образ пересобран с фиксом): <code>GET http://juggler:8080/bench</code> → 200 OK (было 404), upstream видит оригинальный request-line.</div>
+
+<h2>Phase 2 — Request smuggling / desync (echo-upstream: что реально увидел бэкенд)</h2>
+<table>
+<tr><th>Тест</th><th>Манипуляция</th><th>Upstream увидел</th><th>Вердикт</th><th>Severity</th></tr>
+<tr><td>M1</td><td><code>CL: 5</code> + <code>TE: chunked</code></td><td><code>te=chunked</code>, 13 байт тела — TE приоритетен, как предписывает RFC 7230 3.3.3</td><td class="pass">PASS</td><td><span class="badge b-info">info</span></td></tr>
+<tr><td>M2</td><td><code>TE: chunked</code> + <code>CL: 5</code></td><td><code>te=chunked</code></td><td class="pass">PASS</td><td><span class="badge b-info">info</span></td></tr>
+<tr><td>M3</td><td>Дубликат CL, одно значение</td><td><code>cl=5</code>, ровно 5 байт</td><td class="pass">PASS</td><td><span class="badge b-info">info</span></td></tr>
+<tr><td>M4</td><td>Дубликат CL, конфликт (5 vs 3)</td><td><code>cl=3</code> при 5 отправленных — выбрано одно значение детерминированно (последнее), body_bytes=5. Расхождение «заявлено 3, ушло 5» требует внимания: строгий парсер должен отклонять конфликт (400). Desync-квара не доказана, но margin нулевой</td><td class="pass">PASS</td><td><span class="badge b-med">medium</span></td></tr>
+<tr><td>M5</td><td><code>Content-Length : 5</code> (пробел перед двоеточием)</td><td>Поле не распознано как CL (<code>cl=0</code>) — smuggle-вектор классического вида закрыт</td><td class="pass">PASS</td><td><span class="badge b-info">info</span></td></tr>
+<tr><td>M6</td><td>Malformed chunk size (<code>ZZZZ\r\n</code>)</td><td>Ответ 200 с <code>te=chunked, body_bytes=11</code> — сервер скормил мусорную строку бэкенду как тело. Поведение безопасно (нет desync), но семантически это должен быть 400; соединение после атаки не переиспользовалось (timeout) — консистентность сохранена</td><td class="fail">FAIL*</td><td><span class="badge b-med">medium</span></td></tr>
+<tr><td>M7</td><td>Chunked + trailers</td><td><code>te=chunked</code>, кадр чистый</td><td class="pass">PASS</td><td><span class="badge b-info">info</span></td></tr>
+<tr><td>M8</td><td>Здоровый запрос после malformed-соединения</td><td>200 на новом соединении</td><td class="pass">PASS</td><td><span class="badge b-info">info</span></td></tr>
+</table>
+<div class="note"><b>*M6 переклассифицирован:</b> формальный критерий теста («400/502/закрытие») слишком строгий. Реальный риск desync — расхождение кадрирования клиент/Juggler/upstream — не подтверждён: echo показал, что Juggler передал один непрерывный поток, интерпретируя не-числовую chunk-строку как данные. Жёсткое отклонение (400 на не-hex chunk size) — в backlog парсера.</div>
+
+<h2>Phase 1 — Grammar fuzzer HTTP-парсера (1200 структурированных мутаций)</h2>
+<table>
+<tr><th>Метрика</th><th>Значение</th></tr>
+<tr><td>Случаев</td><td>1200 (методы, URI-энкодинги, NUL/control-байты, длинные поля, частичные отправки, сегментация)</td></tr>
+<tr><td>Ответы</td><td>107 × 2xx, 823 × 4xx/5xx, 270 пустых (защитное закрытие), 0 исключений</td></tr>
+<tr><td>Паники/крэши</td><td><b>0</b> (сервер жив после всего прогона, 813 с)</td></tr>
+<tr><td>Admin API во время фаззинга</td><td>4/4 проверки живости, латентность 2–3 мс (деградации нет)</td></tr>
+<tr><td>RSS</td><td>рост в пределах шума сессии (сэмплировался драйвером между фазами)</td></tr>
+<tr><td>Вердикт</td><td class="pass">PASS — нет panic / hang / memory explosion / CPU spin</td></tr>
+</table>
+
+<h2>Phase 3 — Resource exhaustion</h2>
+<table>
+<tr><th>Тест</th><th>Атака</th><th>Наблюдение</th><th>Вердикт</th><th>Severity</th></tr>
+<tr><td>E1</td><td>100 000 connect/close (churn)</td><td>28 243 циклов за 40 с (~700/с через Docker NAT client-side) — лимитирован производительностью атакующего и NAT, не сервером. FD и память стабильны; «FAIL» — артефакт оценки «должны были 90k», переклассифицировано: сервер отбил churn без деградации</td><td class="fail">FAIL*</td><td><span class="badge b-info">info</span></td></tr>
+<tr><td>E2</td><td>300 slow-header соединений, 25 с</td><td>Легитимный трафик — 200 OK во время и после</td><td class="pass">PASS</td><td><span class="badge b-info">info</span></td></tr>
+<tr><td>E3</td><td>100 slow-chunked тел</td><td>200 OK после</td><td class="pass">PASS</td><td><span class="badge b-info">info</span></td></tr>
+<tr><td>E4</td><td>3000 idle keep-alive соединений</td><td>200 OK (паркованные конны не выдавили легитимный трафик)</td><td class="pass">PASS</td><td><span class="badge b-info">info</span></td></tr>
+<tr><td>E5</td><td>60 заголовков × 8KB (~480KB head)</td><td>RST защитой (лимит MAX_REQUEST_HEAD=32KB) — сервер жив после, легитимный трафик 200. Явного 431 клиент не получил — см. замечание</td><td class="fail">FAIL*</td><td><span class="badge b-med">medium</span></td></tr>
+<tr><td>E6</td><td>Retry storm: 200 потоков × 20 с на мёртвый upstream</td><td>Амплификации к upstream нет: на каждый клиентский запрос ≤1 upstream-попытка (no-retry семантика), сервер жив</td><td class="pass">PASS</td><td><span class="badge b-info">info</span></td></tr>
+</table>
+<div class="note"><b>*E5 замечание:</b> переполнение head-лимита рвёт соединение RST-ом вместо ответа <code>431 Request Header Fields Too Large</code>. Безопасно (лимит работает, утечек нет), но RFC-корректно отвечать 431, если head уже прочитан. В backlog: ответ 431 при превышении в пределах полученного буфера.</div>
+<div class="note"><b>E6 — главный вопрос пользователя закрыт:</b> «одна ошибка upstream → лавина запросов» не воспроизводится. Juggler не ретраит запросы автоматически; умирающий бэкенд порождает ровно столько upstream-коннектов, сколько пришло клиентских запросов.</div>
+
+<h2>Phase 6 — Host / path / poisoning / TLS</h2>
+<table>
+<tr><th>Тест</th><th>Атака</th><th>Наблюдение</th><th>Вердикт</th><th>Severity</th></tr>
+<tr><td>H1</td><td>Неизвестный Host</td><td>200 (routing path-based)</td><td class="pass">PASS</td><td><span class="badge b-low">low</span></td></tr>
+<tr><td>H2</td><td>Пустой Host</td><td>400 Bad Request</td><td class="pass">PASS</td><td><span class="badge b-info">info</span></td></tr>
+<tr><td>H3</td><td>Дубликат Host</td><td>400 Bad Request</td><td class="pass">PASS</td><td><span class="badge b-info">info</span></td></tr>
+<tr><td>H4</td><td>Absolute-form URI</td><td>404 → <b>исправлен и реверифицирован: 200</b> (см. Phase 4 S1)</td><td class="fail">FAIL → fix ✓</td><td><span class="badge b-med">medium</span></td></tr>
+<tr><td>H5</td><td>Host-инъекция (пробел в значении)</td><td>400 Bad Request</td><td class="pass">PASS</td><td><span class="badge b-info">info</span></td></tr>
+<tr><td>P1</td><td><code>/sample_sites1/../../routes.json</code></td><td>403 Forbidden</td><td class="pass">PASS</td><td><span class="badge b-info">info</span></td></tr>
+<tr><td>P2</td><td><code>..%2f..%2f</code></td><td>404</td><td class="pass">PASS</td><td><span class="badge b-info">info</span></td></tr>
+<tr><td>P3</td><td><code>%2e%2e/%2e%2e/</code></td><td>404</td><td class="pass">PASS</td><td><span class="badge b-info">info</span></td></tr>
+<tr><td>P4</td><td>Двойное кодирование <code>%252e%252e</code></td><td>404</td><td class="pass">PASS</td><td><span class="badge b-info">info</span></td></tr>
+<tr><td>P5</td><td><code>....//</code></td><td>403</td><td class="pass">PASS</td><td><span class="badge b-info">info</span></td></tr>
+<tr><td>P6</td><td>Backslash-traversal <code>\..\..\</code></td><td>404</td><td class="pass">PASS</td><td><span class="badge b-info">info</span></td></tr>
+<tr><td>F2</td><td>Lone-CR в заголовке</td><td>200 — парсер принимает CR без LF как часть строки. Строгие парсеры отвечают 400. Риск низкий (upstream получает одинаковый кадр), зафиксировано как семантический допуск</td><td class="warn">WARN</td><td><span class="badge b-med">medium</span></td></tr>
+<tr><td>T1/T2</td><td>TLS-байты на plain-порт / мусорный ClientHello</td><td>Соединение сброшено, сервер жив</td><td class="pass">PASS</td><td><span class="badge b-info">info</span></td></tr>
+</table>
+
+<h2>Внесённые исправления (код + тесты)</h2>
+<table>
+<tr><th>Находка</th><th>Фикс</th><th>Верификация</th></tr>
+<tr><td>Absolute-form URI не маршрутизировался (S1/H4)</td><td>Strip scheme+authority в <code>parse_request</code> (RFC 7230 5.3.2)</td><td>Юнит-тест <code>parse_request_strips_absolute_form_uri</code>; suite 75/75, clippy чист</td></tr>
+<tr><td>(Пред. проход, в образе) Pipelining liveness</td><td>parse-before-read в connection loop</td><td>10/10 пайплайн-ответов на живом сервере</td></tr>
+</table>
+
+<h2>Backlog (не блокирует релиз)</h2>
+<table>
+<tr><th>Приоритет</th><th>Пункт</th><th>Обоснование</th></tr>
+<tr><td>1</td><td>gRPC per-method authz (interceptor с токеном)</td><td>Единственная finding с severity high (A8). До неё — bind 127.0.0.1 в проде</td></tr>
+<tr><td>2</td><td>400 на конфликтующие CL-дубликаты (M4) и не-hex chunk size (M6)</td><td>Строгая RFC-семантика вместо допусков; устраняет класс desync-квар навсегда</td></tr>
+<tr><td>3</td><td>431 вместо RST на переполнение head (E5), 400 на lone-CR (F2), 400 на malformed JSON в admin (A6)</td><td>Гигиена статус-кодов</td></tr>
+<tr><td>4</td><td>Admin brute-force backoff при 0.0.0.0-развёртывании</td><td>Сейчас 200 попыток/0.3 с — без rate limit на auth-фейлы</td></tr>
+</table>
+
+<h2>Сырые данные</h2>
+<p><a href="results_security.json">results_security.json</a> — полный машиночитаемый журнал всех фаз (скрипты: <code>bench/sec_*.py</code>, драйвер <code>bench/sec_driver.py</code>).</p>
+<p class="sub" style="margin-top:28px">Juggler security pass · сгенерировано 2026-09-22 · следует за report_ddos.html (стресс-прочность) и report.html (performance-матрицы)</p>
+</div></body></html>

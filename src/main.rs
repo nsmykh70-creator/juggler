@@ -2490,7 +2490,29 @@ pub fn parse_request(buf: &[u8]) -> Option<RawRequest> {
     if target == target_end {
         return None;
     }
-    let path = (target, target_end);
+    // RFC 7230 5.3.2: absolute-form target — strip scheme+authority so the
+    // routing path is origin-form. Prevents `GET http://evil/…` from matching
+    // a route key like `http:/evil/...` or bypassing path-based ACLs.
+    let raw_path = &rl[(target as usize)..(target_end as usize)];
+    let mut path_offset = target;
+    if raw_path.len() > 7 && raw_path[..7].eq_ignore_ascii_case(b"http://") {
+        if let Some(slash) = raw_path[7..].iter().position(|&b| b == b'/') {
+            path_offset = target + 7 + slash as u32;
+        } else {
+            path_offset = target_end; // no path part: treat as "/"-less empty -> root
+        }
+    } else if raw_path.len() > 8 && raw_path[..8].eq_ignore_ascii_case(b"https://") {
+        if let Some(slash) = raw_path[8..].iter().position(|&b| b == b'/') {
+            path_offset = target + 8 + slash as u32;
+        } else {
+            path_offset = target_end;
+        }
+    }
+    let path = (path_offset, target_end);
+    if path_offset == target_end {
+        // absolute-form without a path: keep routing miss instead (404) — safe.
+        return None;
+    }
     let version = (sp2 + 1) as u32;
     let version_end = rl.len() as u32;
     let is_http10 = &rl[(version as usize)..(version_end as usize)] == b"HTTP/1.0";
@@ -6078,6 +6100,27 @@ mod tests {
     use std::time::Duration;
 
     // ---- HTTP/1.1 pipelining ----
+
+    #[test]
+    fn parse_request_strips_absolute_form_uri() {
+        // RFC 7230 5.3.2: absolute-form must route on the path component only,
+        // never on scheme+authority (SSRF/ACL-bypass hardening).
+        let buf = b"GET http://juggler:8080/bench HTTP/1.1\r\nHost: x\r\n\r\n";
+        let req = parse_request(buf).expect("absolute-form must parse");
+        let p = &buf[req.path.0 as usize..req.path.1 as usize];
+        assert_eq!(p, b"/bench", "path must be origin-form after strip");
+
+        let buf = b"GET https://host.example HTTP/1.1\r\nHost: x\r\n\r\n";
+        assert!(
+            parse_request(buf).is_none(),
+            "absolute-form w/o path -> routing miss"
+        );
+
+        let buf = b"GET /bench HTTP/1.1\r\nHost: x\r\n\r\n";
+        let req = parse_request(buf).unwrap();
+        let p = &buf[req.path.0 as usize..req.path.1 as usize];
+        assert_eq!(p, b"/bench", "origin-form unchanged");
+    }
 
     #[test]
     fn parse_request_handles_pipelined_requests() {
