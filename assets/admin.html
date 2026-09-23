@@ -516,7 +516,11 @@ window.addEventListener('offline', ()=>markDead());
 /* ================================================================
    OVERVIEW
    ================================================================ */
-let lastAccepted=null,lastOk=null,lastErr=null,lastT=null;
+/* Single source of truth for request-rate and latency KPIs: the sampler
+   history ring's request deltas (connection-count deltas are wrong under
+   keep-alive — one conn carries thousands of requests). The last history
+   row IS the most recent completed sample window. */
+let lastHistTs=null;   // at_ms of the newest sample we already counted
 async function pollOverview(){
   try{
     const [ov, hist, comp] = await Promise.all([
@@ -534,21 +538,26 @@ async function pollOverview(){
     $('v-pending').textContent = fmt(comp.dataplane.pending_handoff)+' в hand-off';
     $('v-accept').textContent = ov.accept_mode.includes('handoff') ? 'handoff (Pythia)' : 'reuseport';
     $('v-shards').textContent = fmt(ov.shards)+' шардов';
-    // deltas over one poll
-    const now = performance.now();
-    if (lastAccepted!==null && lastT!==null){
-      const dt=(now-lastT)/1000;
-      if (dt>0){
-        const rps = Math.max(0,(ov.accepted_total-lastAccepted)/dt);
-        $('k-rps').textContent = fmt(Math.round(rps));
-        const dOk = ov.totals.ok-lastOk, dErr = ov.totals.err-lastErr;
-        setDelta('k-ok-d', dOk, dOk+dErr);
-        setDelta('k-err-d', dErr, dOk+dErr);
-      }
+    // Sum every history row newer than the one seen on the previous poll.
+    // Keyed by at_ms (not array length): the ring is capped at 180, so its
+    // length stops growing and stalls if the tab was throttled mid-poll.
+    const s = hist.samples;
+    const last = s[s.length-1];
+    const fresh = lastHistTs===null ? (last?[last]:[]) : s.filter(x=>x.at_ms>lastHistTs);
+    lastHistTs = last ? last.at_ms : null;
+    if (fresh.length){
+      const winSecs = fresh.length * hist.step_secs;
+      const reqs = fresh.reduce((a,x)=>a+x.reqs,0);
+      const okD = fresh.reduce((a,x)=>a+x['2xx']+x['3xx'],0);
+      const errD = fresh.reduce((a,x)=>a+x['4xx']+x['5xx'],0);
+      $('k-rps').textContent = fmt(Math.round(reqs/Math.max(1,winSecs)));
+      setDelta('k-ok-d', okD, okD+errD);
+      setDelta('k-err-d', errD, okD+errD);
+    } else if (!last){
+      $('k-rps').textContent = '0';
     }
-    lastAccepted=ov.accepted_total; lastOk=ov.totals.ok; lastErr=ov.totals.err; lastT=now;
     // resources
-    const lastS = hist.samples[hist.samples.length-1];
+    const lastS = last;
     const cpuPct = lastS ? lastS.cpu_permille/10 : 0;
     $('v-cpu').textContent = cpuPct.toFixed(cpuPct<10?1:0).replace('.',',')+' %';
     $('bar-cpu').style.width = Math.min(100,cpuPct)+'%';

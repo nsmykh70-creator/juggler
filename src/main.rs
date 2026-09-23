@@ -3585,11 +3585,7 @@ async fn serve_admin_connection(mut stream: tokio::net::TcpStream) -> std::io::R
         // and every data call it makes hits /api/*, which stays token-gated.
         // Without this, a viewer without the token would see a plain 401
         // string instead of the login form.
-        ("/", AuthMode::Denied) => (
-            200,
-            "text/html; charset=utf-8",
-            admin_ui_html().to_string(),
-        ),
+        ("/", AuthMode::Denied) => (200, "text/html; charset=utf-8", admin_ui_html().to_string()),
         (_, AuthMode::Denied) => (
             401,
             "text/plain; charset=utf-8",
@@ -6697,6 +6693,7 @@ async fn handle_h2_request(
                 Bytes::from(file_body),
             )
             .await?;
+            record_response_class(status);
         }
         RouteDecision::Proxy(upstreams, body, extra_headers, security_headers) => {
             let started = Instant::now();
