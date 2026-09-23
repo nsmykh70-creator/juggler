@@ -34,7 +34,7 @@
 </head>
 <body><div class="wrap">
 <h1>🛡️ Juggler Security Pass</h1>
-<p class="sub">6 фаз · 31 тест · таргет: <code>bench-juggler</code> (v1.0.0 + pipeline fix, prewarm cap=256), admin <code>0.0.0.0:19090</code> (Bearer), gRPC <code>0.0.0.0:50051</code> (после hardening — Bearer authz на мутациях), data plane <code>:8080</code> · атакующий: контейнер <code>bench-attack</code> в той же docker-сети · 2026-09-22</p>
+<p class="sub">7 фаз · 47 тестов · таргет: <code>bench-juggler</code> (v1.0.0 + pipeline fix, prewarm cap=256), admin <code>0.0.0.0:19090</code> (Bearer), gRPC <code>0.0.0.0:50051</code> (после hardening — Bearer authz на мутациях), data plane <code>:8080</code> · атакующий: контейнер <code>bench-attack</code> в той же docker-сети · 2026-09-22</p>
 
 <h2>Итог</h2>
 <table>
@@ -180,6 +180,16 @@
 </table>
 
 <div class="note"><b>Новые защиты в коде (unit-тесты, suite 85/85, clippy 0):</b> admin brute-force throttle (per-IP окно 60 с / лимит 20 фейлов / 429 + сброс при верном токене), egress-политика upstream'ов (reject loopback/link-local/unspecified по умолчанию, env-override), <b>DNS-rebinding guard</b> (resolve-time проверка резолвящихся IP по той же политике), валидация применена и в admin API, и в gRPC ControlPlane.</div>
+
+<h2>Security correctness vs deployment security</h2>
+<div class="note">Этот pass проверяет <b>security correctness самого сервера</b>: parser/framing (CL/TE/chunk), authz (admin/gRPC), configuration atomicity, SSRF/egress-политику на уровне конфига и резолва, устойчивость к exhaustion — с live-верификацией на пересобранном образе. Он <b>не</b> заменяет deployment security — модель развёртывания, которую настраивает оператор:</div>
+<table>
+<tr><th>Слой</th><th>Проверено этим pass'ом</th><th>Зона ответственности развёртывания</th></tr>
+<tr><td>Управление</td><td>Bearer authz, fail-closed, 429-latch (per-IP)</td><td>менеджмент-порты (admin/gRPC) не публиковать на 0.0.0.0 без необходимости; firewall/network-policy; global auth budget при распределённых атакующих</td></tr>
+<tr><td>Сеть</td><td>egress-политика upstream (loopback/link-local/metadata, resolve-time)</td><td>network-level egress control; trusted-proxy/XFF-модель: какой IP видит Juggler за reverse proxy/WAF</td></tr>
+<tr><td>Транспорт</td><td>TLS-терминация проверена отдельно (PFX, ручной режим)</td><td>сертификаты, TLS-конфигурация, где терминируется TLS</td></tr>
+<tr><td>Данные</td><td>traversal/Host/absolute-form в проверенных векторах</td><td>docroot-содержимое, ACL поверх маршрутов</td></tr>
+</table>
 
 <h2>Backlog (не блокирует релиз)</h2>
 <table>
