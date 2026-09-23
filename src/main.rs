@@ -19,7 +19,7 @@
 //!   JUGGLER_GRPC_ADDR   (default "127.0.0.1:50051")
 //!   JUGGLER_ROUTES_FILE (default "routes.json"; created empty if missing)
 
-use std::collections::HashMap;
+use std::collections::{HashMap, VecDeque};
 use std::net::{IpAddr, SocketAddr};
 use std::sync::atomic::{AtomicBool, AtomicI64, AtomicU64, AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex, OnceLock};
@@ -808,6 +808,11 @@ impl IpRateLimiter {
         let retune = self.custom.is_none().then(|| self.limits());
         buckets.get_mut(&ip).unwrap().take(retune)
     }
+
+    /// Number of distinct client IPs currently tracked (panel visibility).
+    pub fn tracked_ips(&self) -> usize {
+        self.buckets.lock().unwrap().len()
+    }
 }
 
 lazy_static! {
@@ -816,6 +821,219 @@ lazy_static! {
         // and admin-panel retuning applies to this limiter immediately.
         IpRateLimiter::live(65_536)
     };
+}
+
+// ============================================================================
+// Admin panel telemetry: response-class counters, RPS history, log ring
+// ============================================================================
+//
+// All counters are lock-free atomics on the data path (one relaxed add per
+// response); the sampler folds them into a history ring and the admin API
+// serializes snapshots. No allocation on the request path.
+
+/// Response classes for the dashboard: 2xx, 3xx, 4xx, 5xx.
+const RESP_CLASS_COUNT: usize = 4;
+static RESP_CLASS_COUNTERS: [AtomicU64; RESP_CLASS_COUNT] = [
+    AtomicU64::new(0),
+    AtomicU64::new(0),
+    AtomicU64::new(0),
+    AtomicU64::new(0),
+];
+static RESP_429_COUNTER: AtomicU64 = AtomicU64::new(0);
+static RESP_502_503_COUNTER: AtomicU64 = AtomicU64::new(0);
+
+/// Cumulative totals (never reset): the sampler consumes the per-interval
+/// counters via swap and re-accumulates here so /api/overview deltas work.
+static RESP_CLASS_TOTALS: [AtomicU64; RESP_CLASS_COUNT] = [
+    AtomicU64::new(0),
+    AtomicU64::new(0),
+    AtomicU64::new(0),
+    AtomicU64::new(0),
+];
+static RESP_429_TOTAL: AtomicU64 = AtomicU64::new(0);
+static RESP_5XX_TOTAL: AtomicU64 = AtomicU64::new(0);
+
+/// One row of the RPS/latency history ring, appended by the sampler.
+#[derive(Clone, Copy)]
+struct PanelSample {
+    at_ms: u64, // unix ms
+    reqs: u64,  // requests completed in this interval
+    classes: [u64; RESP_CLASS_COUNT],
+    r429: u64,
+    r5xx_gateway: u64,
+    active_conns: u64,
+    rss_kib: u64,
+    cpu_permille: u32, // process CPU ‰ (0..1000 = 0..100%)
+    p50_us: u64,
+    p99_us: u64,
+}
+
+const PANEL_HISTORY_CAP: usize = 180;
+
+fn panel_history() -> &'static Mutex<VecDeque<PanelSample>> {
+    static H: OnceLock<Mutex<VecDeque<PanelSample>>> = OnceLock::new();
+    H.get_or_init(|| Mutex::new(VecDeque::new()))
+}
+
+fn push_panel_sample(s: PanelSample) {
+    let mut h = panel_history().lock().unwrap();
+    if h.len() == PANEL_HISTORY_CAP {
+        h.pop_front();
+    }
+    h.push_back(s);
+}
+
+fn panel_history_snapshot() -> Vec<PanelSample> {
+    panel_history().lock().unwrap().iter().copied().collect()
+}
+
+fn resp_class_index(code: u16) -> Option<usize> {
+    match code {
+        200..=299 => Some(0),
+        300..=399 => Some(1),
+        400..=499 => Some(2),
+        500..=599 => Some(3),
+        _ => None,
+    }
+}
+
+/// Record a finished response for the panel counters. Cheap enough to call
+/// from every response path (H1 + H2).
+fn record_response_class(code: u16) {
+    if let Some(i) = resp_class_index(code) {
+        RESP_CLASS_COUNTERS[i].fetch_add(1, Ordering::Relaxed);
+    }
+    if code == 429 {
+        RESP_429_COUNTER.fetch_add(1, Ordering::Relaxed);
+    }
+    if code == 502 || code == 503 {
+        RESP_502_503_COUNTER.fetch_add(1, Ordering::Relaxed);
+    }
+}
+
+// ---- structured log ring (Логи page) ----
+
+#[derive(Clone)]
+struct LogEntry {
+    at_ms: u64,
+    level: &'static str, // "info" | "warn" | "error"
+    scope: String,       // dataplane | upstream | control | admin | system
+    message: String,
+}
+
+const LOG_RING_CAP: usize = 512;
+
+fn log_ring() -> &'static Mutex<VecDeque<LogEntry>> {
+    static L: OnceLock<Mutex<VecDeque<LogEntry>>> = OnceLock::new();
+    L.get_or_init(|| Mutex::new(VecDeque::new()))
+}
+
+/// Push a panel log entry. Called from background paths only (health flips,
+/// backpressure transitions, config reloads, admin auth failures, watchdog,
+/// upstream errors) — never on the hot per-response path.
+fn panel_log(level: &'static str, scope: &str, message: String) {
+    let mut ring = log_ring().lock().unwrap();
+    if ring.len() == LOG_RING_CAP {
+        ring.pop_front();
+    }
+    ring.push_back(LogEntry {
+        at_ms: now_unix_ms(),
+        level,
+        scope: scope.to_string(),
+        message,
+    });
+}
+
+fn log_ring_snapshot(limit: usize, level: Option<&str>, scope: Option<&str>) -> Vec<LogEntry> {
+    let ring = log_ring().lock().unwrap();
+    ring.iter()
+        .rev() // newest first
+        .filter(|e| level.is_none_or(|l| e.level == l))
+        .filter(|e| scope.is_none_or(|s| e.scope == s))
+        .take(limit)
+        .cloned()
+        .collect()
+}
+
+fn now_unix_ms() -> u64 {
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_millis() as u64)
+        .unwrap_or(0)
+}
+
+// ---- process resources (Система page): RSS + CPU of this process ----
+
+#[cfg(target_family = "unix")]
+fn process_rss_kib() -> u64 {
+    // /proc/self/statm: size resident fields in pages.
+    std::fs::read_to_string("/proc/self/statm")
+        .ok()
+        .and_then(|s| {
+            s.split_whitespace()
+                .nth(1)
+                .and_then(|v| v.parse::<u64>().ok())
+        })
+        .map(|pages| pages * 4096 / 1024)
+        .unwrap_or(0)
+}
+
+#[cfg(target_family = "windows")]
+fn process_rss_kib() -> u64 {
+    // Windows host runs are dev-only; the bench image is Linux. Report 0
+    // rather than pulling in winapi: the UI hides the RSS row when 0.
+    0
+}
+
+#[cfg(target_family = "unix")]
+static PROCESS_CPU_SNAPSHOT: OnceLock<Mutex<(Instant, u64)>> = OnceLock::new();
+
+#[cfg(target_family = "unix")]
+fn cpu_snapshot() -> &'static Mutex<(Instant, u64)> {
+    PROCESS_CPU_SNAPSHOT.get_or_init(|| Mutex::new((Instant::now(), 0)))
+}
+
+fn process_cpu_permille() -> u32 {
+    // /proc/self/stat utime+stime in clock ticks (Linux only).
+    #[cfg(target_family = "unix")]
+    {
+        let ticks = std::fs::read_to_string("/proc/self/stat")
+            .ok()
+            .and_then(|s| {
+                // fields 14,15 (1-based) are utime, stime; field 2 (comm) can
+                // contain spaces/parens — split after the last ')'.
+                let after = s.rsplit_once(')').map(|(_, r)| r)?;
+                let f: Vec<&str> = after.split_whitespace().collect();
+                let u: u64 = f.get(11)?.parse().ok()?; // utime (index 11 after comm)
+                let st: u64 = f.get(12)?.parse().ok()?; // stime
+                Some(u + st)
+            })
+            .unwrap_or(0);
+        let mut guard = cpu_snapshot().lock().unwrap();
+        let (ref mut last_t, ref mut last_ticks) = *guard;
+        let now = Instant::now();
+        let dt = now.duration_since(*last_t).as_secs_f64();
+        let permille = if dt >= 0.5 && *last_ticks > 0 && ticks >= *last_ticks {
+            // 100 ticks/sec typical (CLK_TCK); ‰ of one core.
+            (((ticks - *last_ticks) as f64) / dt * 1000.0 / 100.0) as u32
+        } else {
+            0
+        };
+        *last_t = now;
+        *last_ticks = ticks;
+        permille.min(100_000) // multi-core can exceed 1000‰
+    }
+    #[cfg(target_family = "windows")]
+    {
+        0
+    }
+}
+
+fn process_uptime_secs() -> u64 {
+    ADMIN_START
+        .get_or_init(std::time::Instant::now)
+        .elapsed()
+        .as_secs()
 }
 
 // ============================================================================
@@ -1338,9 +1556,19 @@ fn update_backpressure_state(now_pending: usize) {
             eprintln!(
                 "🛑 Backpressure ON: {now_pending} connections queued in hand-off, accept paused"
             );
+            panel_log(
+                "warn",
+                "system",
+                format!("backpressure ON: {now_pending} conns queued, accept paused"),
+            );
         }
     } else if now_pending < PENDING_CONNS_LOW && ACCEPT_BACKPRESSURE.swap(false, Ordering::AcqRel) {
         eprintln!("✅ Backpressure OFF: {now_pending} pending, accept resumed");
+        panel_log(
+            "info",
+            "system",
+            format!("backpressure OFF: {now_pending} pending, accept resumed"),
+        );
     }
 }
 
@@ -1817,6 +2045,14 @@ impl HealthTracker {
                         "🚑 upstream {addr} marked unhealthy after {} consecutive failures",
                         entry.consecutive_failures
                     );
+                    panel_log(
+                        "warn",
+                        "upstream",
+                        format!(
+                            "{addr} marked UNHEALTHY after {} consecutive failures",
+                            entry.consecutive_failures
+                        ),
+                    );
                     UPSTREAM_HEALTH_STATE
                         .with_label_values(&[addr, "unhealthy"])
                         .set(1);
@@ -1831,6 +2067,38 @@ impl HealthTracker {
     /// expires after `PROBE_GRANT_TTL`: if the probe request never actually
     /// reached this upstream (least-connections picked another peer), the
     /// slot frees itself instead of wedging the circuit half-open forever.
+    /// Panel snapshot: one row per tracked upstream (unknown → healthy with
+    /// zero failures; the map only tracks upstreams that have served traffic
+    /// or failed).
+    fn panel_snapshot(&self) -> Vec<(String, &'static str, usize)> {
+        let policy = self.policy();
+        {
+            // Re-evaluate cooldown transitions so a stale Unhealthy row
+            // doesn't linger in the UI after recovery became due.
+            let map = self.inner.lock().unwrap();
+            let addrs: Vec<String> = map.keys().cloned().collect();
+            drop(map);
+            for a in &addrs {
+                let _ = self.state_of(a);
+            }
+        }
+        let map = self.inner.lock().unwrap();
+        map.iter()
+            .map(|(addr, e)| {
+                let label = match e.state {
+                    HealthState::Healthy => "healthy",
+                    HealthState::Unhealthy => "unhealthy",
+                    HealthState::HalfOpen => "half-open",
+                };
+                (
+                    addr.clone(),
+                    label,
+                    e.consecutive_failures.min(policy.max_failures),
+                )
+            })
+            .collect()
+    }
+
     fn accepts(&self, addr: &str) -> bool {
         let state = self.state_of(addr);
         if state != HealthState::HalfOpen {
@@ -2211,6 +2479,18 @@ impl MyControlPlane {
         } else if self.auth_token.is_some() {
             println!("🔑 gRPC Control Plane auth enabled (Bearer token required)");
         }
+        panel_log(
+            "info",
+            "control",
+            if self.auth_token.is_some() {
+                "gRPC control plane: Bearer auth enabled".to_string()
+            } else if self.loopback_bind {
+                "gRPC control plane: loopback bind, auth disabled by config".to_string()
+            } else {
+                "gRPC control plane: external bind WITHOUT token — mutations fail-closed"
+                    .to_string()
+            },
+        );
         self
     }
 
@@ -2321,6 +2601,11 @@ impl ControlPlane for MyControlPlane {
         prewarm_upstream_pool(&self.shared_config, prewarm_target_cap()).await;
 
         println!("🔄 Config hot-reloaded via gRPC Control Plane");
+        panel_log(
+            "info",
+            "control",
+            "config hot-reloaded via gRPC Control Plane".to_string(),
+        );
         Ok(Response::new(UpdateConfigResponse {
             success: true,
             message: "Config hot-reloaded atomically".to_string(),
@@ -2819,289 +3104,226 @@ pub async fn handle_redirect_connection(
 /// /api/stats — the page itself never reloads. The Settings card is
 /// deliberately static: it renders once and re-renders only after an
 /// explicit Apply, so values can't reset while the user is typing.
+/// Production admin SPA: 7 sections, real data only (no demo endpoints),
+/// embedded at compile time so the binary stays self-contained.
 fn admin_ui_html() -> &'static str {
-    r##"<!DOCTYPE html>
-<html lang="en"><head><meta charset="utf-8"><title>Juggler Admin</title>
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<style>
-:root{
-  --bg:#0b0e14;--panel:#12161f;--panel2:#171c28;--border:#232a3a;--border2:#2e3850;
-  --text:#e8ecf4;--muted:#8b94a7;--dim:#5c6579;
-  --green:#4ade80;--blue:#60a5fa;--amber:#fbbf24;--red:#f87171;--violet:#a78bfa;
-}
-*{box-sizing:border-box;margin:0;padding:0}
-body{background:radial-gradient(1200px 500px at 70% -10%,#141a2a 0%,var(--bg) 60%);
-  color:var(--text);font:14px/1.55 "Segoe UI",system-ui,-apple-system,sans-serif;
-  min-height:100vh;padding:24px clamp(12px,4vw,40px) 40px}
-a{color:var(--blue);text-decoration:none}a:hover{text-decoration:underline}
-code{background:#0d1119;border:1px solid var(--border);border-radius:5px;padding:1px 6px;font:12px ui-monospace,Consolas,monospace;color:#c3cbdb}
-/* ---------- header ---------- */
-header{display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin-bottom:20px}
-.logo{width:40px;height:40px;border-radius:12px;display:grid;place-items:center;font-size:22px;
-  background:linear-gradient(135deg,#1d2740,#10141f);border:1px solid var(--border2);box-shadow:0 4px 18px #0008}
-h1{font-size:20px;font-weight:650;letter-spacing:.2px}
-h1 span{color:var(--muted);font-weight:400;font-size:13px;margin-left:8px}
-.badge{margin-left:auto;display:flex;align-items:center;gap:7px;background:var(--panel);border:1px solid var(--border);
-  border-radius:999px;padding:5px 13px;font-size:12.5px;color:var(--muted)}
-.dot{width:8px;height:8px;border-radius:50%;background:var(--green);box-shadow:0 0 0 0 #4ade8066;animation:pulse 2s infinite}
-.dot.paused{background:var(--amber);animation:none}
-@keyframes pulse{0%{box-shadow:0 0 0 0 #4ade8055}70%{box-shadow:0 0 0 7px #4ade8000}100%{box-shadow:0 0 0 0 #4ade8000}}
-/* ---------- KPI cards ---------- */
-.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:18px}
-.kpi{background:linear-gradient(180deg,var(--panel2),var(--panel));border:1px solid var(--border);border-radius:14px;
-  padding:14px 16px;position:relative;overflow:hidden}
-.kpi::after{content:"";position:absolute;inset:0 0 auto 0;height:2px;background:linear-gradient(90deg,transparent,var(--green),transparent);opacity:.35}
-.kpi b{display:block;font-size:24px;font-weight:650;font-variant-numeric:tabular-nums;color:var(--green)}
-.kpi span{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.8px}
-/* ---------- cards grid ---------- */
-.grid{display:grid;grid-template-columns:repeat(12,1fr);gap:14px}
-.card{background:var(--panel);border:1px solid var(--border);border-radius:14px;padding:16px 18px;min-width:0}
-.card h2{font-size:13.5px;font-weight:600;color:var(--blue);text-transform:uppercase;letter-spacing:1px;margin-bottom:12px;
-  display:flex;align-items:center;gap:8px}
-.card h2 .hint{margin-left:auto;font-size:11.5px;font-weight:400;color:var(--dim);text-transform:none;letter-spacing:0}
-.c6{grid-column:span 12}.c7{grid-column:span 12}
-@media(min-width:1050px){.c6{grid-column:span 6}.c7{grid-column:span 12}}
-.c12{grid-column:span 12}
-/* ---------- tables ---------- */
-table{border-collapse:collapse;width:100%;font-size:13.5px}
-th{color:var(--muted);font-weight:600;text-align:left;padding:6px 10px;border-bottom:1px solid var(--border2);font-size:12px;text-transform:uppercase;letter-spacing:.6px}
-td{padding:6px 10px;border-bottom:1px solid var(--border)}
-tr:last-child td{border-bottom:none}
-tbody tr:hover{background:#ffffff06}
-.num{font-variant-numeric:tabular-nums}
-.chip{display:inline-block;padding:1px 9px;border-radius:999px;font-size:12px;font-weight:600}
-.chip.ok{background:#4ade8018;color:var(--green)}
-.chip.warn{background:#fbbf2418;color:var(--amber)}
-.chip.dim{background:#8b94a715;color:var(--muted)}
-/* ---------- sparkline ---------- */
-svg.spark{display:block}
-.legend{color:var(--dim);font-size:12px;margin-top:10px}
-.legend i{display:inline-block;width:16px;height:3px;border-radius:2px;vertical-align:middle;margin:0 5px 2px 0}
-/* ---------- stage bars ---------- */
-.stage-row{display:grid;grid-template-columns:110px 1fr 150px;gap:12px;align-items:center;padding:7px 0;border-bottom:1px solid var(--border)}
-.stage-row:last-child{border-bottom:none}
-.stage-name{font-size:12.5px;color:var(--muted)}
-.stage-bar{height:9px;background:#0d1119;border-radius:6px;overflow:hidden;border:1px solid var(--border)}
-.stage-fill{height:100%;border-radius:6px;background:linear-gradient(90deg,#2563eb33,var(--blue));transition:width .5s ease}
-.stage-val{font-size:12.5px;color:var(--text);text-align:right;font-variant-numeric:tabular-nums}
-/* ---------- settings ---------- */
-.set-note{font-size:12px;color:var(--dim);margin-bottom:12px}
-.set-row{display:grid;grid-template-columns:minmax(150px,230px) 1fr 90px 62px 70px;gap:12px;align-items:center;padding:9px 0;border-bottom:1px solid var(--border)}
-.set-row:last-child{border-bottom:none}
-.set-name{font-size:13px}
-.set-name small{display:block;color:var(--dim);font-size:11px}
-.set-range{color:var(--dim);font-size:11px;text-align:right}
-input[type=range]{-webkit-appearance:none;width:100%;height:5px;border-radius:4px;background:linear-gradient(90deg,var(--blue) var(--fill,50%),#232a3a var(--fill,50%));outline:none}
-input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:15px;height:15px;border-radius:50%;background:var(--blue);cursor:pointer;border:2px solid #0b0e14;box-shadow:0 0 0 2px #60a5fa44}
-input[type=range]::-moz-range-thumb{width:13px;height:13px;border-radius:50%;background:var(--blue);cursor:pointer;border:2px solid #0b0e14}
-input[type=number]{width:74px;background:#0d1119;color:var(--text);border:1px solid var(--border2);border-radius:7px;padding:4px 8px;font:13px ui-monospace,Consolas,monospace}
-input[type=number]:focus{outline:none;border-color:var(--blue)}
-button.apply{background:#4ade8018;color:var(--green);border:1px solid #4ade8044;border-radius:8px;padding:5px 12px;cursor:pointer;font-weight:600;font-size:12.5px;transition:.15s}
-button.apply:hover{background:#4ade8030;border-color:var(--green)}
-/* toggle switch */
-.switch{position:relative;display:inline-block;width:40px;height:22px;vertical-align:middle}
-.switch input{opacity:0;width:0;height:0}
-.slider{position:absolute;inset:0;background:#232a3a;border-radius:999px;transition:.2s;cursor:pointer}
-.slider::before{content:"";position:absolute;width:16px;height:16px;left:3px;top:3px;background:#8b94a7;border-radius:50%;transition:.2s}
-.switch input:checked + .slider{background:#4ade8033}
-.switch input:checked + .slider::before{transform:translateX(18px);background:var(--green)}
-.seg{display:inline-flex;border:1px solid var(--border2);border-radius:9px;overflow:hidden}
-.seg button{background:transparent;color:var(--muted);border:0;padding:5px 13px;cursor:pointer;font-size:12.5px;font-weight:600}
-.seg button.on{background:#60a5fa22;color:var(--blue)}
-#set-status{font-size:12.5px;color:var(--green);margin-left:10px}
-/* ---------- footer ---------- */
-footer{margin-top:22px;color:var(--dim);font-size:12.5px;display:flex;gap:16px;flex-wrap:wrap}
-</style></head><body>
-<header>
-  <div class="logo">🤹</div>
-  <h1>Juggler Admin <span id="ver"></span></h1>
-  <div class="badge"><span class="dot" id="dot"></span><span id="live-label">live · 1.5s</span></div>
-</header>
-
-<div class="kpis">
-  <div class="kpi"><b id="k-shards">–</b><span>shards</span></div>
-  <div class="kpi"><b id="k-conns">–</b><span>active conns</span></div>
-  <div class="kpi"><b id="k-rps">–</b><span>req/s</span></div>
-  <div class="kpi"><b id="k-accepted">–</b><span>accepted</span></div>
-  <div class="kpi"><b id="k-routes">–</b><span>routes</span></div>
-  <div class="kpi"><b id="k-uptime">–</b><span>uptime</span></div>
-</div>
-
-<div class="grid">
-  <section class="card c7">
-    <h2>Shards — load &amp; forecast <span class="hint" id="spark-hint">window 4 min · per-core</span></h2>
-    <table><thead><tr><th>#</th><th>active</th><th>accepted</th><th>level</th><th>trend</th><th>forecast</th><th>load → forecast</th></tr></thead>
-    <tbody id="shard-rows"><tr><td colspan="7" style="color:var(--dim)">loading…</td></tr></tbody></table>
-    <div class="legend"><i style="background:var(--blue)"></i>level (smoothed load)&nbsp;&nbsp;<i style="background:var(--green)"></i>Holt forecast (leads on ramp-up)</div>
-  </section>
-
-  <section class="card c6">
-    <h2>Pipeline stages <span class="hint">since last sample · 2 s</span></h2>
-    <div id="stage-box"><div class="set-note">waiting for first sample…</div></div>
-  </section>
-
-  <section class="card c6">
-    <h2>Routes &amp; pools</h2>
-    <table><tbody id="route-rows"><tr><td style="color:var(--dim)">loading…</td></tr></tbody></table>
-  </section>
-
-  <section class="card c12">
-    <h2>Fine tuning <span class="hint">static — applies on demand, never auto-refreshed</span></h2>
-    <div class="set-note">Sliders and number fields are linked. Values apply only when you press <b>Apply</b> — the panel never re-renders this card on its own.</div>
-    <div id="settings-box"><div class="set-note">loading…</div></div>
-    <span id="set-status"></span>
-  </section>
-</div>
-
-<footer>
-  <span>JSON: <code>/api/stats</code> · <code>/api/routes</code> · <code>/api/settings</code></span>
-  <span>Auth: <code>Authorization: Bearer $JUGGLER_ADMIN_TOKEN</code></span>
-</footer>
-
-<script>
-"use strict";
-const $ = id => document.getElementById(id);
-let lastAccepted = null, lastT = null;
-
-/* ---------- sparkline (client-side SVG) ---------- */
-function spark(level, fc, w=190, h=36){
-  const n = Math.max(level.length, fc.length);
-  if(n < 2) return '<svg class="spark" width="'+w+'" height="'+h+'"></svg>';
-  const max = Math.max(1, ...level, ...fc);
-  const pts = a => {
-    const step = (w-4)/(n-1);
-    return a.map((v,i)=>((2+i*step).toFixed(1))+','+((h-3-(v/max)*(h-6)).toFixed(1))).join(' ');
-  };
-  return '<svg class="spark" width="'+w+'" height="'+h+'">'
-    +'<polyline fill="none" stroke="#60a5fa" stroke-width="1.6" points="'+pts(level)+'"/>'
-    +'<polyline fill="none" stroke="#4ade80" stroke-width="1.6" stroke-dasharray="4 3" points="'+pts(fc)+'"/></svg>';
-}
-function fmtUptime(s){
-  const d=Math.floor(s/86400),h=Math.floor(s%86400/3600),m=Math.floor(s%3600/60);
-  return (d?d+'d ':'')+(h?h+'h ':'')+m+'m';
-}
-/* ---------- live sections (refreshed in place) ---------- */
-async function poll(){
-  try{
-    const r = await fetch('/api/stats');
-    const d = await r.json();
-    $('ver').textContent = 'v'+d.version;
-    $('k-shards').textContent = d.shards.length;
-    $('k-routes').textContent = d.routes.length;
-    $('k-uptime').textContent = fmtUptime(d.uptime_secs);
-    const active = d.shards.reduce((a,s)=>a+s.active_conns,0);
-    const accepted = d.shards.reduce((a,s)=>a+s.accepted_total,0);
-    $('k-conns').textContent = active;
-    $('k-accepted').textContent = accepted.toLocaleString('en-US');
-    if(lastAccepted !== null && lastT !== null){
-      const dt = (performance.now()-lastT)/1000;
-      $('k-rps').textContent = dt>0 ? Math.max(0,(accepted-lastAccepted)/dt).toFixed(0) : '–';
-    }
-    lastAccepted = accepted; lastT = performance.now();
-
-    // shards
-    $('spark-hint').textContent = 'window ' + Math.round(d.history_cap*d.history_step_secs/60) + ' min · ' + d.history_cap + ' pts · ' + d.history_step_secs + 's';
-    $('shard-rows').innerHTML = d.shards.map((s,i)=>{
-      const h = (d.history||[])[i]||{level:[],forecast:[]};
-      const cls = s.trend>0.5?'warn':'ok';
-      const trendTxt = (s.trend>0?'+':'') + s.trend.toFixed(2);
-      return '<tr><td class="num">'+s.shard+'</td><td class="num">'+s.active_conns+'</td>'
-        +'<td class="num">'+s.accepted_total.toLocaleString('en-US')+'</td>'
-        +'<td class="num">'+s.level.toFixed(1)+'</td>'
-        +'<td><span class="chip '+cls+'">'+trendTxt+'</span></td>'
-        +'<td class="num">'+s.forecast.toFixed(1)+'</td>'
-        +'<td>'+spark(h.level,h.forecast)+'</td></tr>';
-    }).join('');
-
-    // pipeline stages
-    if(d.stages && d.stages.length){
-      const maxAvg = Math.max(1e-9, ...d.stages.map(s=>s.avg_us));
-      $('stage-box').innerHTML = d.stages.map(s=>{
-        const w = Math.max(2, s.avg_us/maxAvg*100).toFixed(1);
-        return '<div class="stage-row"><div class="stage-name">'+s.stage+'</div>'
-          +'<div class="stage-bar"><div class="stage-fill" style="width:'+w+'%"></div></div>'
-          +'<div class="stage-val">avg '+s.avg_us.toFixed(1)+' µs · max '+s.p99_ms.toFixed(2)+' ms</div></div>';
-      }).join('');
-    }
-
-    // routes
-    $('route-rows').innerHTML = d.routes.map(r=>{
-      const ups = (r.pool_idle||[]).map(p=>p.addr+' <span style="color:var(--dim)">('+p.idle+')</span>').join('<br>');
-      const wasm = r.wasm_plugin ? '<span class="chip ok">wasm</span>' : '<span class="chip dim">—</span>';
-      const sec = r.security||{};
-      return '<tr><td><code>'+r.path+'</code></td><td>'+ups+'</td><td>'+wasm+'</td>'
-        +'<td style="color:var(--dim)">deny '+sec.deny_count+' · hdrs '+sec.response_headers_count+'</td></tr>';
-    }).join('') || '<tr><td style="color:var(--dim)">no routes</td></tr>';
-
-    $('dot').classList.remove('paused');
-    $('live-label').textContent = 'live · 1.5s';
-  }catch(e){
-    $('dot').classList.add('paused');
-    $('live-label').textContent = 'reconnecting…';
-  }
-}
-setInterval(()=>{ if(!document.hidden) poll(); }, 1500);
-poll();
-
-/* ---------- settings (STATIC: rendered once, re-rendered only after Apply) ---------- */
-const SETTINGS_HINTS = {
-  balancer:'0 leastconn · 1 predictive',
-  rate_limit_tokens:'per-IP burst capacity',
-  rate_limit_refill:'tokens per second',
-  pool_cap_per_upstream:'keep-alive socket cap',
-  max_keepalive_requests:'requests per client conn',
-  pool_idle_timeout_secs:'idle socket lifetime',
-  prewarm_floor:'min warm sockets',
-  health_max_failures:'failures before DEAD',
-  health_cooldown_secs:'DEAD → half-open delay',
-};
-async function loadSettings(){
-  const r = await fetch('/api/settings');
-  const d = await r.json();
-  let h = '';
-  for(const s of d.settings){
-    if(s.name === 'balancer'){
-      h += '<div class="set-row"><div class="set-name"><code>'+s.name+'</code><small>'+(SETTINGS_HINTS[s.name]||'')+'</small></div>'
-        +'<div class="seg"><button id="seg-bal-0" class="'+(s.value===0?'on':'')+'" onclick="applySetting(\'balancer\',0)">leastconn</button>'
-        +'<button id="seg-bal-1" class="'+(s.value===1?'on':'')+'" onclick="applySetting(\'balancer\',1)">predictive</button></div>'
-        +'<div></div><div></div><div></div></div>';
-      continue;
-    }
-    const fill = ((s.value-s.min)/Math.max(1,(s.max-s.min))*100).toFixed(1);
-    h += '<div class="set-row"><div class="set-name"><code>'+s.name+'</code><small>'+(SETTINGS_HINTS[s.name]||'')+'</small></div>'
-      +'<input type="range" min="'+s.min+'" max="'+s.max+'" step="1" value="'+s.value+'" id="rng-'+s.name+'" oninput="syncNum(\''+s.name+'\',this.value,this)">'
-      +'<div class="set-range">'+s.min+' … '+s.max+'</div>'
-      +'<input type="number" min="'+s.min+'" max="'+s.max+'" value="'+s.value+'" id="num-'+s.name+'" oninput="syncRng(\''+s.name+'\',this.value,this)" onchange="applySetting(\''+s.name+'\')">'
-      +'<button class="apply" onclick="applySetting(\''+s.name+'\')">Apply</button></div>';
-  }
-  h += '<div class="set-row"><div class="set-name"><code>adaptive_prewarm</code><small>keep pools warm at high-water mark</small></div>'
-    +'<label class="switch"><input type="checkbox" id="num-adaptive_prewarm" '+(d.adaptive_prewarm?'checked':'')
-    +' onchange="applySetting(\'adaptive_prewarm\')"><span class="slider"></span></label>'
-    +'<div></div><div></div><div></div></div>';
-  $('settings-box').innerHTML = h;
-}
-function syncNum(name,v,el){ $('num-'+name).value = v; paint(el||$('rng-'+name)); }
-function syncRng(name,v,el){ const r=$('rng-'+name); if(r){ r.value=v; paint(r);} }
-function paint(el){ if(el) el.style.setProperty('--fill', ((el.value-el.min)/Math.max(1,el.max-el.min)*100)+'%'); }
-async function applySetting(name, value){
-  if(value === undefined){
-    const el = $('num-'+name);
-    value = el.type === 'checkbox' ? el.checked : parseInt(el.value);
-  }
-  const r = await fetch('/api/settings',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({[name]:value})});
-  const d = await r.json().catch(()=>({}));
-  const st = $('set-status');
-  st.textContent = r.ok ? '✓ '+name+' applied' : '✗ '+(d&&d.error||'error');
-  st.style.color = r.ok ? 'var(--green)' : 'var(--red)';
-  setTimeout(()=>{ st.textContent=''; }, 2500);
-  if(r.ok && name!=='adaptive_prewarm') loadSettings(); // explicit re-render only after successful apply
-  else if(r.ok){ const c=$('num-adaptive_prewarm'); if(c) c.checked = !!value; }
-}
-loadSettings();
-</script></body></html>"##
+    include_str!("../assets/admin.html")
 }
 
 /// Build the full admin JSON snapshot (also reused by /api/stats).
+/// /api/overview — header KPIs: request deltas, success %, p99, conns.
+fn admin_overview_json() -> String {
+    let t2 = RESP_CLASS_TOTALS[0].load(Ordering::Relaxed);
+    let t3 = RESP_CLASS_TOTALS[1].load(Ordering::Relaxed);
+    let t4 = RESP_CLASS_TOTALS[2].load(Ordering::Relaxed);
+    let t5 = RESP_CLASS_TOTALS[3].load(Ordering::Relaxed);
+    let r429 = RESP_429_TOTAL.load(Ordering::Relaxed);
+    let r5xx = RESP_5XX_TOTAL.load(Ordering::Relaxed);
+    let ok = t2 + t3;
+    let err = t4 + t5;
+    let total = ok + err;
+    let (success_pct, err_pct) = if total > 0 {
+        (
+            (ok as f64 / total as f64 * 1000.0).round() / 10.0,
+            (err as f64 / total as f64 * 1000.0).round() / 10.0,
+        )
+    } else {
+        (100.0, 0.0)
+    };
+    let hist = panel_history_snapshot();
+    let last = hist.last();
+    let p99_ms = last.map(|s| s.p99_us as f64 / 1000.0).unwrap_or(0.0);
+    let p50_ms = last.map(|s| s.p50_us as f64 / 1000.0).unwrap_or(0.0);
+    let shards = shard_stats_snapshot();
+    let active: u64 = shards.iter().map(|s| s.active_conns).sum();
+    let accepted: u64 = shards.iter().map(|s| s.accepted_total).sum();
+    let backpressure = ACCEPT_BACKPRESSURE.load(Ordering::Relaxed);
+    let body = serde_json::json!({
+        "version": env!("CARGO_PKG_VERSION"),
+        "uptime_secs": process_uptime_secs(),
+        "totals": {"ok": ok, "err": err, "total": total, "success_pct": success_pct, "err_pct": err_pct,
+                    "2xx": t2, "3xx": t3, "4xx": t4, "5xx": t5, "r429": r429, "r5xx_gateway": r5xx},
+        "active_conns": active,
+        "accepted_total": accepted,
+        "p50_ms": p50_ms,
+        "p99_ms": p99_ms,
+        "backpressure": backpressure,
+        "accept_mode": match accept_mode() {
+            AcceptMode::HandOff => "handoff (pythia steering)",
+            AcceptMode::KernelReusePort => "reuseport (kernel hash)",
+        },
+        "shards": shards.len(),
+    });
+    serde_json::to_string(&body).unwrap_or_else(|_| "{}".into())
+}
+
+/// /api/history — the RPS/status/latency chart series (PanelSample ring).
+fn admin_history_json() -> String {
+    let hist = panel_history_snapshot();
+    let step = SHARD_SAMPLE_INTERVAL.as_secs();
+    let rows: Vec<serde_json::Value> = hist
+        .iter()
+        .map(|s| {
+            serde_json::json!({
+                "at_ms": s.at_ms,
+                "reqs": s.reqs,
+                "2xx": s.classes[0],
+                "3xx": s.classes[1],
+                "4xx": s.classes[2],
+                "5xx": s.classes[3],
+                "r429": s.r429,
+                "r5xx_gateway": s.r5xx_gateway,
+                "active_conns": s.active_conns,
+                "rss_kib": s.rss_kib,
+                "cpu_permille": s.cpu_permille,
+                "p50_ms": s.p50_us as f64 / 1000.0,
+                "p99_ms": s.p99_us as f64 / 1000.0,
+            })
+        })
+        .collect();
+    serde_json::json!({ "step_secs": step, "samples": rows }).to_string()
+}
+
+/// /api/logs — the structured ring buffer (newest first) with filters.
+fn admin_logs_json(query: &str) -> String {
+    let mut limit = 200usize;
+    let mut level = None;
+    let mut scope = None;
+    for pair in query.split('&') {
+        let (k, v) = pair.split_once('=').unwrap_or((pair, ""));
+        match k {
+            "limit" => limit = v.parse().unwrap_or(200).min(500),
+            "level" => level = Some(v.to_string()),
+            "scope" => scope = Some(v.to_string()),
+            _ => {}
+        }
+    }
+    let rows = log_ring_snapshot(limit, level.as_deref(), scope.as_deref());
+    let items: Vec<serde_json::Value> = rows
+        .iter()
+        .map(|e| {
+            serde_json::json!({
+                "at_ms": e.at_ms,
+                "level": e.level,
+                "scope": e.scope,
+                "message": e.message,
+            })
+        })
+        .collect();
+    serde_json::json!({ "entries": items, "ring_cap": LOG_RING_CAP }).to_string()
+}
+
+/// /api/components — live listener/upstream/limiter/DNS/egress status.
+fn admin_components_json() -> String {
+    let admin_addr =
+        std::env::var("JUGGLER_ADMIN_ADDR").unwrap_or_else(|_| "127.0.0.1:9090".into());
+    let grpc_addr = std::env::var("JUGGLER_GRPC_ADDR").unwrap_or_else(|_| "127.0.0.1:50051".into());
+    let tls_addr = std::env::var("JUGGLER_HTTP_ADDR").unwrap_or_else(|_| "127.0.0.1:8443".into());
+    let plain_addr = std::env::var("JUGGLER_PLAIN_HTTP_ADDR").ok();
+    let grpc_token = std::env::var("JUGGLER_GRPC_TOKEN")
+        .or_else(|_| std::env::var("JUGGLER_ADMIN_TOKEN"))
+        .ok()
+        .filter(|t| !t.is_empty());
+    let admin_token = std::env::var("JUGGLER_ADMIN_TOKEN")
+        .ok()
+        .filter(|t| !t.is_empty());
+    // Dataplane liveness: any shard accepted traffic recently is proof of
+    // work; otherwise report up (listeners are bound — they accepted us).
+    let shards = shard_stats_snapshot();
+    let active: u64 = shards.iter().map(|s| s.active_conns).sum();
+    let health = HEALTH.panel_snapshot();
+    let upstreams: Vec<serde_json::Value> = health
+        .iter()
+        .map(|(addr, state, fails)| {
+            serde_json::json!({
+                "addr": addr,
+                "state": state,
+                "failures": fails,
+                "idle_pool": UPSTREAM_POOL.pooled_len(addr),
+            })
+        })
+        .collect();
+    // Pool totals across configured upstreams.
+    let cfg = ADMIN_CONFIG.get_or_init(|| Arc::new(ArcSwap::from_pointee(ServerConfig::default())));
+    let pool_total: usize = cfg
+        .load()
+        .routes
+        .values()
+        .flat_map(|r| r.upstream_addrs.iter())
+        .map(|a| UPSTREAM_POOL.pooled_len(a))
+        .sum();
+    // Limiter: distinct client IPs tracked right now.
+    let limiter_ips = RATE_LIMITER.tracked_ips();
+    let dns_entries = DNS_CACHE
+        .get()
+        .map(|m| m.lock().unwrap().len())
+        .unwrap_or(0);
+    let backpressure = ACCEPT_BACKPRESSURE.load(Ordering::Relaxed);
+    let pending = PENDING_CONNS.load(Ordering::Relaxed);
+    let body = serde_json::json!({
+        "listeners": {
+            "tls": {"addr": tls_addr, "up": true},
+            "plain": plain_addr.map(|a| serde_json::json!({"addr": a, "up": true})),
+            "admin": {"addr": admin_addr, "up": true, "auth": admin_token.is_some()},
+            "grpc": {"addr": grpc_addr, "up": true,
+                     "auth": if grpc_token.is_some() { "bearer" } else { "fail-closed (no token)" }},
+        },
+        "dataplane": {"active_conns": active, "backpressure": backpressure, "pending_handoff": pending},
+        "upstreams": upstreams,
+        "pool_sockets_total": pool_total,
+        "limiter": {"tracked_ips": limiter_ips,
+                    "tokens": settings().rate_limit_tokens.get(),
+                    "refill": settings().rate_limit_refill.get()},
+        "dns": {"cache_entries": dns_entries, "ttl_secs": DNS_TTL.as_secs()},
+        "egress": {"allow_private_upstreams": private_upstreams_allowed(),
+                   "dns_rebind_guard": !private_upstreams_allowed()},
+    });
+    serde_json::to_string(&body).unwrap_or_else(|_| "{}".into())
+}
+
+/// /api/system — resources, versions, security posture (Система page).
+fn admin_system_json() -> String {
+    let hist = panel_history_snapshot();
+    let rss = hist
+        .last()
+        .map(|s| s.rss_kib)
+        .unwrap_or_else(process_rss_kib);
+    let cpu = hist.last().map(|s| s.cpu_permille).unwrap_or(0);
+    let cpu_pct = cpu as f64 / 10.0; // ‰ → %
+    let mut sysinfo = serde_json::json!({
+        "version": env!("CARGO_PKG_VERSION"),
+        "uptime_secs": process_uptime_secs(),
+        "rss_kib": rss,
+        "cpu_pct": cpu_pct,
+        "cores": std::thread::available_parallelism().map(|n| n.get()).unwrap_or(1),
+        "shards": shard_stats_snapshot().len(),
+        "accept_mode": match accept_mode() {
+            AcceptMode::HandOff => "handoff (pythia steering)",
+            AcceptMode::KernelReusePort => "reuseport (kernel hash)",
+        },
+    });
+    if let Some(obj) = sysinfo.as_object_mut() {
+        obj.insert(
+            "tls_pfx".into(),
+            serde_json::json!(
+                std::env::var("JUGGLER_TLS_PFX").is_ok()
+                    || std::env::var("JUGGLER_TLS_CERTS").is_ok()
+            ),
+        );
+        obj.insert(
+            "allow_private_upstreams".into(),
+            serde_json::json!(private_upstreams_allowed()),
+        );
+        obj.insert(
+            "admin_read_only".into(),
+            serde_json::json!(std::env::var("JUGGLER_ADMIN_TOKEN")
+                .map(|t| t.is_empty())
+                .unwrap_or(true)),
+        );
+    }
+    serde_json::to_string(&sysinfo).unwrap_or_else(|_| "{}".into())
+}
+
 fn admin_stats_json() -> String {
     let shards = shard_stats_snapshot();
     let cfg = ADMIN_CONFIG.get_or_init(|| Arc::new(ArcSwap::from_pointee(ServerConfig::default())));
@@ -3348,12 +3570,26 @@ async fn serve_admin_connection(mut stream: tokio::net::TcpStream) -> std::io::R
             retry_after,
             body
         );
+        panel_log(
+            "warn",
+            "admin",
+            format!("admin 429: brute-force latch hit for {peer_ip}"),
+        );
         stream.write_all(resp.as_bytes()).await?;
         stream.flush().await?;
         return Ok(());
     }
 
     let (status, ctype, body): (u16, &str, String) = match (path_only, auth_mode) {
+        // The SPA shell itself is public: the login screen lives inside it
+        // and every data call it makes hits /api/*, which stays token-gated.
+        // Without this, a viewer without the token would see a plain 401
+        // string instead of the login form.
+        ("/", AuthMode::Denied) => (
+            200,
+            "text/html; charset=utf-8",
+            admin_ui_html().to_string(),
+        ),
         (_, AuthMode::Denied) => (
             401,
             "text/plain; charset=utf-8",
@@ -3370,6 +3606,14 @@ async fn serve_admin_connection(mut stream: tokio::net::TcpStream) -> std::io::R
             "forbidden: admin is read-only while JUGGLER_ADMIN_TOKEN is unset (fail-closed)".into(),
         ),
         ("/api/stats", _) => (200, "application/json", admin_stats_json()),
+        ("/api/overview", _) => (200, "application/json", admin_overview_json()),
+        ("/api/history", _) => (200, "application/json", admin_history_json()),
+        ("/api/logs", _) => {
+            let query = path.split_once('?').map(|(_, q)| q).unwrap_or("");
+            (200, "application/json", admin_logs_json(query))
+        }
+        ("/api/components", _) => (200, "application/json", admin_components_json()),
+        ("/api/system", _) => (200, "application/json", admin_system_json()),
         ("/api/routes", AuthMode::Mutating) if method == "POST" => {
             // Body after the head: accept full routes JSON (same schema as
             // routes.json / gRPC UpdateConfig) — validated before store.
@@ -3415,6 +3659,37 @@ async fn serve_admin_connection(mut stream: tokio::net::TcpStream) -> std::io::R
             }
         }
         ("/api/settings", _) => (200, "application/json", settings_json()),
+        ("/api/pool/clear", AuthMode::Mutating) if method == "POST" => {
+            // Drop every idle keep-alive upstream socket. Cheap and safe:
+            // in-flight requests hold their own sockets; the pool refills by
+            // prewarm afterwards.
+            UPSTREAM_POOL.close_all(None);
+            panel_log(
+                "info",
+                "admin",
+                "upstream pool cleared via admin UI".to_string(),
+            );
+            (
+                200,
+                "application/json",
+                "{\"success\":true,\"message\":\"pool cleared\"}".into(),
+            )
+        }
+        ("/api/dns/clear", AuthMode::Mutating) if method == "POST" => {
+            if let Some(cache) = DNS_CACHE.get() {
+                cache.lock().unwrap().clear();
+            }
+            panel_log(
+                "info",
+                "admin",
+                "DNS cache cleared via admin UI".to_string(),
+            );
+            (
+                200,
+                "application/json",
+                "{\"success\":true,\"message\":\"dns cache cleared\"}".into(),
+            )
+        }
         ("/", _) => {
             // SPA shell: live sections poll /api/stats client-side; the
             // settings card is static (no auto-refresh to clobber inputs).
@@ -3423,8 +3698,11 @@ async fn serve_admin_connection(mut stream: tokio::net::TcpStream) -> std::io::R
         _ => (404, "text/plain; charset=utf-8", "not found".into()),
     };
 
+    // no-store: the SPA shell changes between releases and API payloads are
+    // live data — a cached shell (or cached 401 from before login) breaks
+    // the panel in confusing ways.
     let response = format!(
-        "HTTP/1.1 {} {}\r\nContent-Type: {}\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{}",
+        "HTTP/1.1 {} {}\r\nContent-Type: {}\r\nContent-Length: {}\r\nCache-Control: no-store\r\nConnection: close\r\n\r\n{}",
         status,
         if status == 200 {
             "OK"
@@ -3544,6 +3822,11 @@ async fn apply_admin_config(new_cfg: ServerConfig) -> anyhow::Result<String> {
     persist_config(&new_cfg, &routes_file);
     cfg.store(Arc::new(new_cfg));
     prewarm_upstream_pool(cfg, prewarm_target_cap()).await;
+    panel_log(
+        "info",
+        "control",
+        "config hot-reloaded via admin API".to_string(),
+    );
     Ok("{\"success\":true,\"message\":\"config hot-reloaded\"}".to_string())
 }
 
@@ -5113,6 +5396,54 @@ fn main() -> Result<()> {
                     // after load spikes (keep-RSS-low policy).
                     mi_collect();
                 }
+                // ---- admin panel history sample ----
+                // Fold the response-class counters' DELTA since the previous
+                // tick into one history row (RPS chart, donut, status codes,
+                // p50/p99 estimate from the stage latency ring).
+                {
+                    let classes = [
+                        RESP_CLASS_COUNTERS[0].swap(0, Ordering::Relaxed),
+                        RESP_CLASS_COUNTERS[1].swap(0, Ordering::Relaxed),
+                        RESP_CLASS_COUNTERS[2].swap(0, Ordering::Relaxed),
+                        RESP_CLASS_COUNTERS[3].swap(0, Ordering::Relaxed),
+                    ];
+                    let r429 = RESP_429_COUNTER.swap(0, Ordering::Relaxed);
+                    let r5xx = RESP_502_503_COUNTER.swap(0, Ordering::Relaxed);
+                    // Totals for /api/overview must keep growing: re-add what
+                    // we just took (the swap is a consumer shortcut; totals
+                    // are tracked separately below).
+                    for (i, v) in classes.iter().enumerate() {
+                        RESP_CLASS_TOTALS[i].fetch_add(*v, Ordering::Relaxed);
+                    }
+                    RESP_429_TOTAL.fetch_add(r429, Ordering::Relaxed);
+                    RESP_5XX_TOTAL.fetch_add(r5xx, Ordering::Relaxed);
+                    // p50 estimate: avg respond-stage latency (µs); p99: the
+                    // folded respond-stage p99 (ms → µs).
+                    let stage = stage_totals_slot()
+                        .lock()
+                        .unwrap()
+                        .as_ref()
+                        .map(|(_, t)| (t.avg_us[STAGE_RESPOND], t.p99_ms[STAGE_RESPOND]));
+                    let (p50_us, p99_us) = stage
+                        .map(|(avg_us, p99_ms)| ((avg_us as u64), (p99_ms * 1000.0) as u64))
+                        .unwrap_or((0, 0));
+                    let active: u64 = shard_counters()
+                        .iter()
+                        .map(|c| c.active_conns.load(Ordering::Relaxed) as u64)
+                        .sum();
+                    push_panel_sample(PanelSample {
+                        at_ms: now_unix_ms(),
+                        reqs: classes.iter().sum::<u64>() + r429,
+                        classes,
+                        r429,
+                        r5xx_gateway: r5xx,
+                        active_conns: active,
+                        rss_kib: process_rss_kib(),
+                        cpu_permille: process_cpu_permille(),
+                        p50_us,
+                        p99_us,
+                    });
+                }
             }
         });
         if tokio::signal::ctrl_c().await.is_ok() {
@@ -5777,6 +6108,7 @@ where
                         false,
                     ))
                     .await?;
+                record_response_class(431);
                 drain_and_close(&mut client).await;
                 buf_pool(shard_idx).put(buf);
                 return Ok(());
@@ -5834,6 +6166,7 @@ where
                             false,
                         ))
                         .await?;
+                    record_response_class(400);
                     drain_and_close(&mut client).await;
                     buf_pool(shard_idx).put(buf);
                     return Ok(());
@@ -5852,6 +6185,7 @@ where
                         false,
                     ))
                     .await?;
+                record_response_class(429);
                 buf_pool(shard_idx).put(buf);
                 return Ok(());
             }
@@ -5863,6 +6197,7 @@ where
                     http_response(&status_line, &body, keep_alive)
                 };
                 client.write_all(&response).await?;
+                record_response_class(status);
             }
             RouteDecision::NotFound => {
                 client
@@ -5872,6 +6207,7 @@ where
                         keep_alive,
                     ))
                     .await?;
+                record_response_class(404);
             }
             RouteDecision::StaticFile(mut head, file_body) => {
                 // Re-issue the head with the connection's actual keep-alive
@@ -5881,6 +6217,7 @@ where
                 }
                 client.write_all(&head).await?;
                 client.write_all(&file_body).await?;
+                record_response_class(200); // static files are pre-validated
             }
             RouteDecision::Proxy(upstreams, body, extra_headers, security_headers) => {
                 let started = Instant::now();
@@ -5906,6 +6243,7 @@ where
                         );
                         client.write_all(&patched).await?;
                         client.flush().await?;
+                        record_response_class(outcome.status);
                         status_label(outcome.status)
                     }
                     Err(DispatchError::NoUpstreams) => {
@@ -5916,10 +6254,16 @@ where
                                 keep_alive,
                             ))
                             .await?;
+                        record_response_class(503);
                         "503"
                     }
                     Err(DispatchError::AllFailed(e)) => {
                         eprintln!("⚠️ all upstreams failed for {path}: {e}");
+                        panel_log(
+                            "error",
+                            "upstream",
+                            format!("all upstreams failed for {path}: {e}"),
+                        );
                         client
                             .write_all(&http_response(
                                 "502 Bad Gateway",
@@ -5927,6 +6271,7 @@ where
                                 keep_alive,
                             ))
                             .await?;
+                        record_response_class(502);
                         "502"
                     }
                 };
@@ -6302,6 +6647,7 @@ async fn handle_h2_request(
                 Bytes::from_static(b"Rate limit exceeded. Slow down."),
             )
             .await?;
+            record_response_class(429);
         }
         RouteDecision::Builtin(status, text) => {
             let html_ct = "text/html; charset=utf-8";
@@ -6317,6 +6663,7 @@ async fn handle_h2_request(
                 Bytes::from(text),
             )
             .await?;
+            record_response_class(status);
         }
         RouteDecision::NotFound => {
             send_h2_response(
@@ -6326,6 +6673,7 @@ async fn handle_h2_request(
                 Bytes::from_static(b"route not found"),
             )
             .await?;
+            record_response_class(404);
         }
         RouteDecision::StaticFile(raw_head, file_body) => {
             // Parse the status + Content-Type out of the prebuilt H1 head.
@@ -6398,6 +6746,7 @@ async fn handle_h2_request(
                             hdrs.iter().map(|(k, v)| (k.as_str(), v.as_str())).collect();
                         let body = Bytes::copy_from_slice(&outcome.response[body_start..]);
                         send_h2_response(&mut respond, code, &hdr_refs, body).await?;
+                        record_response_class(code);
                         status_label(code)
                     } else {
                         send_h2_response(
@@ -6407,6 +6756,7 @@ async fn handle_h2_request(
                             Bytes::from_static(b"upstream sent a non-HTTP response"),
                         )
                         .await?;
+                        record_response_class(502);
                         "502"
                     }
                 }
@@ -6418,6 +6768,7 @@ async fn handle_h2_request(
                         Bytes::from_static(b"no upstreams available"),
                     )
                     .await?;
+                    record_response_class(503);
                     "503"
                 }
                 Err(DispatchError::AllFailed(e)) => {
@@ -6429,6 +6780,7 @@ async fn handle_h2_request(
                         Bytes::from_static(b"upstream unreachable"),
                     )
                     .await?;
+                    record_response_class(502);
                     "502"
                 }
             };

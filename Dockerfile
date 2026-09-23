@@ -16,6 +16,7 @@ RUN mkdir -p src && echo "fn main() {}" > src/main.rs && cargo build --release &
 
 # Build the real binary.
 COPY src ./src
+COPY assets ./assets
 RUN touch src/main.rs && cargo build --release
 
 FROM debian:bookworm-slim

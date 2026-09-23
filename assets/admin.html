@@ -1,0 +1,1006 @@
+<!DOCTYPE html>
+<html lang="ru"><head><meta charset="utf-8"><title>Juggler Admin</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+:root{
+  --side:#0d1526;--side2:#111b31;--side-brd:#1e2a44;
+  --bg:#eef2f7;--card:#ffffff;--brd:#e3e9f1;
+  --text:#1c2434;--muted:#64748b;--dim:#94a3b8;
+  --blue:#2563eb;--blue2:#dbeafe;--green:#16a34a;--green2:#dcfce7;
+  --red:#dc2626;--red2:#fee2e2;--amber:#d97706;--amber2:#fef3c7;
+  --violet:#7c3aed;--violet2:#ede9fe;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{font:14px/1.5 "Segoe UI",system-ui,-apple-system,sans-serif;color:var(--text);background:var(--bg)}
+button{font:inherit;cursor:pointer}
+input,select,textarea{font:inherit}
+.hidden{display:none!important}
+code{background:#f1f5f9;border:1px solid var(--brd);border-radius:5px;padding:1px 6px;font:12px ui-monospace,Consolas,monospace;color:#334155}
+/* ---------- login ---------- */
+.login{position:fixed;inset:0;background:radial-gradient(900px 500px at 50% 30%,#16233f,#0a1020 70%);
+  display:grid;place-items:center;z-index:50}
+.login-card{width:min(380px,92vw);background:#fff;border-radius:16px;padding:32px 30px;box-shadow:0 24px 80px #0009;text-align:center}
+.login-card .logo{width:56px;height:56px;border-radius:16px;background:var(--blue);color:#fff;display:grid;place-items:center;font-size:30px;margin:0 auto 14px}
+.login-card h1{font-size:20px;margin-bottom:2px}
+.login-card p{color:var(--muted);font-size:13px;margin-bottom:18px}
+.login-card input{width:100%;border:1px solid var(--brd);border-radius:10px;padding:10px 12px;margin-bottom:10px;background:#f8fafc}
+.login-card input:focus{outline:none;border-color:var(--blue)}
+.login-card button{width:100%;background:var(--blue);color:#fff;border:0;border-radius:10px;padding:10px;font-weight:600}
+.login-card button:hover{background:#1d4ed8}
+.login-err{color:var(--red);font-size:12.5px;min-height:18px;margin-bottom:6px}
+.login-note{color:var(--dim);font-size:11.5px;margin-top:10px}
+/* ---------- layout ---------- */
+.app{display:grid;grid-template-columns:232px 1fr;min-height:100vh}
+@media(max-width:900px){.app{grid-template-columns:64px 1fr}.side .lbl,.side .brand-sub,.side-foot span{display:none}}
+.side{background:var(--side);color:#cbd5e1;padding:18px 12px;display:flex;flex-direction:column;gap:4px;position:sticky;top:0;height:100vh}
+.brand{display:flex;gap:10px;align-items:center;padding:4px 8px 16px}
+.brand .logo{width:38px;height:38px;border-radius:11px;background:var(--blue);display:grid;place-items:center;font-size:20px;color:#fff}
+.brand b{color:#fff;font-size:17px;display:block}
+.brand .brand-sub{font-size:11.5px;color:#7d8db1}
+.nav{display:flex;flex-direction:column;gap:3px}
+.nav button{display:flex;align-items:center;gap:11px;background:transparent;border:0;color:#aebad2;
+  padding:10px 12px;border-radius:10px;text-align:left;font-size:13.5px}
+.nav button .ic{width:20px;text-align:center;font-size:15px}
+.nav button:hover{background:#ffffff10;color:#fff}
+.nav button.on{background:var(--blue);color:#fff;font-weight:600}
+.nav .sub{margin-left:31px}
+.nav .sub button{padding:6px 10px;font-size:12.5px;color:#8494b4}
+.side-foot{margin-top:auto;padding:12px 10px;border-top:1px solid var(--side-brd);font-size:12px;color:#7d8db1}
+.side-foot .ok{color:#4ade80}
+.main{display:flex;flex-direction:column;min-width:0}
+.topbar{background:#fff;border-bottom:1px solid var(--brd);padding:0 26px;height:56px;display:flex;align-items:center;gap:18px;position:sticky;top:0;z-index:10}
+.topbar .status{display:flex;align-items:center;gap:7px;font-size:13px;color:var(--green);font-weight:600}
+.topbar .status.bad{color:var(--red)}
+.dot{width:9px;height:9px;border-radius:50%;background:var(--green)}
+.dot.bad{background:var(--red)}
+.dot.amber{background:var(--amber)}
+.topbar .clock{margin-left:auto;color:var(--muted);font-size:13px;font-variant-numeric:tabular-nums}
+.topbar .user{display:flex;align-items:center;gap:8px;color:var(--text);font-weight:600;font-size:13.5px}
+.user .av{width:30px;height:30px;border-radius:50%;background:var(--blue2);color:var(--blue);display:grid;place-items:center;font-size:14px}
+.content{padding:22px 26px 30px;min-width:0}
+.page-head h1{font-size:20px;margin-bottom:2px}
+.page-head p{color:var(--muted);font-size:13px;margin-bottom:18px}
+/* ---------- cards ---------- */
+.grid{display:grid;gap:14px}
+.g-kpi{grid-template-columns:repeat(auto-fit,minmax(210px,1fr))}
+.g-main{grid-template-columns:2fr 1.1fr}
+.g-half{grid-template-columns:1fr 1fr}
+@media(max-width:1100px){.g-main,.g-half{grid-template-columns:1fr}}
+.card{background:var(--card);border:1px solid var(--brd);border-radius:13px;padding:16px 18px;min-width:0;box-shadow:0 1px 2px #0f172a08}
+.card h2{font-size:13.5px;font-weight:600;margin-bottom:14px;display:flex;align-items:center;gap:8px}
+.card h2 .hint{margin-left:auto;font-weight:400;color:var(--dim);font-size:11.5px}
+.kpi{display:flex;align-items:center;gap:14px}
+.kpi .ic{width:44px;height:44px;border-radius:12px;display:grid;place-items:center;font-size:20px;flex:none}
+.kpi b{display:block;font-size:23px;font-variant-numeric:tabular-nums;line-height:1.15}
+.kpi .cap{font-size:12px;color:var(--muted)}
+.kpi .delta{font-size:12px;font-weight:600}
+.up{color:var(--green)}.down{color:var(--red)}.flat{color:var(--dim)}
+.ic.blue{background:var(--blue2);color:var(--blue)}
+.ic.green{background:var(--green2);color:var(--green)}
+.ic.red{background:var(--red2);color:var(--red)}
+.ic.violet{background:var(--violet2);color:var(--violet)}
+.ic.amber{background:var(--amber2);color:var(--amber)}
+/* ---------- tables ---------- */
+table{border-collapse:collapse;width:100%;font-size:13.5px}
+th{color:var(--muted);font-weight:600;text-align:left;padding:7px 10px;border-bottom:1px solid var(--brd);font-size:12px;text-transform:uppercase;letter-spacing:.4px}
+td{padding:7px 10px;border-bottom:1px solid #f1f5f9}
+tr:last-child td{border-bottom:none}
+.num{font-variant-numeric:tabular-nums}
+.chip{display:inline-block;padding:2px 10px;border-radius:999px;font-size:12px;font-weight:600;white-space:nowrap}
+.chip.ok{background:var(--green2);color:var(--green)}
+.chip.warn{background:var(--amber2);color:var(--amber)}
+.chip.bad{background:var(--red2);color:var(--red)}
+.chip.dim{background:#f1f5f9;color:var(--muted)}
+.chip.blue{background:var(--blue2);color:var(--blue)}
+/* ---------- components list ---------- */
+.comp{display:flex;align-items:center;gap:10px;padding:9px 2px;border-bottom:1px solid #f1f5f9;font-size:13px}
+.comp:last-child{border-bottom:none}
+.comp .st{margin-left:auto;font-size:12.5px;font-weight:600;display:flex;align-items:center;gap:6px}
+.comp .ic{width:28px;height:28px;border-radius:8px;background:#f1f5f9;display:grid;place-items:center;font-size:13px}
+/* ---------- quick actions ---------- */
+.qa{display:flex;align-items:center;gap:11px;width:100%;background:#fff;border:1px solid var(--brd);border-radius:11px;
+  padding:11px 13px;margin-bottom:9px;font-size:13.5px;color:var(--text);text-align:left;transition:.15s}
+.qa:hover{border-color:var(--blue);background:#f8faff}
+.qa .ic{width:30px;height:30px;border-radius:9px;background:var(--blue2);color:var(--blue);display:grid;place-items:center;font-size:14px}
+.qa .arr{margin-left:auto;color:var(--dim)}
+/* ---------- charts ---------- */
+.chart-wrap{position:relative;width:100%}
+canvas{display:block;width:100%}
+.legend{display:flex;gap:16px;flex-wrap:wrap;color:var(--muted);font-size:12px;margin-top:10px}
+.legend i{display:inline-block;width:14px;height:3px;border-radius:2px;vertical-align:middle;margin-right:6px}
+.donut-box{display:flex;gap:20px;align-items:center}
+.donut-center{font-size:22px;font-weight:700;font-variant-numeric:tabular-nums}
+.donut-cap{font-size:11.5px;color:var(--muted)}
+.donut-rows{flex:1}
+.donut-row{display:flex;align-items:center;gap:8px;padding:5px 0;font-size:13px;border-bottom:1px solid #f1f5f9}
+.donut-row:last-child{border-bottom:none}
+.donut-row .sw{width:9px;height:9px;border-radius:3px}
+.donut-row .v{margin-left:auto;font-variant-numeric:tabular-nums;color:var(--muted)}
+/* resource bars */
+.res-row{display:grid;grid-template-columns:120px 1fr 64px;gap:12px;align-items:center;padding:8px 0;border-bottom:1px solid #f1f5f9;font-size:13px}
+.res-row:last-child{border-bottom:none}
+.bar{height:8px;border-radius:6px;background:#eef2f7;overflow:hidden}
+.bar i{display:block;height:100%;border-radius:6px;background:var(--blue);transition:width .4s}
+/* ---------- logs ---------- */
+.filters{display:flex;gap:10px;margin-bottom:12px;flex-wrap:wrap;align-items:center}
+.filters select{border:1px solid var(--brd);border-radius:9px;padding:6px 10px;background:#fff}
+.log-line{display:grid;grid-template-columns:88px 62px 92px 1fr;gap:10px;padding:6px 4px;border-bottom:1px solid #f1f5f9;font-size:12.8px}
+.log-line .t{color:var(--dim);font-variant-numeric:tabular-nums}
+.lv{font-weight:700;font-size:11.5px}
+.lv.info{color:var(--blue)}.lv.warn{color:var(--amber)}.lv.error{color:var(--red)}
+.scope{color:var(--muted)}
+.msg{word-break:break-word}
+/* ---------- settings ---------- */
+.set-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+@media(max-width:1100px){.set-grid{grid-template-columns:1fr}}
+.set-row{display:grid;grid-template-columns:minmax(140px,190px) 1fr 84px 60px;gap:10px;align-items:center;padding:8px 0;border-bottom:1px solid #f1f5f9}
+.set-row:last-child{border-bottom:none}
+.set-name{font-size:13px}
+.set-name small{display:block;color:var(--dim);font-size:11px}
+input[type=range]{-webkit-appearance:none;width:100%;height:5px;border-radius:4px;background:linear-gradient(90deg,var(--blue) var(--fill,50%),#e2e8f0 var(--fill,50%));outline:none}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:15px;height:15px;border-radius:50%;background:var(--blue);cursor:pointer;border:2px solid #fff;box-shadow:0 0 0 1px #cbd5e1}
+input[type=number]{width:100%;background:#f8fafc;color:var(--text);border:1px solid var(--brd);border-radius:8px;padding:5px 8px;font:13px ui-monospace,Consolas,monospace}
+input[type=number]:focus{outline:none;border-color:var(--blue)}
+input[type=text]{border:1px solid var(--brd);border-radius:8px;padding:7px 10px;background:#f8fafc;width:100%}
+input[type=text]:focus{outline:none;border-color:var(--blue)}
+.switch{position:relative;display:inline-block;width:40px;height:22px}
+.switch input{opacity:0;width:0;height:0}
+.slider{position:absolute;inset:0;background:#cbd5e1;border-radius:999px;transition:.2s;cursor:pointer}
+.slider::before{content:"";position:absolute;width:16px;height:16px;left:3px;top:3px;background:#fff;border-radius:50%;transition:.2s;box-shadow:0 1px 3px #0003}
+.switch input:checked + .slider{background:var(--green)}
+.switch input:checked + .slider::before{transform:translateX(18px)}
+.seg{display:inline-flex;border:1px solid var(--brd);border-radius:9px;overflow:hidden}
+.seg button{background:#fff;color:var(--muted);border:0;padding:6px 14px;font-size:12.5px;font-weight:600}
+.seg button.on{background:var(--blue2);color:var(--blue)}
+.btn{background:var(--blue);color:#fff;border:0;border-radius:10px;padding:10px 18px;font-weight:600;font-size:13.5px}
+.btn:hover{background:#1d4ed8}
+.btn.ghost{background:#fff;color:var(--text);border:1px solid var(--brd)}
+.btn.ghost:hover{border-color:var(--blue);color:var(--blue)}
+.btn.danger{background:#fff;color:var(--red);border:1px solid #fecaca}
+.btn.danger:hover{background:var(--red2)}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+.dirty-note{color:var(--amber);font-size:12.5px}
+.ro{color:var(--dim);font-size:12.5px}
+/* toast */
+#toasts{position:fixed;right:18px;bottom:18px;display:flex;flex-direction:column;gap:8px;z-index:60}
+.toast{background:#0f172a;color:#e2e8f0;border-radius:10px;padding:10px 16px;font-size:13px;box-shadow:0 8px 30px #0004;animation:tin .2s}
+.toast.err{background:#7f1d1d}
+@keyframes tin{from{transform:translateY(8px);opacity:0}}
+footer.pagefoot{margin-top:22px;display:flex;justify-content:space-between;color:var(--dim);font-size:12.5px;flex-wrap:wrap;gap:8px}
+.empty{color:var(--dim);font-size:13px;padding:14px 4px}
+.mono{font:12px ui-monospace,Consolas,monospace}
+</style></head>
+<body>
+
+<!-- ============ LOGIN ============ -->
+<div id="login" class="login hidden">
+  <div class="login-card">
+    <div class="logo">🤹</div>
+    <h1>Juggler Admin</h1>
+    <p>Web Server &amp; Proxy — вход в панель управления</p>
+    <div class="login-err" id="login-err"></div>
+    <input type="password" id="login-token" placeholder="Токен администратора (JUGGLER_ADMIN_TOKEN)" autocomplete="current-password">
+    <button id="login-btn">Войти</button>
+    <div class="login-note">Если на сервере токен не задан, панель работает в режиме только чтение — кнопка входа не обязательна.</div>
+  </div>
+</div>
+
+<!-- ============ APP ============ -->
+<div class="app" id="app">
+  <aside class="side">
+    <div class="brand"><div class="logo">🤹</div><div><b>Juggler</b><span class="brand-sub">Web Server &amp; Proxy</span></div></div>
+    <nav class="nav" id="nav">
+      <button data-page="overview" class="on"><span class="ic">⌂</span><span class="lbl">Обзор</span></button>
+      <button data-page="stats"><span class="ic">📈</span><span class="lbl">Статистика</span></button>
+      <button data-page="logs"><span class="ic">📜</span><span class="lbl">Логи</span></button>
+      <button data-page="routes"><span class="ic">🔀</span><span class="lbl">Маршруты</span></button>
+      <button data-page="settings"><span class="ic">⚙️</span><span class="lbl">Настройки</span></button>
+      <button data-page="security"><span class="ic">🛡️</span><span class="lbl">Безопасность</span></button>
+      <button data-page="system"><span class="ic">🖥️</span><span class="lbl">Система</span></button>
+    </nav>
+    <div class="side-foot"><span class="ok">●</span> <span id="foot-status">Сервер работает</span><br><span id="foot-ver">v—</span></div>
+  </aside>
+
+  <div class="main">
+    <header class="topbar">
+      <div class="status" id="top-status"><span class="dot" id="top-dot"></span><span id="top-label">Онлайн</span></div>
+      <div class="clock" id="clock">—</div>
+      <div class="user"><span class="av">👤</span> admin</div>
+    </header>
+
+    <div class="content">
+      <!-- ================= ОБЗОР ================= -->
+      <section class="page" id="page-overview">
+        <div class="page-head"><h1>Панель мониторинга</h1><p>Текущие метрики и состояние сервера — реальные данные Juggler</p></div>
+        <div class="grid g-main">
+          <div style="min-width:0;display:flex;flex-direction:column;gap:14px">
+            <div class="grid g-kpi">
+              <div class="card kpi"><div class="ic blue">📊</div><div><b id="k-rps">–</b><span class="cap">запросов/сек</span> <span class="delta" id="k-rps-d"></span></div></div>
+              <div class="card kpi"><div class="ic green">✅</div><div><b id="k-ok">–</b><span class="cap">успешные (2xx+3xx)</span> <span class="delta" id="k-ok-d"></span></div></div>
+              <div class="card kpi"><div class="ic red">⚡</div><div><b id="k-err">–</b><span class="cap">ошибки (4xx+5xx)</span> <span class="delta" id="k-err-d"></span></div></div>
+              <div class="card kpi"><div class="ic violet">⏱️</div><div><b id="k-p99">–</b><span class="cap">p99 ответа</span></div></div>
+            </div>
+            <div class="card">
+              <h2>График и коды ответов <span class="hint" id="hist-hint"></span></h2>
+              <div class="chart-wrap"><canvas id="chart-rps" height="220"></canvas></div>
+              <div class="legend">
+                <span><i style="background:#2563eb"></i>RPS</span>
+                <span><i style="background:#16a34a"></i>2xx</span>
+                <span><i style="background:#d97706"></i>4xx</span>
+                <span><i style="background:#dc2626"></i>5xx</span>
+              </div>
+            </div>
+            <div class="grid g-half">
+              <div class="card">
+                <h2>Сетевые соединения</h2>
+                <div class="res-row"><span>Активные</span><div class="bar"><i id="bar-conns" style="width:0%"></i></div><b class="num" id="v-conns">–</b></div>
+                <div class="res-row"><span>Принято всего</span><div class="bar"><i style="width:100%;background:#dbeafe"></i></div><b class="num" id="v-accepted">–</b></div>
+                <div class="res-row"><span>Backpressure</span><span class="chip dim" id="v-bp">–</span><b class="num" id="v-pending">–</b></div>
+                <div class="res-row"><span>Режим accept</span><span class="chip blue" id="v-accept">–</span><b class="num" id="v-shards">–</b></div>
+              </div>
+              <div class="card">
+                <h2>Ресурсы сервера</h2>
+                <div class="res-row"><span>CPU процесса</span><div class="bar"><i id="bar-cpu" style="width:0%"></i></div><b class="num" id="v-cpu">–</b></div>
+                <div class="res-row"><span>Память RSS</span><div class="bar"><i id="bar-rss" style="width:0%;background:#7c3aed"></i></div><b class="num" id="v-rss">–</b></div>
+                <div class="res-row"><span>Пул upstream</span><div class="bar"><i id="bar-pool" style="width:0%;background:#16a34a"></i></div><b class="num" id="v-pool">–</b></div>
+                <div class="res-row"><span>DNS-кэш</span><div class="bar"><i id="bar-dns" style="width:0%;background:#d97706"></i></div><b class="num" id="v-dns">–</b></div>
+              </div>
+            </div>
+          </div>
+          <div style="min-width:0;display:flex;flex-direction:column;gap:14px">
+            <div class="card">
+              <h2>Быстрые действия</h2>
+              <button class="qa" data-nav="settings"><span class="ic">⚙️</span> Перейти к настройкам <span class="arr">›</span></button>
+              <button class="qa" data-nav="logs"><span class="ic">📜</span> Просмотр логов <span class="arr">›</span></button>
+              <button class="qa" id="qa-reload"><span class="ic">🔄</span> Перезагрузить конфигурацию <span class="arr">›</span></button>
+              <button class="qa" id="qa-pool"><span class="ic">🧹</span> Сбросить пул upstream <span class="arr">›</span></button>
+              <button class="qa" id="qa-dns"><span class="ic">🌐</span> Сбросить DNS-кэш <span class="arr">›</span></button>
+            </div>
+            <div class="card">
+              <h2>Состояние компонентов</h2>
+              <div id="comp-list"><div class="empty">загрузка…</div></div>
+            </div>
+            <div class="card">
+              <h2>Распределение ответов</h2>
+              <div class="donut-box">
+                <svg id="donut" width="130" height="130" viewBox="0 0 130 130"></svg>
+                <div class="donut-rows" id="donut-rows"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ================= СТАТИСТИКА ================= -->
+      <section class="page hidden" id="page-stats">
+        <div class="page-head"><h1>Статистика</h1><p>Шарды, прогноз Pythia и конвейер обработки запросов</p></div>
+        <div class="grid g-half">
+          <div class="card">
+            <h2>Шарды — нагрузка и прогноз <span class="hint" id="spark-hint"></span></h2>
+            <table><thead><tr><th>#</th><th>active</th><th>accepted</th><th>level</th><th>trend</th><th>forecast</th><th>история</th></tr></thead>
+            <tbody id="shard-rows"><tr><td colspan="7" class="empty">загрузка…</td></tr></tbody></table>
+            <div class="legend"><i style="background:#2563eb"></i>level (сглаженная нагрузка)&nbsp;&nbsp;<i style="background:#16a34a"></i>прогноз Хольта</div>
+          </div>
+          <div class="card">
+            <h2>Конвейер обработки <span class="hint">с последнего сэмпла · 2 с</span></h2>
+            <div id="stage-box"><div class="empty">ожидание первого сэмпла…</div></div>
+          </div>
+        </div>
+        <div class="card" style="margin-top:14px">
+          <h2>Активные соединения по шардам — история</h2>
+          <div class="chart-wrap"><canvas id="chart-shards" height="200"></canvas></div>
+          <div class="legend" id="shard-legend"></div>
+        </div>
+      </section>
+
+      <!-- ================= ЛОГИ ================= -->
+      <section class="page hidden" id="page-logs">
+        <div class="page-head"><h1>Логи</h1><p>Структурированный журнал событий (кольцевой буфер, последние 512 записей)</p></div>
+        <div class="card">
+          <div class="filters">
+            <select id="log-level"><option value="">Все уровни</option><option value="info">info</option><option value="warn">warn</option><option value="error">error</option></select>
+            <select id="log-scope"><option value="">Все источники</option><option value="dataplane">dataplane</option><option value="upstream">upstream</option><option value="control">control</option><option value="admin">admin</option><option value="system">system</option></select>
+            <label style="display:flex;align-items:center;gap:6px;font-size:13px;color:var(--muted)"><input type="checkbox" id="log-auto" checked> авто-обновление</label>
+            <button class="btn ghost" id="log-refresh" style="margin-left:auto;padding:6px 14px">Обновить</button>
+          </div>
+          <div id="log-box"><div class="empty">загрузка…</div></div>
+        </div>
+      </section>
+
+      <!-- ================= МАРШРУТЫ ================= -->
+      <section class="page hidden" id="page-routes">
+        <div class="page-head"><h1>Маршруты</h1><p>Проксирование и стatica; изменения применяются атомарно (ArcSwap) и переживают рестарт</p></div>
+        <div class="grid g-main">
+          <div class="card">
+            <h2>Активные маршруты <span class="hint" id="routes-hint"></span></h2>
+            <table><thead><tr><th>Путь</th><th>Цели (upstream)</th><th>Режим</th><th>Статус</th><th></th></tr></thead>
+            <tbody id="route-rows"><tr><td colspan="5" class="empty">загрузка…</td></tr></tbody></table>
+            <div style="margin-top:14px;display:flex;gap:10px;flex-wrap:wrap">
+              <input type="text" id="new-path" placeholder="/path" style="max-width:180px">
+              <input type="text" id="new-up" placeholder="host:port (можно несколько через запятую)" style="flex:1;min-width:220px">
+              <button class="btn" id="route-add">Добавить</button>
+            </div>
+            <div style="margin-top:10px"><span id="route-status" class="dirty-note"></span></div>
+          </div>
+          <div class="card">
+            <h2>JSON-конфигурация <span class="hint">тот же формат, что routes.json и gRPC UpdateConfig</span></h2>
+            <textarea id="routes-json" class="mono" spellcheck="false"
+              style="width:100%;min-height:300px;border:1px solid var(--brd);border-radius:10px;padding:10px;background:#f8fafc"></textarea>
+            <div style="margin-top:10px;display:flex;gap:10px">
+              <button class="btn" id="routes-apply">Применить</button>
+              <button class="btn ghost" id="routes-reload-json">Перечитать</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ================= НАСТРОЙКИ ================= -->
+      <section class="page hidden" id="page-settings">
+        <div class="page-head"><h1>Настройки</h1><p>Runtime-параметры; применяются на лету без рестарта и сохраняются в settings.json</p></div>
+        <div class="set-grid">
+          <div class="card">
+            <h2>Балансировка и prewarm</h2>
+            <div id="set-core"><div class="empty">загрузка…</div></div>
+          </div>
+          <div class="card">
+            <h2>Лимиты и защита</h2>
+            <div id="set-limits"><div class="empty">загрузка…</div></div>
+            <div class="ro" style="margin-top:10px">Brute-force latch (admin): 20 неудач / 60 с → 429. Verный токен сбрасывает счётчик.</div>
+          </div>
+          <div class="card">
+            <h2>Параметры прокси и пулов</h2>
+            <div id="set-proxy"><div class="empty">загрузка…</div></div>
+          </div>
+          <div class="card">
+            <h2>Порты и интерфейсы <span class="hint">только чтение — задаётся переменными окружения</span></h2>
+            <div id="set-ports"><div class="empty">загрузка…</div></div>
+          </div>
+        </div>
+        <div style="margin-top:16px;display:flex;align-items:center;gap:14px;flex-wrap:wrap">
+          <button class="btn" id="settings-save" disabled>💾 Сохранить изменения</button>
+          <span class="dirty-note" id="settings-dirty"></span>
+          <span id="settings-status"></span>
+        </div>
+      </section>
+
+      <!-- ================= БЕЗОПАСНОСТЬ ================= -->
+      <section class="page hidden" id="page-security">
+        <div class="page-head"><h1>Безопасность</h1><p>Текущее состояние контуров защиты (результаты security-пасса v1.0)</p></div>
+        <div class="grid g-half">
+          <div class="card">
+            <h2>Control plane</h2>
+            <div id="sec-control"><div class="empty">загрузка…</div></div>
+          </div>
+          <div class="card">
+            <h2>Egress и DNS</h2>
+            <div id="sec-egress"><div class="empty">загрузка…</div></div>
+          </div>
+        </div>
+        <div class="card" style="margin-top:14px">
+          <h2>Политики маршрутов (deny-подстроки, заголовки, WASM)</h2>
+          <table><thead><tr><th>Маршрут</th><th>deny-подстроки</th><th>Свои заголовки</th><th>CMS fallback</th><th>WASM</th></tr></thead>
+          <tbody id="sec-routes"><tr><td colspan="5" class="empty">загрузка…</td></tr></tbody></table>
+        </div>
+      </section>
+
+      <!-- ================= СИСТЕМА ================= -->
+      <section class="page hidden" id="page-system">
+        <div class="page-head"><h1>Система</h1><p>Версия, ресурсы процесса, режимы работы и точки интеграции</p></div>
+        <div class="grid g-half">
+          <div class="card">
+            <h2>Процесс</h2>
+            <div id="sys-info"><div class="empty">загрузка…</div></div>
+          </div>
+          <div class="card">
+            <h2>Интеграции</h2>
+            <div id="sys-int"><div class="empty">загрузка…</div></div>
+          </div>
+        </div>
+      </section>
+
+      <footer class="pagefoot">
+        <span>Juggler <span id="foot-ver2">v—</span> · Web Server &amp; Proxy</span>
+        <span>Панель администратора · <span id="foot-date"></span></span>
+      </footer>
+    </div>
+  </div>
+</div>
+
+<div id="toasts"></div>
+
+<script>
+"use strict";
+const $ = id => document.getElementById(id);
+const fmt = n => (n??0).toLocaleString('ru-RU');
+const fmtMs = v => v>=1000 ? (v/1000).toFixed(v>=10000?0:1)+' s' : (v==null?'–':Math.round(v)+' ms');
+const fmtKib = k => k>=1048576 ? (k/1048576).toFixed(2)+' GiB' : (k/1024).toFixed(1)+' MiB';
+let TOK = sessionStorage.getItem('juggler_token') || '';
+
+/* ---------- API wrapper ---------- */
+async function api(path, opts={}){
+  const h = Object.assign({}, opts.headers||{});
+  if (TOK) h['Authorization'] = 'Bearer ' + TOK;
+  if (opts.body && !h['Content-Type']) h['Content-Type'] = 'application/json';
+  const r = await fetch(path, {...opts, headers:h});
+  if (r.status === 401){ showLogin('Требуется авторизация'); throw new Error('unauthorized'); }
+  return r;
+}
+async function apiJson(path, opts){
+  const r = await api(path, opts);
+  if (!r.ok){
+    const t = await r.text();
+    const e = new Error(t || ('HTTP '+r.status)); e.status = r.status; throw e;
+  }
+  return r.json();
+}
+function toast(msg, err){
+  const d = document.createElement('div');
+  d.className = 'toast' + (err?' err':'');
+  d.textContent = msg;
+  $('toasts').appendChild(d);
+  setTimeout(()=>d.remove(), 4200);
+}
+
+/* ---------- login ---------- */
+function showLogin(err){
+  $('login').classList.remove('hidden');
+  $('login-err').textContent = err || '';
+  setTimeout(()=>$('login-token').focus(), 50);
+}
+function hideLogin(){ $('login').classList.add('hidden'); }
+async function tryAuth(tok){
+  const h = tok ? {'Authorization':'Bearer '+tok} : {};
+  const r = await fetch('/api/overview', {headers:h});
+  if (r.status === 429){
+    const ra = r.headers.get('Retry-After') || '?';
+    $('login-err').textContent = 'Слишком много неудачных попыток — повторите через '+ra+' с';
+    return false;
+  }
+  if (r.status === 401){ $('login-err').textContent = 'Неверный токен'; return false; }
+  TOK = tok; sessionStorage.setItem('juggler_token', tok);
+  hideLogin(); loadSettings(); pollCurrent(true);
+  return true;
+}
+$('login-btn').onclick = () => tryAuth($('login-token').value.trim());
+$('login-token').addEventListener('keydown', e => { if (e.key==='Enter') tryAuth($('login-token').value.trim()); });
+
+/* ---------- router ---------- */
+const PAGES = ['overview','stats','logs','routes','settings','security','system'];
+let current = 'overview';
+let routesCfg = null; // cached ServerConfig for editor
+
+function nav(page){
+  if (!PAGES.includes(page)) page = 'overview';
+  current = page;
+  PAGES.forEach(p => $('page-'+p).classList.toggle('hidden', p!==page));
+  document.querySelectorAll('#nav button').forEach(b => b.classList.toggle('on', b.dataset.page===page));
+  location.hash = '#/'+page;
+  pollCurrent(true);
+}
+document.querySelectorAll('#nav button').forEach(b => b.onclick = () => nav(b.dataset.page));
+document.querySelectorAll('.qa[data-nav]').forEach(b => b.onclick = () => nav(b.dataset.nav));
+
+/* ---------- polling ---------- */
+let pollTimer = null;
+function pollCurrent(force){
+  if (document.hidden && !force) return;
+  try{
+    if (current==='overview') pollOverview();
+    else if (current==='stats') pollStats();
+    else if (current==='logs' && $('log-auto').checked) pollLogs();
+    else if (current==='routes') pollRoutes();
+    else if (current==='settings') {} /* static by design */
+    else if (current==='security') pollSecurity();
+    else if (current==='system') pollSystem();
+  }catch(e){ /* handled per-call */ }
+}
+setInterval(()=>pollCurrent(false), 2000);
+
+/* ---------- clock ---------- */
+setInterval(()=>{
+  const d = new Date();
+  const p = n => String(n).padStart(2,'0');
+  $('clock').textContent = d.getUTCFullYear()+'-'+p(d.getUTCMonth()+1)+'-'+p(d.getUTCDate())
+    +' '+p(d.getUTCHours())+':'+p(d.getUTCMinutes())+':'+p(d.getUTCSeconds())+' (UTC)';
+  $('foot-date').textContent = d.toLocaleDateString('ru-RU')+' '+p(d.getHours())+':'+p(d.getMinutes());
+}, 1000);
+
+/* ---------- connection status ---------- */
+let failStreak = 0;
+function markAlive(){ failStreak=0; $('top-dot').className='dot'; $('top-label').textContent='Онлайн'; }
+function markDead(){ failStreak++; if (failStreak>=2){ $('top-dot').className='dot bad'; $('top-label').textContent='Нет связи'; } }
+window.addEventListener('online', ()=>pollCurrent(true));
+window.addEventListener('offline', ()=>markDead());
+
+/* ================================================================
+   OVERVIEW
+   ================================================================ */
+let lastAccepted=null,lastOk=null,lastErr=null,lastT=null;
+async function pollOverview(){
+  try{
+    const [ov, hist, comp] = await Promise.all([
+      apiJson('/api/overview'), apiJson('/api/history'), apiJson('/api/components')
+    ]);
+    markAlive();
+    $('foot-ver').textContent = 'v'+ov.version; $('foot-ver2').textContent = 'v'+ov.version;
+    $('k-p99').textContent = fmtMs(ov.p99_ms);
+    $('k-ok').textContent = ov.totals.success_pct.toFixed(1).replace('.',',')+' %';
+    $('k-err').textContent = ov.totals.err_pct.toFixed(1).replace('.',',')+' %';
+    $('v-conns').textContent = fmt(ov.active_conns);
+    $('v-accepted').textContent = fmt(ov.accepted_total);
+    $('v-bp').textContent = ov.backpressure ? 'ON' : 'off';
+    $('v-bp').className = 'chip ' + (ov.backpressure?'bad':'ok');
+    $('v-pending').textContent = fmt(comp.dataplane.pending_handoff)+' в hand-off';
+    $('v-accept').textContent = ov.accept_mode.includes('handoff') ? 'handoff (Pythia)' : 'reuseport';
+    $('v-shards').textContent = fmt(ov.shards)+' шардов';
+    // deltas over one poll
+    const now = performance.now();
+    if (lastAccepted!==null && lastT!==null){
+      const dt=(now-lastT)/1000;
+      if (dt>0){
+        const rps = Math.max(0,(ov.accepted_total-lastAccepted)/dt);
+        $('k-rps').textContent = fmt(Math.round(rps));
+        const dOk = ov.totals.ok-lastOk, dErr = ov.totals.err-lastErr;
+        setDelta('k-ok-d', dOk, dOk+dErr);
+        setDelta('k-err-d', dErr, dOk+dErr);
+      }
+    }
+    lastAccepted=ov.accepted_total; lastOk=ov.totals.ok; lastErr=ov.totals.err; lastT=now;
+    // resources
+    const lastS = hist.samples[hist.samples.length-1];
+    const cpuPct = lastS ? lastS.cpu_permille/10 : 0;
+    $('v-cpu').textContent = cpuPct.toFixed(cpuPct<10?1:0).replace('.',',')+' %';
+    $('bar-cpu').style.width = Math.min(100,cpuPct)+'%';
+    if (lastS && lastS.rss_kib>0){
+      $('v-rss').textContent = fmtKib(lastS.rss_kib);
+      $('bar-rss').style.width = Math.min(100, lastS.rss_kib/1024/1024*100)+'%';
+    } else { $('v-rss').textContent='—'; }
+    const pool = comp.pool_sockets_total||0;
+    $('v-pool').textContent = fmt(pool)+' сокетов';
+    $('bar-pool').style.width = Math.min(100, pool/Math.max(1,settings_hint_pool_cap)*100)+'%';
+    $('v-dns').textContent = fmt(comp.dns.cache_entries)+' записей';
+    $('bar-dns').style.width = Math.min(100, comp.dns.cache_entries/256*100)+'%';
+    $('bar-conns').style.width = Math.min(100, ov.active_conns/Math.max(1,ov.shards*4096)*100)+'%';
+    // charts
+    drawRpsChart(hist);
+    drawDonut(ov.totals);
+    renderComponents(comp);
+    $('hist-hint').textContent = hist.samples.length+' точек · шаг '+hist.step_secs+' с';
+  }catch(e){ if (e.status!==401) markDead(); }
+}
+let settings_hint_pool_cap = 512;
+function setDelta(id, d, total){
+  const el = $(id);
+  if (!el) return;
+  if (total<=0){ el.textContent=''; return; }
+  const pct = d/total*100;
+  el.textContent = (d>=0?'↑ ':'↓ ') + Math.abs(d).toFixed(0);
+  el.className = 'delta ' + (id==='k-err-d' ? (d>0?'down':'up') : (d>=0?'up':'down'));
+}
+function renderComponents(comp){
+  const rows = [];
+  const L = comp.listeners;
+  rows.push(['🌐','HTTP (TLS)', L.tls.addr, L.tls.up?'Работает':'Недоступен', L.tls.up?'ok':'bad']);
+  if (L.plain) rows.push(['🔌','HTTP (plain)', L.plain.addr, L.plain.up?'Работает':'—', 'ok']);
+  rows.push(['⚙️','gRPC Control', L.grpc.addr, L.grpc.up ? L.grpc.auth : 'Недоступен', L.grpc.up?(String(L.grpc.auth).includes('bearer')?'ok':'warn'):'bad']);
+  rows.push(['🖥️','Admin API', L.admin.addr, L.admin.up ? (L.admin.auth?'Bearer':'read-only') : '—', L.admin.auth?'ok':'warn']);
+  if (!comp.upstreams.length) rows.push(['📦','Upstream', '—', 'нет маршрутов', 'dim']);
+  for (const u of comp.upstreams){
+    const st = u.state==='healthy'?'Доступен':(u.state==='half-open'?'Проверка':'Недоступен');
+    const cls = u.state==='healthy'?'ok':(u.state==='half-open'?'warn':'bad');
+    rows.push(['📦','Upstream '+u.addr, 'пул: '+u.idle_pool, st, cls]);
+  }
+  rows.push(['🧭','DNS / Resolver', 'TTL '+comp.dns.ttl_secs+' с', 'OK', 'ok']);
+  rows.push(['🔒','Egress Policy', comp.egress.allow_private_upstreams?'private разрешён env':'private запрещён', comp.egress.allow_private_upstreams?'Ослаблена':'Активна', comp.egress.allow_private_upstreams?'warn':'ok']);
+  $('comp-list').innerHTML = rows.map(([ic,name,sub,st,cls])=>
+    '<div class="comp"><span class="ic">'+ic+'</span><div><div>'+name+'</div><div class="ro mono">'+(sub||'')+'</div></div>'
+    +'<span class="st chip '+cls+'">● '+st+'</span></div>').join('');
+}
+function drawDonut(t){
+  const segs = [
+    ['2xx', t['2xx'], '#16a34a'],
+    ['3xx', t['3xx'], '#2563eb'],
+    ['4xx', t['4xx'], '#d97706'],
+    ['5xx', t['5xx'], '#dc2626'],
+  ];
+  const total = segs.reduce((a,s)=>a+s[1],0);
+  const C = 2*Math.PI*50;
+  let off = 0, svg = '';
+  for (const [name,v,col] of segs){
+    if (!v) continue;
+    const frac = v/total;
+    svg += '<circle cx="65" cy="65" r="50" fill="none" stroke="'+col+'" stroke-width="16" stroke-linecap="butt" '
+      +'stroke-dasharray="'+(frac*C-1.5)+' '+(C-frac*C+1.5)+'" stroke-dashoffset="'+(-off)+'" '
+      +'transform="rotate(-90 65 65)"/>';
+    off += frac*C;
+  }
+  svg += '<text x="65" y="62" text-anchor="middle" font-size="20" font-weight="700" fill="#1c2434">'+fmt(total)+'</text>';
+  svg += '<text x="65" y="80" text-anchor="middle" font-size="10.5" fill="#64748b">запросов</text>';
+  $('donut').innerHTML = svg;
+  $('donut-rows').innerHTML = segs.map(([n,v,c])=>
+    '<div class="donut-row"><span class="sw" style="background:'+c+'"></span>'+n
+    +'<span style="color:var(--dim)">'+(total?(v/total*100).toFixed(1):0).toString().replace('.',',')+'%</span>'
+    +'<span class="v">'+fmt(v)+'</span></div>').join('');
+}
+function drawRpsChart(hist){
+  const cv = $('chart-rps'), dpr = window.devicePixelRatio||1;
+  const W = cv.clientWidth||600, H = 220;
+  cv.width = W*dpr; cv.height = H*dpr;
+  const ctx = cv.getContext('2d'); ctx.scale(dpr,dpr); ctx.clearRect(0,0,W,H);
+  const s = hist.samples; if (s.length<2) { ctx.fillStyle='#94a3b8'; ctx.fillText('ожидание данных…', 20, H/2); return; }
+  const padL=46,padR=10,padT=12,padB=22;
+  const iw = W-padL-padR, ih = H-padT-padB;
+  const maxY = Math.max(1, ...s.map(x=>Math.max(x.reqs, x['2xx'], x['4xx']+x.r429, x['5xx'])));
+  const nice = niceMax(maxY);
+  // grid
+  ctx.strokeStyle='#eef2f7'; ctx.fillStyle='#94a3b8'; ctx.font='11px system-ui'; ctx.textAlign='right';
+  for (let i=0;i<=4;i++){
+    const y = padT + ih*i/4;
+    ctx.beginPath(); ctx.moveTo(padL,y); ctx.lineTo(W-padR,y); ctx.stroke();
+    ctx.fillText(String(Math.round(nice*(4-i)/4)), padL-6, y+4);
+  }
+  ctx.textAlign='center';
+  const t0 = s[0].at_ms, t1 = s[s.length-1].at_ms;
+  for (let i=0;i<=4;i++){
+    const x = padL + iw*i/4;
+    const t = new Date(t0 + (t1-t0)*i/4);
+    const p = n=>String(n).padStart(2,'0');
+    ctx.fillText(p(t.getUTCHours())+':'+p(t.getUTCMinutes())+':'+p(t.getUTCSeconds()), x, H-6);
+  }
+  const line = (get,col,w)=>{
+    ctx.strokeStyle=col; ctx.lineWidth=w; ctx.beginPath();
+    s.forEach((x,i)=>{
+      const v = get(x);
+      const px = padL + iw*i/(s.length-1);
+      const py = padT + ih - Math.min(1,v/nice)*ih;
+      i?ctx.lineTo(px,py):ctx.moveTo(px,py);
+    });
+    ctx.stroke();
+  };
+  line(x=>x.reqs,'#2563eb',2.2);
+  line(x=>x['2xx'],'#16a34a',1.6);
+  line(x=>x['4xx']+x.r429,'#d97706',1.4);
+  line(x=>x['5xx'],'#dc2626',1.4);
+}
+function niceMax(v){
+  const p = Math.pow(10, Math.floor(Math.log10(v)));
+  for (const m of [1,2,5,10]) if (v <= m*p) return m*p;
+  return 10*p;
+}
+
+/* quick actions */
+$('qa-reload').onclick = async () => {
+  try{
+    const cfg = await apiJson('/api/routes');
+    const r = await api('/api/routes', {method:'POST', body:JSON.stringify(cfg)});
+    if (r.ok){ toast('Конфигурация перезагружена (hot reload)'); pollCurrent(true); }
+    else toast('Ошибка: '+(await r.text()), true);
+  }catch(e){ toast('Ошибка: '+e.message, true); }
+};
+$('qa-pool').onclick = async () => {
+  try{
+    const r = await api('/api/pool/clear', {method:'POST', body:'{}'});
+    r.ok ? toast('Пул upstream-соединений сброшен') : toast('Ошибка: '+(await r.text()), true);
+  }catch(e){ toast('Ошибка: '+e.message, true); }
+};
+$('qa-dns').onclick = async () => {
+  try{
+    const r = await api('/api/dns/clear', {method:'POST', body:'{}'});
+    r.ok ? toast('DNS-кэш очищен') : toast('Ошибка: '+(await r.text()), true);
+  }catch(e){ toast('Ошибка: '+e.message, true); }
+};
+
+/* ================================================================
+   STATS
+   ================================================================ */
+function spark(level, fc, w=170, h=34){
+  const n = Math.max(level.length, fc.length);
+  if (n<2) return '';
+  const max = Math.max(1, ...level, ...fc);
+  const pts = a => a.map((v,i)=>((2+i*(w-4)/(n-1)).toFixed(1))+','+((h-3-v/max*(h-6)).toFixed(1))).join(' ');
+  return '<svg width="'+w+'" height="'+h+'">'
+    +'<polyline fill="none" stroke="#2563eb" stroke-width="1.6" points="'+pts(level)+'"/>'
+    +'<polyline fill="none" stroke="#16a34a" stroke-width="1.6" stroke-dasharray="4 3" points="'+pts(fc)+'"/></svg>';
+}
+async function pollStats(){
+  try{
+    const d = await apiJson('/api/stats');
+    markAlive();
+    $('spark-hint').textContent = 'окно '+Math.round(d.history_cap*d.history_step_secs/60)+' мин · '+d.history_cap+' точек';
+    $('shard-rows').innerHTML = d.shards.map((sh,i)=>{
+      const h = (d.history||[])[i]||{level:[],forecast:[]};
+      const cls = sh.trend>0.5?'warn':'ok';
+      const tr = (sh.trend>0?'+':'')+sh.trend.toFixed(2);
+      return '<tr><td class="num">'+sh.shard+'</td><td class="num">'+fmt(sh.active_conns)+'</td>'
+        +'<td class="num">'+fmt(sh.accepted_total)+'</td><td class="num">'+sh.level.toFixed(1)+'</td>'
+        +'<td><span class="chip '+cls+'">'+tr+'</span></td><td class="num">'+sh.forecast.toFixed(1)+'</td>'
+        +'<td>'+spark(h.level,h.forecast)+'</td></tr>';
+    }).join('') || '<tr><td colspan="7" class="empty">нет шардов</td></tr>';
+    if (d.stages && d.stages.length){
+      const mx = Math.max(1e-9, ...d.stages.map(s=>s.avg_us));
+      $('stage-box').innerHTML = d.stages.map(s=>{
+        const w = Math.max(2, s.avg_us/mx*100).toFixed(1);
+        return '<div class="res-row" style="grid-template-columns:120px 1fr 170px"><span>'+s.stage+'</span>'
+          +'<div class="bar"><i style="width:'+w+'%"></i></div>'
+          +'<b class="num" style="font-weight:600;font-size:12.5px">avg '+s.avg_us.toFixed(1)+' µs · p99 '+s.p99_ms.toFixed(2)+' ms</b></div>';
+      }).join('');
+    }
+    drawShardHistory(d);
+  }catch(e){ if (e.status!==401) markDead(); }
+}
+function drawShardHistory(d){
+  const cv = $('chart-shards'), dpr = window.devicePixelRatio||1;
+  const W = cv.clientWidth||600, H = 200;
+  cv.width=W*dpr; cv.height=H*dpr;
+  const ctx = cv.getContext('2d'); ctx.scale(dpr,dpr); ctx.clearRect(0,0,W,H);
+  const cols = ['#2563eb','#16a34a','#d97706','#dc2626','#7c3aed','#0891b2','#be185d','#65a30d'];
+  const hist = d.history||[]; if (!hist.length || !hist[0].level.length){ return; }
+  const n = hist[0].level.length;
+  const padL=46,padR=10,padT=12,padB=6, iw=W-padL-padR, ih=H-padT-padB;
+  const maxY = niceMax(Math.max(1, ...hist.flatMap(h=>h.level)));
+  ctx.strokeStyle='#eef2f7'; ctx.fillStyle='#94a3b8'; ctx.font='11px system-ui'; ctx.textAlign='right';
+  for (let i=0;i<=4;i++){ const y=padT+ih*i/4; ctx.beginPath(); ctx.moveTo(padL,y); ctx.lineTo(W-padR,y); ctx.stroke();
+    ctx.fillText(String(Math.round(maxY*(4-i)/4)), padL-6, y+4); }
+  $('shard-legend').innerHTML = hist.map((h,i)=>'<span><i style="background:'+cols[i%cols.length]+'"></i>шард '+i+'</span>').join('');
+  hist.forEach((h,si)=>{
+    ctx.strokeStyle=cols[si%cols.length]; ctx.lineWidth=1.6; ctx.beginPath();
+    h.level.forEach((v,i)=>{
+      const px=padL+iw*i/(n-1), py=padT+ih-Math.min(1,v/maxY)*ih;
+      i?ctx.lineTo(px,py):ctx.moveTo(px,py);
+    });
+    ctx.stroke();
+  });
+}
+
+/* ================================================================
+   LOGS
+   ================================================================ */
+async function pollLogs(){
+  try{
+    const lv = $('log-level').value, sc = $('log-scope').value;
+    const q = new URLSearchParams(); if (lv) q.set('level',lv); if (sc) q.set('scope',sc); q.set('limit','200');
+    const d = await apiJson('/api/logs?'+q.toString());
+    markAlive();
+    if (!d.entries.length){ $('log-box').innerHTML='<div class="empty">записей нет — журнал наполняется событиями работы сервера</div>'; return; }
+    const p = n=>String(n).padStart(2,'0');
+    $('log-box').innerHTML = d.entries.map(e=>{
+      const t = new Date(e.at_ms);
+      return '<div class="log-line"><span class="t">'+p(t.getUTCHours())+':'+p(t.getUTCMinutes())+':'+p(t.getUTCSeconds())+'</span>'
+        +'<span class="lv '+e.level+'">'+e.level+'</span><span class="scope">'+e.scope+'</span>'
+        +'<span class="msg">'+esc(e.message)+'</span></div>';
+    }).join('');
+  }catch(e){ if (e.status!==401) markDead(); }
+}
+function esc(s){ return s.replace(/[&<>"]/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+$('log-refresh').onclick = ()=>pollLogs();
+$('log-level').onchange = ()=>pollLogs();
+$('log-scope').onchange = ()=>pollLogs();
+
+/* ================================================================
+   ROUTES
+   ================================================================ */
+async function pollRoutes(){
+  try{
+    const st = await apiJson('/api/stats');
+    const cfg = await apiJson('/api/routes');
+    markAlive();
+    routesCfg = cfg;
+    $('routes-hint').textContent = Object.keys(cfg.routes).length+' шт.';
+    $('route-rows').innerHTML = Object.entries(cfg.routes).map(([path,r])=>{
+      const pool = (st.routes.find(x=>x.path===path)||{}).pool_idle||[];
+      const ups = r.upstream_addrs.map(a=>{
+        const idle = pool.find(p=>p.addr===a);
+        return a+' <span class="ro">('+((idle&&idle.idle)||0)+' idle)</span>';
+      }).join('<br>') || (r.static_dir?('<span class="ro">static: '+esc(r.static_dir)+'</span>'):'—');
+      const mode = r.static_dir ? '<span class="chip blue">static</span>' : (r.wasm_plugin?'<span class="chip violet2" style="background:#ede9fe;color:#7c3aed">wasm</span>':'<span class="chip dim">proxy</span>');
+      const ok = r.upstream_addrs.length===0 || pool.some(p=>p.idle>0) || r.static_dir;
+      return '<tr><td><code>'+esc(path)+'</code></td><td>'+ups+'</td><td>'+mode+'</td>'
+        +'<td><span class="chip '+(ok?'ok':'warn')+'">'+(ok?'активен':'нет данных')+'</span></td>'
+        +'<td><button class="btn danger" style="padding:4px 10px;font-size:12px" data-del="'+esc(path)+'">Удалить</button></td></tr>';
+    }).join('') || '<tr><td colspan="5" class="empty">маршрутов нет — добавьте первый выше</td></tr>';
+    document.querySelectorAll('[data-del]').forEach(b => b.onclick = ()=>delRoute(b.dataset.del));
+    if (document.activeElement !== $('routes-json')) $('routes-json').value = JSON.stringify(cfg, null, 2);
+  }catch(e){ if (e.status!==401) markDead(); }
+}
+async function delRoute(path){
+  if (!routesCfg) return;
+  delete routesCfg.routes[path];
+  await applyRoutes(routesCfg);
+}
+$('route-add').onclick = async () => {
+  const path = $('new-path').value.trim(), ups = $('new-up').value.trim();
+  if (!path.startsWith('/')){ $('route-status').textContent='Путь должен начинаться с /'; return; }
+  if (!ups){ $('route-status').textContent='Укажите хотя бы один upstream host:port'; return; }
+  if (!routesCfg) routesCfg = {routes:{}};
+  routesCfg.routes[path] = { upstream_addrs: ups.split(',').map(s=>s.trim()).filter(Boolean) };
+  $('new-path').value=''; $('new-up').value='';
+  await applyRoutes(routesCfg);
+};
+$('routes-apply').onclick = async () => {
+  try{
+    const cfg = JSON.parse($('routes-json').value);
+    await applyRoutes(cfg);
+  }catch(e){ $('route-status').textContent = 'Некорректный JSON: '+e.message; }
+};
+$('routes-reload-json').onclick = ()=>pollRoutes();
+async function applyRoutes(cfg){
+  try{
+    const r = await api('/api/routes', {method:'POST', body:JSON.stringify(cfg)});
+    if (r.ok){ $('route-status').textContent=''; toast('Маршруты применены (атомарный swap)'); pollRoutes(); }
+    else { const t = await r.text(); $('route-status').textContent = t; toast('Отклонено: '+t, true); }
+  }catch(e){ $('route-status').textContent = e.message; toast('Ошибка: '+e.message, true); }
+}
+
+/* ================================================================
+   SETTINGS
+   ================================================================ */
+const HINTS = {
+  balancer:'0 = leastconn · 1 = predictive (Pythia)',
+  rate_limit_tokens:'burst на IP (token bucket)',
+  rate_limit_refill:'токенов в секунду на IP',
+  pool_cap_per_upstream:'keep-alive сокетов на upstream',
+  max_keepalive_requests:'запросов на одно клиентское соединение',
+  pool_idle_timeout_secs:'время жизни idle-сокета',
+  prewarm_floor:'минимум прогретых сокетов',
+  health_max_failures:'отказов до пометки UNHEALTHY',
+  health_cooldown_secs:'пауза перед half-open пробой',
+};
+const GROUPS = {
+  'set-core': ['balancer','prewarm_floor','adaptive_prewarm'],
+  'set-limits': ['rate_limit_tokens','rate_limit_refill','health_max_failures','health_cooldown_secs'],
+  'set-proxy': ['pool_cap_per_upstream','max_keepalive_requests','pool_idle_timeout_secs'],
+};
+let settingsData = null;
+const dirty = new Map();
+async function loadSettings(){
+  try{
+    settingsData = await apiJson('/api/settings');
+    settings_hint_pool_cap = (settingsData.settings.find(s=>s.name==='pool_cap_per_upstream')||{}).value || 512;
+    renderSettings();
+  }catch(e){ if (e.status===401) showLogin(); }
+}
+function renderSettings(){
+  const byName = Object.fromEntries(settingsData.settings.map(s=>[s.name,s]));
+  for (const [box,names] of Object.entries(GROUPS)){
+    let h = '';
+    for (const n of names){
+      if (n==='adaptive_prewarm'){
+        h += setRow('adaptive_prewarm','adaptive prewarm','держать пулы прогретыми по high-water mark',
+          '<label class="switch"><input type="checkbox" id="sw-adaptive_prewarm" '+(settingsData.adaptive_prewarm?'checked':'')
+          +' onchange="markDirty(\'adaptive_prewarm\',this.checked)"><span class="slider"></span></label>', '');
+        continue;
+      }
+      if (n==='balancer'){
+        const v = byName.balancer.value;
+        h += setRow('balancer','balancer','алгоритм распределения',
+          '<span class="seg"><button id="seg-b0" class="'+(v===0?'on':'')+'" onclick="markDirty(\'balancer\',0);paintSeg(0)">leastconn</button>'
+          +'<button id="seg-b1" class="'+(v===1?'on':'')+'" onclick="markDirty(\'balancer\',1);paintSeg(1)">predictive</button></span>','');
+        continue;
+      }
+      const s = byName[n]; if (!s) continue;
+      const fill = ((s.value-s.min)/Math.max(1,s.max-s.min)*100).toFixed(1);
+      h += setRow(n, n, HINTS[n]||'',
+        '<input type="range" min="'+s.min+'" max="'+s.max+'" value="'+s.value+'" id="rng-'+n+'" oninput="syncSet(\''+n+'\',this.value)">',
+        '<input type="number" min="'+s.min+'" max="'+s.max+'" value="'+s.value+'" id="num-'+n+'" oninput="syncSet(\''+n+'\',this.value)">');
+    }
+    $(box).innerHTML = h;
+    for (const n of names){ const r=$('rng-'+n); if (r) paint(r); }
+  }
+  // ports (read-only)
+  apiJson('/api/components').then(comp=>{
+    const L = comp.listeners;
+    const rows = [['HTTP (TLS data plane)', L.tls.addr]];
+    if (L.plain) rows.push(['HTTP (plain)', L.plain.addr]);
+    rows.push(['gRPC (control plane)', L.grpc.addr], ['Admin API', L.admin.addr]);
+    $('set-ports').innerHTML = rows.map(([n,v])=>
+      '<div class="set-row" style="grid-template-columns:1fr 1fr"><div class="set-name">'+n+'</div><code>'+v+'</code></div>').join('');
+  }).catch(()=>{});
+  updateDirty();
+}
+function setRow(name, title, hint, ctrl, num){
+  return '<div class="set-row"><div class="set-name"><code>'+name+'</code><small>'+hint+'</small></div>'
+    +'<div>'+ctrl+'</div>'+(num?'<div>'+num+'</div>':'<div></div>')+'<div></div></div>';
+}
+window.syncSet = (n,v)=>{ const r=$('rng-'+n); if(r){r.value=v;paint(r);} $('num-'+n).value=v; };
+window.paintSeg = v => { $('seg-b0').classList.toggle('on', v===0); $('seg-b1').classList.toggle('on', v===1); };
+function paint(el){ if(el) el.style.setProperty('--fill', ((el.value-el.min)/Math.max(1,el.max-el.min)*100)+'%'); }
+window.markDirty = (n,v)=>{
+  const orig = n==='adaptive_prewarm' ? settingsData.adaptive_prewarm
+    : (settingsData.settings.find(s=>s.name===n)||{}).value;
+  if (String(v)===String(orig)) dirty.delete(n); else dirty.set(n,v);
+  updateDirty();
+};
+function updateDirty(){
+  const b = $('settings-save');
+  b.disabled = dirty.size===0;
+  $('settings-dirty').textContent = dirty.size ? 'неприменённых изменений: '+dirty.size : '';
+}
+$('settings-save').onclick = async () => {
+  if (!dirty.size) return;
+  const payload = Object.fromEntries(dirty);
+  try{
+    const r = await api('/api/settings', {method:'POST', body:JSON.stringify(payload)});
+    const d = await r.json().catch(()=>({}));
+    if (r.ok){ toast('Применено параметров: '+d.applied); dirty.clear(); loadSettings(); }
+    else toast('Ошибка: '+(d.error||await r.text()), true);
+  }catch(e){ toast('Ошибка: '+e.message, true); }
+};
+
+/* ================================================================
+   SECURITY
+   ================================================================ */
+async function pollSecurity(){
+  try{
+    const [comp, st] = await Promise.all([apiJson('/api/components'), apiJson('/api/stats')]);
+    markAlive();
+    const L = comp.listeners;
+    $('sec-control').innerHTML = [
+      ['Admin API', L.admin.addr, L.admin.auth?'Bearer-токен: мутации разрешены':'БЕЗ токена: read-only (fail-closed)', L.admin.auth?'ok':'warn'],
+      ['gRPC Control', L.grpc.addr, String(L.grpc.auth).includes('bearer')?'Bearer-токен на мутациях':'Fail-closed: мутации запрещены (нет токена / внешний bind)', String(L.grpc.auth).includes('bearer')?'ok':'warn'],
+      ['Brute-force latch', '—', '20 неудач за 60 с → 429 + Retry-After; верный токен сбрасывает', 'ok'],
+    ].map(([n,a,d,cls])=>compRow(n,a,d,cls)).join('');
+    $('sec-egress').innerHTML = [
+      ['Egress policy', 'upstream-цели', comp.egress.allow_private_upstreams?'ОСЛАБЛЕНА env-оверрайдом (private разрешён)':'loopback / link-local / metadata запрещены по умолчанию', comp.egress.allow_private_upstreams?'warn':'ok'],
+      ['DNS-rebinding guard', 'resolve-time', 'каждый (ре)резолв проверяется по той же политике — evil.example → 169.254.169.254 блокируется', 'ok'],
+      ['DNS-кэш', comp.dns.cache_entries+' записей', 'TTL '+comp.dns.ttl_secs+' с', 'ok'],
+      ['Rate limiter', comp.limiter.tracked_ips+' IP', 'token bucket: '+comp.limiter.tokens+' burst / '+comp.limiter.refill+' rps', 'ok'],
+    ].map(([n,a,d,cls])=>compRow(n,a,d,cls)).join('');
+    $('sec-routes').innerHTML = Object.entries(st.routes).map(([path,r])=>{
+      const sec = r.security||{};
+      const deny = (sec.deny_count||0) ? sec.deny_count+' шт.' : '—';
+      const hdrs = (sec.response_headers_count||0) ? sec.response_headers_count+' шт.' : '—';
+      return '<tr><td><code>'+esc(path)+'</code></td><td>'+deny+'</td><td>'+hdrs+'</td>'
+        +'<td>'+(sec.cms_fallback_path?('<code>'+esc(sec.cms_fallback_path)+'</code>'):'—')+'</td>'
+        +'<td>'+(r.wasm_plugin?('<code>'+esc(r.wasm_plugin)+'</code>'):'—')+'</td></tr>';
+    }).join('') || '<tr><td colspan="5" class="empty">маршрутов нет</td></tr>';
+  }catch(e){ if (e.status!==401) markDead(); }
+}
+function compRow(name, sub, desc, cls){
+  return '<div class="comp"><div><div>'+name+' <span class="ro mono">'+(sub&&sub!=='—'?('· '+sub):'')+'</span></div>'
+    +'<div class="ro">'+desc+'</div></div><span class="st chip '+cls+'">● '+(cls==='ok'?'OK':(cls==='warn'?'внимание':'внимание'))+'</span></div>';
+}
+
+/* ================================================================
+   SYSTEM
+   ================================================================ */
+async function pollSystem(){
+  try{
+    const [sys, comp] = await Promise.all([apiJson('/api/system'), apiJson('/api/components')]);
+    markAlive();
+    const up = sys.uptime_secs;
+    const d=Math.floor(up/86400), h=Math.floor(up%86400/3600), m=Math.floor(up%3600/60);
+    $('sys-info').innerHTML = [
+      ['Версия', 'v'+sys.version],
+      ['Uptime', (d?d+' д ':'')+h+' ч '+m+' мин'],
+      ['Ядер / шардов', sys.cores+' / '+sys.shards],
+      ['Accept mode', sys.accept_mode],
+      ['CPU процесса', (sys.cpu_pct||0).toFixed(1).replace('.',',')+' %'],
+      ['Память RSS', sys.rss_kib>0?fmtKib(sys.rss_kib):'недоступно на этой платформе'],
+      ['TLS (PFX)', sys.tls_pfx?'настроен':'не настроен'],
+    ].map(([k,v])=>'<div class="set-row" style="grid-template-columns:1fr 1fr"><div class="set-name">'+k+'</div><div>'+v+'</div></div>').join('');
+    $('sys-int').innerHTML = [
+      ['Prometheus metrics', '<a href="/metrics" target="_blank">/metrics</a>'],
+      ['Health check', '<a href="/healthz" target="_blank">/healthz</a>'],
+      ['JSON API', '<code>/api/overview</code> <code>/api/history</code> <code>/api/logs</code> <code>/api/components</code> <code>/api/system</code>'],
+      ['Управление конфигом', '<code>POST /api/routes</code> <code>POST /api/settings</code>'],
+      ['Операции', '<code>POST /api/pool/clear</code> <code>POST /api/dns/clear</code>'],
+      ['gRPC Control Plane', '<code>'+comp.listeners.grpc.addr+'</code> — UpdateConfig (Bearer)'],
+    ].map(([k,v])=>'<div class="set-row" style="grid-template-columns:150px 1fr"><div class="set-name">'+k+'</div><div>'+v+'</div></div>').join('');
+  }catch(e){ if (e.status!==401) markDead(); }
+}
+
+/* ---------- boot ---------- */
+(async function boot(){
+  $('app').classList.remove('hidden');
+  const page = (location.hash||'').replace('#/','') || 'overview';
+  nav(PAGES.includes(page)?page:'overview');
+  // Silent auth probe: 200 (read-only or valid token) → load everything;
+  // 401 → login screen. loadSettings() retries after successful login.
+  try{
+    const r = await fetch('/api/overview', TOK?{headers:{'Authorization':'Bearer '+TOK}}:{});
+    if (r.status===401){ sessionStorage.removeItem('juggler_token'); TOK=''; showLogin(); }
+    else { loadSettings(); pollCurrent(true); }
+  }catch(e){ showLogin('Нет связи с сервером'); }
+})();
+</script></body></html>
