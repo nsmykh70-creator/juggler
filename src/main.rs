@@ -3153,6 +3153,12 @@ fn admin_overview_json() -> String {
             AcceptMode::KernelReusePort => "reuseport (kernel hash)",
         },
         "shards": shards.len(),
+        // Auth mode flag so the panel can disable mutations client-side too:
+        // read-only (token unset) answers 403 on every POST — surfacing it
+        // here turns a silent 403 into an explicit banner.
+        "admin_read_only": std::env::var("JUGGLER_ADMIN_TOKEN")
+            .map(|t| t.is_empty())
+            .unwrap_or(true),
     });
     serde_json::to_string(&body).unwrap_or_else(|_| "{}".into())
 }
@@ -3269,6 +3275,9 @@ fn admin_components_json() -> String {
                      "auth": if grpc_token.is_some() { "bearer" } else { "fail-closed (no token)" }},
         },
         "dataplane": {"active_conns": active, "backpressure": backpressure, "pending_handoff": pending},
+        // Read-only admin mode (token unset) surfaced on every page: the SPA
+        // polls /api/components on every section and disables mutations.
+        "admin_read_only": admin_token.is_none(),
         "upstreams": upstreams,
         "pool_sockets_total": pool_total,
         "limiter": {"tracked_ips": limiter_ips,

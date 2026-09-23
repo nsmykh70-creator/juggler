@@ -57,6 +57,7 @@ code{background:#f1f5f9;border:1px solid var(--brd);border-radius:5px;padding:1p
 .dot.amber{background:var(--amber)}
 .topbar .clock{margin-left:auto;color:var(--muted);font-size:13px;font-variant-numeric:tabular-nums}
 .topbar .user{display:flex;align-items:center;gap:8px;color:var(--text);font-weight:600;font-size:13.5px}
+.ro-banner{background:#fef3c7;color:#92400e;border-bottom:1px solid #fde68a;padding:9px 26px;font-size:13.5px;font-weight:600}
 .user .av{width:30px;height:30px;border-radius:50%;background:var(--blue2);color:var(--blue);display:grid;place-items:center;font-size:14px}
 .content{padding:22px 26px 30px;min-width:0}
 .page-head h1{font-size:20px;margin-bottom:2px}
@@ -160,6 +161,7 @@ input[type=text]:focus{outline:none;border-color:var(--blue)}
 .btn.danger{background:#fff;color:var(--red);border:1px solid #fecaca}
 .btn.danger:hover{background:var(--red2)}
 .btn:disabled{opacity:.5;cursor:not-allowed}
+.btn.disabled,.qa.disabled{opacity:.5;cursor:not-allowed;pointer-events:none}
 .dirty-note{color:var(--amber);font-size:12.5px}
 .ro{color:var(--dim);font-size:12.5px}
 /* toast */
@@ -208,6 +210,7 @@ footer.pagefoot{margin-top:22px;display:flex;justify-content:space-between;color
       <div class="clock" id="clock">—</div>
       <div class="user"><span class="av">👤</span> admin</div>
     </header>
+    <div class="ro-banner" id="ro-banner" style="display:none">🔒 Режим «только чтение»: JUGGLER_ADMIN_TOKEN не задан — изменения отклоняются сервером (403). Задайте токен и перезапустите сервер, чтобы включить управление.</div>
 
     <div class="content">
       <!-- ================= ОБЗОР ================= -->
@@ -432,7 +435,12 @@ async function apiJson(path, opts){
     const t = await r.text();
     const e = new Error(t || ('HTTP '+r.status)); e.status = r.status; throw e;
   }
-  return r.json();
+  const d = await r.json();
+  // Single choke point for auth-mode: components arrives on every section,
+  // so the read-only banner and button gating react even without visiting
+  // the Overview first.
+  if (d && typeof d.admin_read_only === 'boolean') setReadOnly(d.admin_read_only);
+  return d;
 }
 function toast(msg, err){
   const d = document.createElement('div');
@@ -587,6 +595,20 @@ function setDelta(id, d, total){
   el.textContent = (d>=0?'↑ ':'↓ ') + Math.abs(d).toFixed(0);
   el.className = 'delta ' + (id==='k-err-d' ? (d>0?'down':'up') : (d>=0?'up':'down'));
 }
+// Read-only mode: server-side token unset → all POSTs get 403. Toggle the
+// banner and disable every mutation affordance (idempotent per poll).
+let RO = false;
+const MUTATION_IDS = ['settings-save','routes-apply','route-add','qa-reload','qa-pool','qa-dns'];
+function setReadOnly(on){
+  if (on === RO) return;
+  RO = on;
+  $('ro-banner').style.display = on ? '' : 'none';
+  for (const id of MUTATION_IDS){ const b=$(id); if (b) b.classList.toggle('disabled', on); }
+}
+function roBlocked(){
+  if (RO){ toast('Режим «только чтение»: задайте JUGGLER_ADMIN_TOKEN, чтобы менять настройки', true); return true; }
+  return false;
+}
 function renderComponents(comp){
   const rows = [];
   const L = comp.listeners;
@@ -680,6 +702,7 @@ function niceMax(v){
 
 /* quick actions */
 $('qa-reload').onclick = async () => {
+  if (roBlocked()) return;
   try{
     const cfg = await apiJson('/api/routes');
     const r = await api('/api/routes', {method:'POST', body:JSON.stringify(cfg)});
@@ -688,12 +711,14 @@ $('qa-reload').onclick = async () => {
   }catch(e){ toast('Ошибка: '+e.message, true); }
 };
 $('qa-pool').onclick = async () => {
+  if (roBlocked()) return;
   try{
     const r = await api('/api/pool/clear', {method:'POST', body:'{}'});
     r.ok ? toast('Пул upstream-соединений сброшен') : toast('Ошибка: '+(await r.text()), true);
   }catch(e){ toast('Ошибка: '+e.message, true); }
 };
 $('qa-dns').onclick = async () => {
+  if (roBlocked()) return;
   try{
     const r = await api('/api/dns/clear', {method:'POST', body:'{}'});
     r.ok ? toast('DNS-кэш очищен') : toast('Ошибка: '+(await r.text()), true);
@@ -813,11 +838,13 @@ async function pollRoutes(){
   }catch(e){ if (e.status!==401) markDead(); }
 }
 async function delRoute(path){
+  if (roBlocked()) return;
   if (!routesCfg) return;
   delete routesCfg.routes[path];
   await applyRoutes(routesCfg);
 }
 $('route-add').onclick = async () => {
+  if (roBlocked()) return;
   const path = $('new-path').value.trim(), ups = $('new-up').value.trim();
   if (!path.startsWith('/')){ $('route-status').textContent='Путь должен начинаться с /'; return; }
   if (!ups){ $('route-status').textContent='Укажите хотя бы один upstream host:port'; return; }
@@ -827,6 +854,7 @@ $('route-add').onclick = async () => {
   await applyRoutes(routesCfg);
 };
 $('routes-apply').onclick = async () => {
+  if (roBlocked()) return;
   try{
     const cfg = JSON.parse($('routes-json').value);
     await applyRoutes(cfg);
@@ -926,7 +954,7 @@ function updateDirty(){
   $('settings-dirty').textContent = dirty.size ? 'неприменённых изменений: '+dirty.size : '';
 }
 $('settings-save').onclick = async () => {
-  if (!dirty.size) return;
+  if (roBlocked() || !dirty.size) return;
   const payload = Object.fromEntries(dirty);
   try{
     const r = await api('/api/settings', {method:'POST', body:JSON.stringify(payload)});
