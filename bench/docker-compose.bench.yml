@@ -11,6 +11,12 @@ services:
     ports:
       - "50051:50051"   # host grpc_client.py access for hot-reload
       - "127.0.0.1:19090:9090"  # host admin-API access for bench runners
+      - "127.0.0.1:8080:8080"   # data plane (plain) reachable from the host browser
+    volumes:
+      # Persistent routes: container restarts keep admin-added routes. Bind-
+      # mounted because the image itself carries no routes.json (a fresh
+      # container would otherwise lose every admin-created route).
+      - ./routes.json:/app/routes.json
     environment:
       JUGGLER_HTTP_ADDR: 0.0.0.0:8443
       JUGGLER_GRPC_ADDR: 0.0.0.0:50051

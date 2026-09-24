@@ -1,0 +1,14 @@
+{
+  "routes": {
+    "/aicms": {
+      "upstream_addrs": ["aicms:80"],
+      "wasm_plugin": null,
+      "security": {
+        "deny_substrings": [],
+        "response_headers": [],
+        "cms_fallback_path": null
+      },
+      "static_dir": null
+    }
+  }
+}

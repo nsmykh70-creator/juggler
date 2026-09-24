@@ -2764,6 +2764,9 @@ pub struct RawRequest {
     pub method: (u32, u32),
     /// Path with the query string already stripped (range into the buffer).
     pub path: (u32, u32),
+    /// Query string without the leading '?' (range into the buffer; empty
+    /// range when the request had no query).
+    pub query: (u32, u32),
     pub version: (u32, u32),
     /// (name_start, name_end, value_start, value_end) into the buffer.
     pub headers: Vec<(u32, u32, u32, u32)>,
@@ -2781,6 +2784,11 @@ impl RawRequest {
 
     pub fn path<'a>(&self, buf: &'a [u8]) -> &'a str {
         std::str::from_utf8(&buf[self.path.0 as usize..self.path.1 as usize]).unwrap_or("")
+    }
+
+    /// Query string without the leading '?'; empty when absent.
+    pub fn query<'a>(&self, buf: &'a [u8]) -> &'a str {
+        std::str::from_utf8(&buf[self.query.0 as usize..self.query.1 as usize]).unwrap_or("")
     }
 
     pub fn version<'a>(&self, buf: &'a [u8]) -> &'a str {
@@ -2922,6 +2930,18 @@ pub fn parse_request(buf: &[u8]) -> Option<RawRequest> {
         // absolute-form without a path: keep routing miss instead (404) — safe.
         return None;
     }
+    // Query range: between the path end and the request-line space. The
+    // leading '?' is skipped. Empty when there is no query.
+    let query = if target_end < sp2 as u32 {
+        let qs = target_end as usize;
+        if rl[qs] == b'?' {
+            (qs as u32 + 1, sp2 as u32)
+        } else {
+            (0u32, 0u32)
+        }
+    } else {
+        (0u32, 0u32)
+    };
     let version = (sp2 + 1) as u32;
     let version_end = rl.len() as u32;
     let is_http10 = &rl[(version as usize)..(version_end as usize)] == b"HTTP/1.0";
@@ -2980,6 +3000,7 @@ pub fn parse_request(buf: &[u8]) -> Option<RawRequest> {
     Some(RawRequest {
         method,
         path,
+        query,
         version: (version, version_end),
         headers,
         body_offset: header_end + 4,
@@ -4158,8 +4179,16 @@ pub fn detect_response_end(buf: &[u8]) -> Option<usize> {
 
     if chunked {
         // Walk the chunk framing: <hex-size>[;ext]\r\n<data>\r\n ... 0\r\n\r\n
+        // Every slice start is guarded: the caller re-invokes with a growing
+        // buffer, so a chunk whose declared size exceeds what has arrived so
+        // far simply means "not the end yet" (None), never a panic. (A large
+        // chunked page used to panic the shard thread here: pos jumped past
+        // the buffered length and buf[pos..] sliced out of range.)
         let mut pos = header_end + 4;
         loop {
+            if pos >= buf.len() {
+                return None; // size line not buffered yet
+            }
             // chunk-size line
             let line_end = buf[pos..].windows(2).position(|w| w == b"\r\n")? + pos;
             let size_str = std::str::from_utf8(&buf[pos..line_end]).ok()?;
@@ -4168,6 +4197,9 @@ pub fn detect_response_end(buf: &[u8]) -> Option<usize> {
             if size == 0 {
                 // last chunk: consume the optional trailer section (CRLF-terminated lines)
                 loop {
+                    if pos >= buf.len() {
+                        return None; // trailer not buffered yet
+                    }
                     if buf[pos..].starts_with(b"\r\n") {
                         return Some(pos + 2);
                     }
@@ -4791,12 +4823,16 @@ enum RouteDecision {
     Builtin(u16, String),
     NotFound,
     /// Upstream pool, WASM-rewritten body, headers injected by plugins,
-    /// security response headers from the route policy.
+    /// security response headers from the route policy, and the number of
+    /// leading bytes of the request target to strip before forwarding
+    /// (prefix-proxy routing: route `/aicms` + request `/aicms/x` forwards
+    /// `/x`; 0 for exact-match routes, nginx `proxy_pass` semantics).
     Proxy(
         Vec<String>,
         Vec<u8>,
         Vec<(String, String)>,
         Vec<(String, String)>,
+        usize,
     ),
     /// File served from a route's `static_dir`. `head` is the raw response
     /// head (status line + headers, CRLF-terminated); `body` is the file
@@ -4901,57 +4937,90 @@ fn resolve_route(
         }
     }
 
-    match active.routes.get(path) {
-        Some(route) if !route.upstream_addrs.is_empty() => {
-            // Per-request WASM filter pipeline (fail-closed on a trap).
-            let plugin = plugin_for_route(&route.wasm_plugin);
-            let plugin_headers = match run_plugin_filters(&plugin, path, body) {
-                Ok(h) => h,
-                Err(e) => {
-                    eprintln!("⚠️ wasm filter pipeline failed for {path}: {e}");
-                    HTTP_REQUESTS_TOTAL
-                        .with_label_values(&[path, "502", proto])
-                        .inc();
-                    return RouteDecision::Builtin(502, "wasm filter failed".to_string());
-                }
-            };
-            RouteDecision::Proxy(
-                route.upstream_addrs.clone(),
-                std::mem::take(body),
-                plugin_headers,
-                route.security.response_headers.clone(),
-            )
+    // Exact proxy routes first, then prefix proxy routes (nginx `location
+    // /pfx/ { proxy_pass ... }` semantics): a request for /aicms/foo is
+    // routed to the /aicms upstream with the prefix stripped. Static
+    // candidates were already checked above and keep priority.
+    if let Some(route) = active.routes.get(path) {
+        if !route.upstream_addrs.is_empty() {
+            return proxy_decision(path, route, body, 0, proto);
         }
-        _ => {
-            // CMS front-controller fallback: if any route declares a
-            // cms_fallback_path, unknown paths rewrite there (WordPress's
-            // `RewriteRule ^(.*)$ index.php [L]` equivalent).
-            for route in active.routes.values() {
-                if let Some(fallback) = &route.security.cms_fallback_path {
-                    if let Some(target) = active.routes.get(fallback) {
-                        if !target.upstream_addrs.is_empty() {
-                            // The original URI is forwarded unchanged: the CMS
-                            // router (WordPress, Laravel...) resolves it from
-                            // REQUEST_URI, exactly as under Apache mod_rewrite.
-                            HTTP_REQUESTS_TOTAL
-                                .with_label_values(&[fallback, "200", proto])
-                                .inc();
-                            return RouteDecision::Proxy(
-                                target.upstream_addrs.clone(),
-                                std::mem::take(body),
-                                Vec::new(),
-                                target.security.response_headers.clone(),
-                            );
-                        }
+    }
+    let mut proxy_candidates: Vec<(&String, &RouteConfig)> = active
+        .routes
+        .iter()
+        .filter(|(_, r)| !r.upstream_addrs.is_empty())
+        .collect();
+    proxy_candidates.sort_by_key(|(prefix, _)| std::cmp::Reverse(prefix.len()));
+    for (prefix, route) in proxy_candidates {
+        let is_child = path.len() > prefix.len()
+            && path.starts_with(prefix.as_str())
+            && path.as_bytes()[prefix.len()] == b'/';
+        if is_child {
+            return proxy_decision(path, route, body, prefix.len(), proto);
+        }
+    }
+    {
+        // CMS front-controller fallback: if any route declares a
+        // cms_fallback_path, unknown paths rewrite there (WordPress's
+        // `RewriteRule ^(.*)$ index.php [L]` equivalent).
+        for route in active.routes.values() {
+            if let Some(fallback) = &route.security.cms_fallback_path {
+                if let Some(target) = active.routes.get(fallback) {
+                    if !target.upstream_addrs.is_empty() {
+                        // The original URI is forwarded unchanged: the CMS
+                        // router (WordPress, Laravel...) resolves it from
+                        // REQUEST_URI, exactly as under Apache mod_rewrite.
+                        HTTP_REQUESTS_TOTAL
+                            .with_label_values(&[fallback, "200", proto])
+                            .inc();
+                        return RouteDecision::Proxy(
+                            target.upstream_addrs.clone(),
+                            std::mem::take(body),
+                            Vec::new(),
+                            target.security.response_headers.clone(),
+                            0,
+                        );
                     }
                 }
             }
-            HTTP_REQUESTS_TOTAL
-                .with_label_values(&[path, "404", proto])
-                .inc();
-            RouteDecision::NotFound
         }
+        HTTP_REQUESTS_TOTAL
+            .with_label_values(&[path, "404", proto])
+            .inc();
+        RouteDecision::NotFound
     }
+}
+
+/// Shared builder for exact and prefix proxy decisions: runs the WASM
+/// filter pipeline, counts the metric, and carries `strip` (leading target
+/// bytes removed before forwarding; 0 = forward the path as-is).
+fn proxy_decision(
+    path: &str,
+    route: &RouteConfig,
+    body: &mut Vec<u8>,
+    strip: usize,
+    proto: &'static str,
+) -> RouteDecision {
+    // Per-request WASM filter pipeline (fail-closed on a trap).
+    let plugin = plugin_for_route(&route.wasm_plugin);
+    let plugin_headers = match run_plugin_filters(&plugin, path, body) {
+        Ok(h) => h,
+        Err(e) => {
+            eprintln!("⚠️ wasm filter pipeline failed for {path}: {e}");
+            HTTP_REQUESTS_TOTAL
+                .with_label_values(&[path, "502", proto])
+                .inc();
+            return RouteDecision::Builtin(502, "wasm filter failed".to_string());
+        }
+    };
+    RouteDecision::Proxy(
+        route.upstream_addrs.clone(),
+        std::mem::take(body),
+        plugin_headers,
+        route.security.response_headers.clone(),
+        strip,
+    )
 }
 
 // ============================================================================
@@ -6224,9 +6293,25 @@ where
                 client.write_all(&file_body).await?;
                 record_response_class(200); // static files are pre-validated
             }
-            RouteDecision::Proxy(upstreams, body, extra_headers, security_headers) => {
+            RouteDecision::Proxy(upstreams, body, extra_headers, security_headers, strip) => {
                 let started = Instant::now();
-                let forwarded = build_forwarded_request(&req, &buf, &body, &extra_headers);
+                // Prefix-proxy routing: strip the matched route prefix from
+                // the request target before forwarding ("GET /aicms/x" ->
+                // "GET /x"). Query string is preserved in both branches
+                // (parser stores it without the leading '?').
+                let q = req.query(&buf);
+                let query = if q.is_empty() {
+                    String::new()
+                } else {
+                    format!("?{q}")
+                };
+                let forwarded_target: String = if strip > 0 {
+                    format!("/{}{}", path[strip..].trim_start_matches('/'), query)
+                } else {
+                    format!("/{}{}", path.trim_start_matches('/'), query)
+                };
+                let forwarded =
+                    build_forwarded_request(&req, &buf, &body, &extra_headers, &forwarded_target);
                 // Signature oracle: hash the request pattern so the cost
                 // prediction is available to the balancer and the observed
                 // cost is fed back after dispatch.
@@ -6376,6 +6461,7 @@ fn build_forwarded_request(
     raw: &[u8],
     body: &[u8],
     extra_headers: &[(String, String)],
+    target_override: &str,
 ) -> Vec<u8> {
     let head_len = req.body_offset.min(raw.len());
     let head_end = head_len.saturating_sub(2); // keep the last header CRLF, drop the blank line
@@ -6385,6 +6471,28 @@ fn build_forwarded_request(
         .sum();
     let mut out = Vec::with_capacity(head_len + body.len() + extras_len + 128);
 
+    // Request line: rewritten target (prefix-proxy routing), preserved
+    // method and version. Bounded to the FIRST line only (head_end spans
+    // the whole head incl. headers). The original head is copied
+    // line-by-line below, so the first line is emitted here and skipped
+    // there.
+    let first_line_end = raw[..head_end]
+        .windows(2)
+        .position(|w| w == b"\r\n")
+        .unwrap_or(head_end);
+    let method_end = raw[..first_line_end]
+        .windows(1)
+        .position(|w| w[0] == b' ')
+        .unwrap_or(0);
+    let version_start = raw[method_end + 1..first_line_end]
+        .windows(1)
+        .rposition(|w| w[0] == b' ')
+        .map(|p| method_end + 1 + p)
+        .unwrap_or(first_line_end);
+    out.extend_from_slice(&raw[..=method_end]);
+    out.extend_from_slice(target_override.as_bytes());
+    out.extend_from_slice(&raw[version_start..first_line_end]);
+    out.extend_from_slice(b"\r\n");
     // Re-emit the head line-by-line (raw spans, zero per-line allocs):
     // - drop every Transfer-Encoding line — the forwarded body is always
     //   re-framed with an explicit Content-Length, so exactly one body
@@ -6397,12 +6505,19 @@ fn build_forwarded_request(
     let mut wrote_cl = !cl_differs && req.content_length() == 0;
     {
         let mut off = 0usize;
+        let mut first_line = true;
         while off < head_end {
             let end = raw[off..head_end]
                 .windows(2)
                 .position(|w| w == b"\r\n")
                 .map(|p| off + p + 2)
                 .unwrap_or(head_end);
+            if first_line {
+                // Request line was already re-emitted with the rewritten target.
+                first_line = false;
+                off = end;
+                continue;
+            }
             let line = &raw[off..end];
             let name = match line.iter().position(|&b| b == b':') {
                 Some(ci) => &line[..ci],
@@ -6618,11 +6733,6 @@ async fn handle_h2_request(
     let (head, mut body) = request.into_parts();
 
     // Full target (path + query) for forwarding, bare path for routing.
-    let target = head
-        .uri
-        .path_and_query()
-        .map(|pq| pq.as_str().to_string())
-        .unwrap_or_else(|| "/".to_string());
     let path = head.uri.path().to_string();
 
     // Read the full request body (end_stream or Content-Length framed).
@@ -6704,11 +6814,23 @@ async fn handle_h2_request(
             .await?;
             record_response_class(status);
         }
-        RouteDecision::Proxy(upstreams, body, extra_headers, security_headers) => {
+        RouteDecision::Proxy(upstreams, body, extra_headers, security_headers, strip) => {
             let started = Instant::now();
+            // Prefix-proxy routing: strip the matched route prefix, keep
+            // the query string.
+            let query = head
+                .uri
+                .query()
+                .map(|q| format!("?{q}"))
+                .unwrap_or_default();
+            let forwarded_target: String = if strip > 0 {
+                format!("/{}{}", path[strip..].trim_start_matches('/'), query)
+            } else {
+                format!("/{}{}", path.trim_start_matches('/'), query)
+            };
             let forwarded = build_h1_request_from_parts(
                 &head.method,
-                &target,
+                &forwarded_target,
                 &head.headers,
                 &body,
                 &extra_headers,
@@ -7351,6 +7473,18 @@ mod tests {
     }
 
     #[test]
+    fn chunked_declared_size_larger_than_buffer_is_none_not_panic() {
+        // Regression: a chunk header announcing 0x5F71 (24433) bytes while
+        // only 8 KiB have been buffered used to slice buf[pos..] out of
+        // range and panic the shard thread. Must be a clean None instead.
+        let head = b"HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\n\r\n5F71\r\n";
+        let partial = vec![b'x'; 8192];
+        let mut raw = head.to_vec();
+        raw.extend_from_slice(&partial);
+        assert_eq!(detect_response_end(&raw), None);
+    }
+
+    #[test]
     fn chunked_with_extensions_and_trailer() {
         let raw = b"HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\n\r\n\
 4;ext=1\r\nwiki\r\n0\r\nX-Trailer: v\r\n\r\n";
@@ -7789,7 +7923,7 @@ mod tests {
         let req = parse_request(raw).unwrap();
         let body = b"abcd".to_vec();
         let extra = vec![("X-Plugin".to_string(), "1".to_string())];
-        let out = build_forwarded_request(&req, raw, &body, &extra);
+        let out = build_forwarded_request(&req, raw, &body, &extra, "/api");
         let parsed = parse_request(&out).unwrap();
         assert_eq!(parsed.content_length(), 4);
         assert!(out.windows(11).any(|w| w == b"X-Plugin: 1"));
@@ -7937,10 +8071,103 @@ mod tests {
     }
 
     #[test]
+    fn prefix_proxy_matches_child_paths_and_strips_prefix() {
+        // Route /api + request /api/users -> routed to /api's upstreams with
+        // the 4-byte prefix stripped (the dispatcher forwards /users).
+        let mut body = Vec::new();
+        match sec_resolve("/api/users", &mut body) {
+            RouteDecision::Proxy(upstreams, _, _, _, strip) => {
+                assert_eq!(upstreams, vec!["10.0.0.1:80".to_string()]);
+                assert_eq!(strip, 4);
+            }
+            other => panic!("expected prefix proxy, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn prefix_proxy_requires_slash_boundary() {
+        // /apifoo must NOT match route /api (no '/' boundary after prefix).
+        // Config without a cms_fallback so the unmatched path stays NotFound.
+        let cfg = Arc::new(ArcSwap::from_pointee(ServerConfig {
+            routes: sec_config().load().routes.clone(),
+        }));
+        let mut routes = cfg.load().routes.clone();
+        for r in routes.values_mut() {
+            r.security.cms_fallback_path = None;
+        }
+        let swap = Arc::new(ArcSwap::from_pointee(ServerConfig { routes }));
+        let mut body = Vec::new();
+        match resolve_route(
+            "/apifoo",
+            &mut body,
+            "203.0.113.7".parse().unwrap(),
+            PROTO_H1,
+            &swap,
+        ) {
+            RouteDecision::NotFound => {}
+            other => panic!("prefix must not match without slash boundary, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn exact_proxy_route_keeps_strip_zero() {
+        let mut body = Vec::new();
+        match sec_resolve("/api", &mut body) {
+            RouteDecision::Proxy(_, _, _, _, strip) => assert_eq!(strip, 0),
+            other => panic!("expected exact proxy, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn longer_prefix_wins_over_shorter() {
+        // /api and /api/v2 both proxy: /api/v2/x must pick /api/v2 (strip 7).
+        let cfg = sec_config();
+        let mut routes = cfg.load().routes.clone();
+        routes.insert(
+            "/api/v2".to_string(),
+            RouteConfig {
+                upstream_addrs: vec!["10.0.0.3:80".into()],
+                ..Default::default()
+            },
+        );
+        let swap = Arc::new(ArcSwap::from_pointee(ServerConfig { routes }));
+        let mut body = Vec::new();
+        match resolve_route(
+            "/api/v2/users",
+            &mut body,
+            "203.0.113.7".parse().unwrap(),
+            PROTO_H1,
+            &swap,
+        ) {
+            RouteDecision::Proxy(upstreams, _, _, _, strip) => {
+                assert_eq!(upstreams, vec!["10.0.0.3:80".to_string()]);
+                assert_eq!(strip, 7);
+            }
+            other => panic!("expected longest-prefix proxy, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn forwarded_request_line_rewrites_target_and_keeps_query() {
+        let raw = b"GET /aicms/index.php?page=2&x=1 HTTP/1.1\r\nHost: x\r\n\r\n";
+        let req = parse_request(raw).unwrap();
+        assert_eq!(req.path(raw), "/aicms/index.php");
+        assert_eq!(req.query(raw), "page=2&x=1");
+        let body = Vec::new();
+        let extra: Vec<(String, String)> = Vec::new();
+        let out = build_forwarded_request(&req, raw, &body, &extra, "/index.php?page=2&x=1");
+        let text = String::from_utf8(out).unwrap();
+        assert!(
+            text.starts_with("GET /index.php?page=2&x=1 HTTP/1.1\r\n"),
+            "{text}"
+        );
+    }
+
+    #[test]
     fn security_headers_arrive_on_proxy_decision() {
         let mut body = Vec::new();
         match sec_resolve("/api", &mut body) {
-            RouteDecision::Proxy(_, _, _, hdrs) => {
+            RouteDecision::Proxy(_, _, _, hdrs, _) => {
                 assert!(hdrs.contains(&("X-Frame-Options".to_string(), "DENY".to_string())));
                 assert!(
                     hdrs.contains(&("X-Content-Type-Options".to_string(), "nosniff".to_string()))
@@ -7974,7 +8201,7 @@ mod tests {
         let mut body = Vec::new();
         match sec_resolve("/some/pretty/url", &mut body) {
             // Unknown path -> falls through to the /cms front controller.
-            RouteDecision::Proxy(upstreams, _, _, hdrs) => {
+            RouteDecision::Proxy(upstreams, _, _, hdrs, _) => {
                 assert_eq!(upstreams, vec!["10.0.0.2:80".to_string()]);
                 assert!(hdrs.is_empty(), "fallback target has no security headers");
             }

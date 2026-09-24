@@ -609,6 +609,7 @@ function roBlocked(){
   if (RO){ toast('Режим «только чтение»: задайте JUGGLER_ADMIN_TOKEN, чтобы менять настройки', true); return true; }
   return false;
 }
+let componentsCache = null;
 function renderComponents(comp){
   const rows = [];
   const L = comp.listeners;
@@ -825,15 +826,30 @@ async function pollRoutes(){
       const pool = (st.routes.find(x=>x.path===path)||{}).pool_idle||[];
       const ups = r.upstream_addrs.map(a=>{
         const idle = pool.find(p=>p.addr===a);
-        return a+' <span class="ro">('+((idle&&idle.idle)||0)+' idle)</span>';
+        return esc(a)+' <span class="ro">('+((idle&&idle.idle)||0)+' idle)</span>';
       }).join('<br>') || (r.static_dir?('<span class="ro">static: '+esc(r.static_dir)+'</span>'):'—');
+      // "Открыть" идёт через собственный data plane сервера (origin:
+      // window.location), а не на raw hostname upstream — docker-internal
+      // DNS типа "aicms:8080" из браузера оператора не резолвится.
+      const openBtn = '<button class="btn" style="padding:4px 10px;font-size:12px" data-open="'+esc(path)+'">Открыть</button>';
       const mode = r.static_dir ? '<span class="chip blue">static</span>' : (r.wasm_plugin?'<span class="chip violet2" style="background:#ede9fe;color:#7c3aed">wasm</span>':'<span class="chip dim">proxy</span>');
       const ok = r.upstream_addrs.length===0 || pool.some(p=>p.idle>0) || r.static_dir;
       return '<tr><td><code>'+esc(path)+'</code></td><td>'+ups+'</td><td>'+mode+'</td>'
         +'<td><span class="chip '+(ok?'ok':'warn')+'">'+(ok?'активен':'нет данных')+'</span></td>'
-        +'<td><button class="btn danger" style="padding:4px 10px;font-size:12px" data-del="'+esc(path)+'">Удалить</button></td></tr>';
+        +'<td>'+openBtn+' <button class="btn danger" style="padding:4px 10px;font-size:12px" data-del="'+esc(path)+'">Удалить</button></td></tr>';
     }).join('') || '<tr><td colspan="5" class="empty">маршрутов нет — добавьте первый выше</td></tr>';
     document.querySelectorAll('[data-del]').forEach(b => b.onclick = ()=>delRoute(b.dataset.del));
+    document.querySelectorAll('[data-open]').forEach(b => b.onclick = ()=>{
+      // Open via the server's own DATA plane, not the admin origin: the
+      // admin listener only serves the panel + API. Data plane origin comes
+      // from /api/components (plain listener), falling back to the admin
+      // origin for a single-box setup where ports coincide.
+      const l = (typeof componentsCache !== 'undefined') && componentsCache && componentsCache.listeners;
+      const base = l && l.plain && l.plain.addr && !l.plain.addr.startsWith('0.0.0.0')
+        ? 'http://' + l.plain.addr
+        : '';
+      window.open(base + b.dataset.open, '_blank');
+    });
     if (document.activeElement !== $('routes-json')) $('routes-json').value = JSON.stringify(cfg, null, 2);
   }catch(e){ if (e.status!==401) markDead(); }
 }
@@ -924,8 +940,9 @@ function renderSettings(){
     $(box).innerHTML = h;
     for (const n of names){ const r=$('rng-'+n); if (r) paint(r); }
   }
-  // ports (read-only)
+  // ports (read-only); also cached for the routes-table "Открыть" button
   apiJson('/api/components').then(comp=>{
+    componentsCache = comp;
     const L = comp.listeners;
     const rows = [['HTTP (TLS data plane)', L.tls.addr]];
     if (L.plain) rows.push(['HTTP (plain)', L.plain.addr]);
