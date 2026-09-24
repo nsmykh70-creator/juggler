@@ -23,6 +23,8 @@ services:
       JUGGLER_PLAIN_HTTP_ADDR: 0.0.0.0:8080   # wrk cannot speak TLS
       # The admin UI must be reachable through the 19090 port mapping.
       JUGGLER_ADMIN_ADDR: 0.0.0.0:9090
+      # Mutating admin API enabled for bench orchestration (route pushes).
+      JUGGLER_ADMIN_TOKEN: bench
       # CMS demo routes (aicms/wordpress/joomla containers) resolve to
       # RFC1918 addresses inside the bench network; the SSRF egress policy
       # forbids private targets unless explicitly allowed.
