@@ -21,6 +21,8 @@ services:
       JUGGLER_HTTP_ADDR: 0.0.0.0:8443
       JUGGLER_GRPC_ADDR: 0.0.0.0:50051
       JUGGLER_PLAIN_HTTP_ADDR: 0.0.0.0:8080   # wrk cannot speak TLS
+      # The admin UI must be reachable through the 19090 port mapping.
+      JUGGLER_ADMIN_ADDR: 0.0.0.0:9090
       # Benchmark mode: the per-IP token bucket is a DoS guard, not a bench
       # knob; a load test from one IP would throttle itself immediately.
       JUGGLER_RATE_LIMIT_TOKENS: "1000000"
