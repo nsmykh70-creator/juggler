@@ -42,6 +42,18 @@
         "cms_fallback_path": null
       },
       "static_dir": null
+    },
+    "/aicms": {
+      "upstream_addrs": [
+        "127.0.0.1:8091"
+      ],
+      "wasm_plugin": null,
+      "security": {
+        "deny_substrings": [],
+        "response_headers": [],
+        "cms_fallback_path": null
+      },
+      "static_dir": null
     }
   }
 }

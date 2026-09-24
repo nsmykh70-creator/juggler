@@ -5257,6 +5257,8 @@ enum RouteDecision {
     RateLimited,
     Builtin(u16, String),
     NotFound,
+    /// 301 to the given location (bare prefix-proxy path → prefix + `/`).
+    Redirect301(String),
     /// Upstream pool, WASM-rewritten body, headers injected by plugins,
     /// security response headers from the route policy, and the number of
     /// leading bytes of the request target to strip before forwarding
@@ -5378,7 +5380,10 @@ fn resolve_route(
     // candidates were already checked above and keep priority.
     if let Some(route) = active.routes.get(path) {
         if !route.upstream_addrs.is_empty() {
-            return proxy_decision(path, route, body, 0, proto);
+            HTTP_REQUESTS_TOTAL
+                .with_label_values(&[path, "301", proto])
+                .inc();
+            return RouteDecision::Redirect301(format!("{path}/"));
         }
     }
     let mut proxy_candidates: Vec<(&String, &RouteConfig)> = active
@@ -5388,10 +5393,20 @@ fn resolve_route(
         .collect();
     proxy_candidates.sort_by_key(|(prefix, _)| std::cmp::Reverse(prefix.len()));
     for (prefix, route) in proxy_candidates {
+        let is_exact = path == prefix.as_str();
         let is_child = path.len() > prefix.len()
             && path.starts_with(prefix.as_str())
             && path.as_bytes()[prefix.len()] == b'/';
-        if is_child {
+        // A bare directory-style prefix (/aicms) redirects to itself with a
+        // trailing slash (nginx `location /pfx/ ` behavior), so relative
+        // asset links inside the backend page resolve correctly.
+        if is_exact || is_child {
+            if is_exact {
+                HTTP_REQUESTS_TOTAL
+                    .with_label_values(&[prefix.as_str(), "301", proto])
+                    .inc();
+                return RouteDecision::Redirect301(format!("{prefix}/"));
+            }
             return proxy_decision(path, route, body, prefix.len(), proto);
         }
     }
@@ -5517,13 +5532,36 @@ fn static_path_for(root: &str, suffix: &str) -> Option<String> {
     } else {
         suffix
     };
+    // Dotfiles (.htaccess, .env, .git/...) are configuration/secrets, not
+    // content; a static route must never hand them out. `.well-known` stays
+    // reachable (ACME http-01 and friends live there).
     if rel.is_empty()
         || rel.contains('\0')
-        || rel.split('/').any(|seg| seg == ".." || seg.is_empty())
+        || rel.split('/').any(|seg| {
+            seg == ".." || seg.is_empty() || (seg.starts_with('.') && seg != ".well-known")
+        })
     {
         return None;
     }
     Some(format!("{}/{}", root.trim_end_matches('/'), rel))
+}
+
+/// Extensions that are executed server-side somewhere else (mod_php, CGI,
+/// FastCGI, servlet containers). A static route has no interpreter, so
+/// serving the raw bytes would disclose source and whatever secrets it
+/// embeds (DB credentials in config.php) — the classic "PHP handler
+/// missing" misconfiguration. Refuse these outright.
+const SCRIPT_SOURCE_EXT: &[&str] = &[
+    "php", "phtml", "php3", "php4", "php5", "php7", "php8", "phps", "pht", "asp", "aspx", "ascx",
+    "jsp", "jspx", "cgi", "pl", "pm", "py", "rb", "sh", "bash", "zsh", "ps1", "bat", "cmd",
+];
+
+fn is_script_source(path: &str) -> bool {
+    std::path::Path::new(path)
+        .extension()
+        .and_then(|e| e.to_str())
+        .map(|e| e.to_ascii_lowercase())
+        .is_some_and(|e| SCRIPT_SOURCE_EXT.contains(&e.as_str()))
 }
 
 /// Build a raw HTTP/1.1 head for a static response. H2 requests get the head
@@ -5556,6 +5594,13 @@ fn serve_static_file(root: &str, suffix: &str, keep_alive: bool) -> RouteDecisio
             b"forbidden".to_vec(),
         );
     };
+    // No interpreter behind a static route → no source download either.
+    if is_script_source(&path) {
+        return RouteDecision::StaticFile(
+            static_http_head("403 Forbidden", "text/plain; charset=utf-8", 9, keep_alive),
+            b"forbidden".to_vec(),
+        );
+    }
     let canon_root = std::fs::canonicalize(root).ok();
     match std::fs::read(&path) {
         Ok(body) => {
@@ -5671,8 +5716,15 @@ fn merge_static_routes(
             continue;
         }
         let path = format!("/{name}");
-        let cfg = routes.entry(path).or_default();
-        cfg.static_dir = Some(entry.path().to_string_lossy().into_owned());
+        // Only *add* docroot folders that the config does not already define;
+        // an explicit admin/gRPC route (e.g. a proxy to a PHP container) must
+        // win over the implicit "this directory name is a docroot" guess.
+        if let std::collections::hash_map::Entry::Vacant(e) = routes.entry(path) {
+            e.insert(RouteConfig {
+                static_dir: Some(entry.path().to_string_lossy().into_owned()),
+                ..RouteConfig::default()
+            });
+        }
     }
     routes
 }
@@ -6726,6 +6778,14 @@ where
                     .await?;
                 record_response_class(404);
             }
+            RouteDecision::Redirect301(loc) => {
+                let head = format!(
+                    "HTTP/1.1 301 Moved Permanently\r\nLocation: {loc}\r\nContent-Length: 0\r\nConnection: {conn}\r\n\r\n",
+                    conn = if keep_alive { "keep-alive" } else { "close" }
+                );
+                client.write_all(head.as_bytes()).await?;
+                record_response_class(301);
+            }
             RouteDecision::StaticFile(mut head, file_body) => {
                 // Re-issue the head with the connection's actual keep-alive
                 // decision (serve_static_file built it for `true`).
@@ -7233,6 +7293,16 @@ async fn handle_h2_request(
             .await?;
             record_response_class(404);
         }
+        RouteDecision::Redirect301(loc) => {
+            send_h2_response(
+                &mut respond,
+                301,
+                &[("location", loc.as_str())],
+                Bytes::from_static(b""),
+            )
+            .await?;
+            record_response_class(301);
+        }
         RouteDecision::StaticFile(raw_head, file_body) => {
             // Parse the status + Content-Type out of the prebuilt H1 head.
             let text = String::from_utf8_lossy(&raw_head);
@@ -7602,6 +7672,62 @@ mod tests {
     }
 
     #[test]
+    fn static_path_blocks_dotfiles_but_well_known() {
+        let root = "/tmp/www/site";
+        // Configuration/secrets are never content.
+        assert_eq!(static_path_for(root, "/.htaccess"), None);
+        assert_eq!(static_path_for(root, "/.env"), None);
+        assert_eq!(static_path_for(root, "/.git/config"), None);
+        assert_eq!(static_path_for(root, "/sub/.htpasswd"), None);
+        // Sub-path under a dot-dir is still inside a secret area.
+        assert_eq!(static_path_for(root, "/.well-known.evil/x"), None);
+        // Traversal stays rejected.
+        // ACME and friends must keep working.
+        assert_eq!(
+            static_path_for(root, "/.well-known/acme-challenge/token"),
+            Some(format!("{root}/.well-known/acme-challenge/token"))
+        );
+    }
+
+    #[test]
+    fn script_sources_are_rejected_on_static_routes() {
+        for name in [
+            "auth.php",
+            "config.PHP",
+            "shell.phtml",
+            "x.php5",
+            "a.b/c.asp",
+            "t.jsp",
+            "run.cgi",
+            "s.py",
+            "x.Ps1",
+        ] {
+            assert!(is_script_source(name), "{name} must be blocked");
+        }
+        for name in [
+            "index.html",
+            "style.css",
+            "app.js",
+            "data.json",
+            "img.php.png",
+        ] {
+            assert!(!is_script_source(name), "{name} must be served");
+        }
+        // End-to-end: a static route answers 403, never the source bytes.
+        let tmp = std::env::temp_dir().join(format!("jug_php_{}", std::process::id()));
+        let site = tmp.join("s");
+        std::fs::create_dir_all(&site).unwrap();
+        std::fs::write(site.join("auth.php"), b"<?php echo 'DB_PASS'; ?>").unwrap();
+        let root = site.to_string_lossy().into_owned();
+        let (head, body) = match serve_static_file(&root, "/auth.php", true) {
+            RouteDecision::StaticFile(h, b) => (h, b),
+            other => panic!("expected StaticFile, got {other:?}"),
+        };
+        assert!(String::from_utf8(head).unwrap().starts_with("HTTP/1.1 403"));
+        assert!(!body.windows(4).any(|w| w == b"<?php"));
+    }
+
+    #[test]
     fn serve_static_file_roundtrip_and_404() {
         let tmp = std::env::temp_dir().join(format!("jug_static_{}", std::process::id()));
         let site = tmp.join("site");
@@ -7663,6 +7789,32 @@ mod tests {
             routes["/alpha"].static_dir.as_deref(),
             Some(tmp.join("alpha").to_string_lossy().as_ref())
         );
+        std::fs::remove_dir_all(&tmp).ok();
+    }
+
+    #[test]
+    fn merge_static_routes_never_overrides_explicit_route() {
+        // An admin-defined proxy route for /alpha must survive the docroot
+        // scan even when a www/alpha directory exists (the observed incident:
+        // a PHP app proxied to a container was silently flipped to a static
+        // dir, downloading source files instead of executing them).
+        let tmp = std::env::temp_dir().join(format!("jug_merge2_{}", std::process::id()));
+        std::fs::create_dir_all(tmp.join("alpha")).unwrap();
+        let mut routes = HashMap::new();
+        routes.insert(
+            "/alpha".to_string(),
+            RouteConfig {
+                upstream_addrs: vec!["127.0.0.1:8091".to_string()],
+                ..RouteConfig::default()
+            },
+        );
+        let merged = merge_static_routes(&tmp.to_string_lossy(), routes);
+        let r = &merged["/alpha"];
+        assert!(
+            !r.upstream_addrs.is_empty(),
+            "explicit proxy route must keep its upstreams"
+        );
+        assert!(r.static_dir.is_none(), "and must not gain a static_dir");
         std::fs::remove_dir_all(&tmp).ok();
     }
 
@@ -8554,10 +8706,13 @@ mod tests {
 
     #[test]
     fn exact_proxy_route_keeps_strip_zero() {
+        // An exact match on a prefix-style proxy route (/aicms) 301s to
+        // /aicms/ so relative asset URLs in the backend page resolve; only
+        // then does the prefix-stripped proxy path serve the content.
         let mut body = Vec::new();
         match sec_resolve("/api", &mut body) {
-            RouteDecision::Proxy(_, _, _, _, strip) => assert_eq!(strip, 0),
-            other => panic!("expected exact proxy, got {other:?}"),
+            RouteDecision::Redirect301(loc) => assert_eq!(loc, "/api/"),
+            other => panic!("expected exact-proxy redirect, got {other:?}"),
         }
     }
 
@@ -8608,8 +8763,10 @@ mod tests {
 
     #[test]
     fn security_headers_arrive_on_proxy_decision() {
+        // Resolve a child path (/api/x) — the exact path now redirects — and
+        // check headers on the actual proxy decision.
         let mut body = Vec::new();
-        match sec_resolve("/api", &mut body) {
+        match sec_resolve("/api/stats", &mut body) {
             RouteDecision::Proxy(_, _, _, hdrs, _) => {
                 assert!(hdrs.contains(&("X-Frame-Options".to_string(), "DENY".to_string())));
                 assert!(
