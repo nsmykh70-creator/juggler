@@ -1,0 +1,155 @@
+/* Minimal — Clean, Light, Typography-focused */
+:root {
+    --min-text: #1a1a1a;
+    --min-muted: #6b7280;
+    --min-border: #e5e7eb;
+    --min-bg: #ffffff;
+    --min-accent: #111827;
+    --min-radius: 6px;
+}
+
+* { box-sizing: border-box; }
+body {
+    font-family: 'Inter', system-ui, sans-serif;
+    background: var(--min-bg);
+    color: var(--min-text);
+    margin: 0;
+    line-height: 1.7;
+    -webkit-font-smoothing: antialiased;
+}
+h1, h2, h3, h4, h5, h6 { font-weight: 700; color: var(--min-text); margin: 0 0 12px; line-height: 1.25; }
+a { color: var(--min-accent); text-decoration: underline; text-underline-offset: 2px; }
+a:hover { text-decoration: none; opacity: 0.7; }
+
+/* Topbar */
+.minimal-topbar {
+    position: sticky;
+    top: 0;
+    z-index: 50;
+    background: var(--min-bg);
+    border-bottom: 1px solid var(--min-border);
+    padding: 20px 24px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+.minimal-logo {
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--min-text);
+    text-decoration: none;
+    letter-spacing: -0.01em;
+}
+.minimal-menu-btn {
+    background: transparent;
+    border: 0;
+    cursor: pointer;
+    width: 32px;
+    height: 28px;
+    position: relative;
+    padding: 0;
+}
+.minimal-menu-btn span {
+    display: block;
+    width: 24px;
+    height: 2px;
+    background: var(--min-text);
+    margin: 5px auto;
+    transition: transform 0.25s, opacity 0.25s;
+}
+.minimal-menu-btn.open span:nth-child(1) { transform: translateY(7px) rotate(45deg); }
+.minimal-menu-btn.open span:nth-child(2) { opacity: 0; }
+.minimal-menu-btn.open span:nth-child(3) { transform: translateY(-7px) rotate(-45deg); }
+
+/* Menu (slide-down) */
+.minimal-menu {
+    background: var(--min-bg);
+    border-bottom: 1px solid var(--min-border);
+    padding: 16px 24px 24px;
+}
+.minimal-menu-list {
+    list-style: none;
+    padding: 0;
+    margin: 0 0 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+.minimal-menu-link {
+    display: block;
+    padding: 10px 0;
+    font-size: 17px;
+    font-weight: 500;
+    color: var(--min-text);
+    text-decoration: none;
+    border-bottom: 1px solid var(--min-border);
+    transition: color 0.15s;
+}
+.minimal-menu-link:hover { color: var(--min-muted); }
+.minimal-menu-link.active { color: var(--min-text); font-weight: 700; }
+.minimal-menu-lang {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    padding-top: 8px;
+}
+.minimal-lang-link {
+    padding: 4px 10px;
+    background: #f3f4f6;
+    color: var(--min-muted);
+    border-radius: 4px;
+    text-decoration: none;
+    font-size: 13px;
+}
+.minimal-lang-link:hover { background: #e5e7eb; color: var(--min-text); text-decoration: none; }
+
+/* Main */
+.minimal-main { padding: 48px 24px 80px; max-width: 720px; margin: 0 auto; }
+.minimal-article { line-height: 1.8; }
+.minimal-title {
+    font-size: clamp(28px, 5vw, 40px);
+    margin-bottom: 32px;
+    padding-bottom: 16px;
+    border-bottom: 2px solid var(--min-text);
+}
+.minimal-content { font-size: 17px; color: #374151; }
+.minimal-content p { margin: 0 0 18px; }
+.minimal-content h2 { font-size: 24px; margin: 32px 0 12px; }
+.minimal-content h3 { font-size: 20px; margin: 24px 0 10px; }
+.minimal-content img { max-width: 100%; height: auto; border-radius: 4px; margin: 20px 0; }
+.minimal-content blockquote {
+    border-left: 2px solid var(--min-text);
+    padding: 4px 16px;
+    margin: 20px 0;
+    color: var(--min-muted);
+    font-style: italic;
+}
+.minimal-content pre {
+    background: #f9fafb;
+    border: 1px solid var(--min-border);
+    padding: 14px;
+    border-radius: 4px;
+    overflow-x: auto;
+    font-size: 14px;
+    font-family: 'Fira Code', monospace;
+}
+.minimal-content code { font-family: 'Fira Code', monospace; background: #f3f4f6; padding: 2px 6px; border-radius: 3px; font-size: 0.9em; color: #1f2937; }
+
+/* Footer */
+.minimal-footer {
+    border-top: 1px solid var(--min-border);
+    padding: 24px;
+}
+.minimal-footer-inner {
+    max-width: 720px;
+    margin: 0 auto;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 12px;
+    font-size: 14px;
+    color: var(--min-muted);
+}
+.minimal-admin { color: var(--min-muted); text-decoration: none; }
+.minimal-admin:hover { color: var(--min-text); text-decoration: none; }

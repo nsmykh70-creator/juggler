@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>{{page_title}} | {{site_title}}</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="{{site_description}}">
+    <meta name="keywords" content="{{site_keywords}}">
+    <link rel="icon" type="image/x-icon" href="{{favicon}}">
+
+    <script src="https://cdn.tailwindcss.com?plugins=forms,typography"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="assets/css/content-styles.css?v=20260801">
+    <link rel="stylesheet" href="assets/css/bootstrap-compat.css">
+</head>
+<body>
+    <header class="site-header">
+        <div class="site-container">
+            <h1 class="site-title"><a href="?page=home">{{site_title}}</a></h1>
+            <nav class="main-nav">
+                {{foreach:pages as p}}
+                    <a href="?page={{p.slug}}" class="{{if:p.slug == current_slug}}active{{endif}}">{{p.title}}</a>
+                {{endforeach}}
+            </nav>
+        </div>
+    </header>
+    <main class="site-content">
+        <div class="site-container">
+            <article class="fr-view">
+                {{page_content}}
+            </article>
+        </div>
+    </main>
+    <footer class="site-footer">
+        <div class="site-container">
+            <p>&copy; {{current_year}} | {{site_title}}</p>
+            <p class="small"><a href="admin/">Вход для администратора</a></p>
+        </div>
+    </footer>
+    <script src="assets/js/lumina-toggle.js?v=20260712" defer></script>
+    <script src="assets/js/legacy-bs-toggle.js" defer></script>
+</body>
+</html>

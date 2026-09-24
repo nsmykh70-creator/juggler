@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title><?= h($currentPage['title']) ?> | <?= h($config['site_title']) ?></title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="container">
+    <header>
+        <h1><?= h($config['site_title']) ?></h1>
+        <nav>
+            <?php foreach ($pages as $p): ?>
+                <a href="?page=<?= h($p['slug']) ?>"><?= h($p['title']) ?></a>
+            <?php endforeach; ?>
+        </nav>
+    </header>
+    <div class="content-area">
+        <main>
+            <article>
+                <?= $page_content_to_display ?? 'Содержимое страницы...' ?>
+            </article>
+        </main>
+        <aside>
+            <?php include '../widgets/latest_news.php'; ?>
+        </aside>
+    </div>
+    <footer>
+        <p>&copy; <?= date('Y') ?></p>
+    </footer>
+</div>
+<!-- [LUMINA TOGGLE] Глобальный обработчик кнопок "Читать далее / Свернуть", вставленных через редактор -->
+<script src="assets/js/lumina-toggle.js?v=20260712" defer></script>
+</body>
+</html><!DOCTYPE html><html lang="ru"><head><title><?= h($currentPage['title']) ?> | <?= h($config['site_title']) ?></title><meta charset="UTF-8"><link rel="stylesheet" href="style.css"></head><body><div class="container"><header><h1><?= h($config['site_title']) ?></h1><nav><?php foreach ($pages as $p):?><a href="?page=<?= h($p['slug']) ?>"><?= h($p['title']) ?></a><?php endforeach;?></nav></header><div class="content-area"><main><article><?= $currentPage['content'] ?></article></main><aside><?php include'../widgets/latest_news.php';?></aside></div><footer>&copy; <?= date('Y') ?></footer></div></body></html>

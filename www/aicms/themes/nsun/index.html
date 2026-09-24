@@ -1,0 +1,840 @@
+<!DOCTYPE html>
+<html lang="{{current_lang}}">
+<head>
+    <link rel="stylesheet" href="assets/css/tailwind-utilities.css?v=20260724">
+    <link rel="stylesheet" href="assets/css/tailwind-shim.css?v=20260724">
+    <link rel="stylesheet" href="assets/css/lumina-frontend.css?v=20260801">
+    <script src="assets/js/lumina-anim-observer.js?v=20260719b" defer></script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{page_title}} | {{site_title}}</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;700;800&family=Orbitron:wght@400;700&display=swap" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script src="assets/js/three.min.js?v=20260724"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="assets/js/vanta.net.min.js?v=20260724"></script>
+<script src="https://cdn.jsdelivr.net/npm/vanta@0.5.21/dist/vanta.net.min.js"></script>
+    <style>
+        :root {
+            --primary: #ff0080;
+            --secondary: #ff8c00;
+            --accent: #00f7ff;
+            --dark: #0a0a16;
+            --darker: #050510;
+            --light: #f0f5ff;
+            --gradient: linear-gradient(135deg, var(--primary), var(--secondary));
+            --neon-glow: 0 0 15px rgba(255, 0, 128, 0.7);
+            --menu-glow: 0 0 20px rgba(255, 0, 128, 0.9);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Montserrat', sans-serif;
+            background-color: var(--dark);
+            color: var(--light);
+            overflow-x: clip;
+            min-height: 100vh;
+        }
+
+        #galaxy-bg {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -1;
+        }
+
+        .navbar {
+            background: rgba(10, 10, 22, 0.85);
+            backdrop-filter: blur(10px);
+            transition: all 0.4s ease;
+            border-bottom: 1px solid rgba(255, 0, 128, 0.2);
+            z-index: 1000;
+        }
+
+        .navbar-scrolled {
+            background: rgba(10, 10, 22, 0.95);
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+        }
+
+        .navbar-brand {
+            font-family: 'Orbitron', sans-serif;
+            font-weight: 700;
+            font-size: 1.8rem;
+            background: var(--gradient);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            letter-spacing: 1px;
+            position: relative;
+        }
+
+        .navbar-brand:hover::after {
+            transform: scaleX(1);
+        }
+
+        .nav-link {
+            font-family: 'Montserrat', sans-serif;
+            font-weight: 500;
+            position: relative;
+            margin: 0 0.8rem;
+            padding: 0.5rem 0;
+            color: var(--light) !important;
+            transition: all 0.3s ease;
+        }
+
+        /* Подсветка активного пункта меню */
+        .nav-link.active {
+            color: white !important;
+            text-shadow: var(--menu-glow);
+        }
+
+        .nav-link::before {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 0;
+            height: 2px;
+            background: var(--gradient);
+            transition: width 0.4s ease;
+            z-index: -1;
+            box-shadow: var(--neon-glow);
+        }
+
+        .nav-link:hover::before,
+        .nav-link.active::before {
+            width: 100%;
+        }
+
+        .nav-link.active::before {
+            height: 100%;
+            border-radius: 4px;
+        }
+
+        .hero-section {
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            position: relative;
+            overflow: hidden;
+            padding-top: 100px;
+        }
+
+        .hero-content {
+            position: relative;
+            z-index: 2;
+            max-width: 1200px;
+            margin: 0 auto;
+            text-align: center;
+            padding: 0 20px;
+        }
+
+        .hero-title {
+            font-family: 'Orbitron', sans-serif;
+            font-weight: 800;
+            font-size: 4rem;
+            line-height: 1.1;
+            margin-bottom: 1.5rem;
+            position: relative;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+
+        .hero-title span {
+            background: var(--gradient);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            text-shadow: var(--neon-glow);
+            display: inline-block;
+            animation: titleGlow 2s infinite alternate;
+        }
+
+        @keyframes titleGlow {
+            0% { text-shadow: 0 0 10px var(--primary), 0 0 20px var(--primary); }
+            100% { text-shadow: 0 0 20px var(--primary), 0 0 40px var(--primary), 0 0 60px var(--secondary); }
+        }
+
+        .hero-subtitle {
+            font-size: 1.5rem;
+            font-weight: 300;
+            margin-bottom: 2rem;
+            max-width: 800px;
+            margin-left: auto;
+            margin-right: auto;
+            opacity: 0.9;
+        }
+
+        .section-title {
+            font-family: 'Orbitron', sans-serif;
+            font-weight: 700;
+            font-size: 2.5rem;
+            margin-bottom: 2rem;
+            position: relative;
+            display: inline-block;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            text-align: center;
+            width: 100%;
+        }
+
+        .section-title::after {
+            content: '';
+            position: absolute;
+            bottom: -10px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 100px;
+            height: 4px;
+            background: var(--gradient);
+            border-radius: 2px;
+            box-shadow: var(--neon-glow);
+        }
+
+        .tech-card {
+            background: rgba(30, 30, 50, 0.6);
+            border-radius: 16px;
+            overflow: hidden;
+            transition: all 0.4s ease;
+            border: 1px solid rgba(255, 0, 128, 0.3);
+            height: 100%;
+            backdrop-filter: blur(5px);
+            position: relative;
+            overflow: hidden;
+            margin: 0 auto;
+            max-width: 350px;
+        }
+
+        .tech-card::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: radial-gradient(circle, rgba(255,0,128,0.2) 0%, transparent 70%);
+            z-index: 1;
+            opacity: 0;
+            transition: opacity 0.4s ease;
+        }
+
+        .tech-card:hover {
+            transform: translateY(-10px) scale(1.05);
+            box-shadow: 0 20px 30px -10px rgba(0, 0, 0, 0.3), var(--neon-glow);
+            border: 1px solid var(--primary);
+        }
+
+        .tech-card:hover::before {
+            opacity: 1;
+        }
+
+        .card-icon {
+            font-size: 3rem;
+            margin-bottom: 1.5rem;
+            background: var(--gradient);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .neon-btn {
+            background: var(--gradient);
+            border: none;
+            color: white;
+            padding: 0.8rem 2.5rem;
+            border-radius: 50px;
+            font-weight: 600;
+            position: relative;
+            overflow: hidden;
+            transition: all 0.3s ease;
+            box-shadow: var(--neon-glow);
+            font-family: 'Montserrat', sans-serif;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            z-index: 1;
+            display: inline-block;
+            margin: 10px;
+        }
+
+        .neon-btn::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(135deg, var(--secondary), var(--primary));
+            z-index: -1;
+            opacity: 0;
+            transition: opacity 0.4s ease;
+        }
+
+        .neon-btn:hover {
+            transform: translateY(-5px) scale(1.05);
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3), 0 0 30px rgba(255, 0, 128, 0.7);
+        }
+
+        .neon-btn:hover::before {
+            opacity: 1;
+        }
+
+        .fade-in-section {
+            opacity: 0;
+            transform: translateY(30px);
+            transition: opacity 0.8s ease, transform 0.8s ease;
+        }
+
+        .fade-in-section.is-visible {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        .particles {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -1;
+            pointer-events: none;
+        }
+
+        .particle {
+            position: absolute;
+            width: 2px;
+            height: 20px;
+            background: linear-gradient(transparent, var(--accent), transparent);
+            opacity: 0;
+            animation: particleFall 10s linear infinite;
+        }
+
+        @keyframes particleFall {
+            0% { 
+                transform: translateY(-20px) rotate(0deg);
+                opacity: 0;
+            }
+            10% { 
+                opacity: 1;
+            }
+            90% { 
+                opacity: 1;
+            }
+            100% { 
+                transform: translateY(100vh) rotate(360deg);
+                opacity: 0;
+            }
+        }
+
+        .pulse {
+            display: inline-block;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); }
+        }
+
+        .hologram {
+            position: relative;
+            border-radius: 16px;
+            overflow: hidden;
+            box-shadow: 0 0 30px rgba(0, 242, 254, 0.3);
+            border: 1px solid rgba(0, 242, 254, 0.3);
+            background: rgba(0, 0, 0, 0.3);
+            max-width: 600px;
+            margin: 0 auto;
+        }
+
+        .hologram::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: linear-gradient(45deg, transparent, rgba(0, 242, 254, 0.1), transparent);
+            animation: hologramEffect 4s linear infinite;
+        }
+
+        @keyframes hologramEffect {
+            0% { transform: rotate(0deg) translate(0, 0); }
+            100% { transform: rotate(360deg) translate(20px, 20px); }
+        }
+
+        .glass-panel {
+            background: rgba(20, 20, 40, 0.6);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 0, 128, 0.2);
+            border-radius: 16px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5), var(--neon-glow);
+            padding: 2rem;
+            margin-bottom: 2rem;
+            transition: all 0.5s ease;
+            position: relative;
+            overflow: hidden;
+            max-width: 1200px;
+            margin: 2rem auto;
+        }
+
+        .glass-panel::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: radial-gradient(circle, rgba(255, 0, 128, 0.1) 0%, transparent 70%);
+            z-index: -1;
+        }
+
+        .footer {
+            background: rgba(10, 10, 22, 0.95);
+            padding: 3rem 0;
+            position: relative;
+            border-top: 1px solid rgba(255, 0, 128, 0.2);
+            text-align: center;
+        }
+
+        @media (max-width: 992px) {
+            .hero-title { font-size: 2.8rem; }
+            .tech-card { max-width: 100%; }
+        }
+
+        @media (max-width: 768px) {
+            .hero-title { font-size: 2.2rem; }
+            .hero-subtitle { font-size: 1.2rem; }
+            .section-title { font-size: 2rem; }
+            .navbar-brand { font-size: 1.5rem; }
+        }
+		 /* [ИЗМЕНЕНИЕ] Глобальные CSS-переменные для шрифтов */
+        :root {
+            --font-headers: '{{font_headers}}', sans-serif;
+            --font-body: '{{font_body}}', sans-serif;
+            
+            /* Цветовая схема темы */
+            --primary: #2ecc71;
+            --primary-dark: #27ae60;
+            --secondary: #1abc9c;
+            --dark-bg: #0a1929;
+            --light-text: #ecf0f1;
+            --glass-bg: rgba(255, 255, 255, 0.08);
+            --glass-border: rgba(255, 255, 255, 0.15);
+            --glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+            --gradient: linear-gradient(135deg, var(--primary), var(--secondary));
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: var(--font-body); /* Используем переменную */
+            color: var(--light-text);
+            background: var(--dark-bg);
+            background-attachment: fixed;
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+        }
+
+        h1, h2, h3, h4, h5, h6 {
+            font-family: var(--font-headers); /* Используем переменную */
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .main-content { flex: 1; }
+        .page-content p { font-family: var(--font-body); }
+        .page-content img { max-width: 100%; height: auto; border-radius: 12px; margin: 1.5rem 0; }
+
+        .navbar { background: rgba(10, 25, 41, 0.85); backdrop-filter: blur(10px); border-bottom: 1px solid rgba(46, 204, 113, 0.2); }
+        .navbar-brand { font-family: var(--font-headers); font-weight: 700; font-size: 1.8rem; background: var(--gradient); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        .nav-link { font-family: var(--font-headers); position: relative; color: var(--light-text) !important; transition: all 0.3s ease; }
+        .nav-link:after { content: ''; position: absolute; width: 0; height: 3px; bottom: 0; left: 0; background: var(--gradient); transition: width 0.3s ease; }
+        .nav-link:hover:after, .nav-link.active:after { width: 100%; }
+        
+        .glass-panel { background: var(--glass-bg); backdrop-filter: blur(12px); border: 1px solid var(--glass-border); border-radius: 16px; padding: 2rem; }
+        
+        .footer { background: rgba(10, 25, 41, 0.95); padding: 2rem 0; border-top: 1px solid rgba(46, 204, 113, 0.2); text-align: center; }
+    
+
+        .news-blog-container .news-item { margin-bottom: 2rem; padding-bottom: 1.5rem; border-bottom: 1px solid rgba(128,128,128,0.2); }
+        .news-blog-container .news-item:last-child { border-bottom: 0; padding-bottom: 0; margin-bottom: 0; }
+        .news-title { font-size: 1.6rem; font-weight: 700; margin-bottom: 0.5rem; }
+        .news-date { font-size: 0.85rem; opacity: 0.7; margin-bottom: 1rem; }
+        .news-content-full { line-height: 1.75; }
+        .news-content-full p { margin-bottom: 1rem; }
+        .news-content-full h2, .news-content-full h3 { margin-top: 1.5rem; margin-bottom: 0.75rem; }
+        .news-content-full img { max-width: 100%; height: auto; border-radius: 8px; margin: 1rem 0; }
+        .news-content-full ul, .news-content-full ol { margin: 0 0 1rem 1.5rem; }
+        .news-content-full li { margin-bottom: 0.4rem; }
+        .news-content-full pre { background: rgba(0,0,0,0.06); padding: 1rem; border-radius: 8px; overflow-x: auto; max-width: 100%; }
+        .news-content-full code { font-family: 'Fira Code', monospace; font-size: 0.9em; }
+        .news-content-full blockquote { border-left: 3px solid #2563eb; padding-left: 1rem; margin: 1rem 0; opacity: 0.85; font-style: italic; }
+        .news-content-full table { display: block; overflow-x: auto; max-width: 100%; }
+        .lumina-toggle-block[data-lumina-toggle] { display: block; margin: 1rem 0; }
+        .toggle-news-btn { cursor: pointer; transition: filter 0.15s ease, transform 0.1s ease; }
+        .toggle-news-btn:hover { filter: brightness(1.1); }
+        .toggle-news-btn:active { transform: translateY(1px); }
+        .lumina-toggle-content { margin-top: 1rem; animation: luminaToggleFadeIn 0.25s ease-out; }
+        @keyframes luminaToggleFadeIn { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: translateY(0); } }
+
+        /* News toggle button (from helios — working mechanism) */
+        .news-blog-container .news-item { margin-bottom: 32px; padding-bottom: 24px; border-bottom: 1px solid rgba(128,128,128,0.2); }
+        .news-blog-container .news-item:last-child { border-bottom: 0; padding-bottom: 0; margin-bottom: 0; }
+        .news-title { font-size: 1.6rem; font-weight: 700; margin-bottom: 8px; }
+        .news-date { font-size: 0.85rem; opacity: 0.7; margin-bottom: 1rem; }
+        .news-content-short, .news-content-full { line-height: 1.75; }
+        .news-content-short p, .news-content-full p { margin-bottom: 1rem; }
+        .news-content-short img, .news-content-full img { max-width: 100%; height: auto; border-radius: 8px; margin: 1rem 0; }
+        .news-content-short ul, .news-content-full ul,
+        .news-content-short ol, .news-content-full ol { margin: 0 0 1rem 1.5rem; }
+        .news-content-short pre, .news-content-full pre { background: rgba(0,0,0,0.06); padding: 1rem; border-radius: 8px; overflow-x: auto; max-width: 100%; }
+        .news-content-short code, .news-content-full code { font-family: 'Fira Code', monospace; font-size: 0.9em; }
+        .news-content-short table, .news-content-full table { display: block; overflow-x: auto; max-width: 100%; }
+        .toggle-news-btn {
+            margin-top: 12px; background: #2563eb; color: #fff; border: 0;
+            padding: 8px 18px; border-radius: 8px; cursor: pointer;
+            font-size: 14px; font-weight: 500; transition: background 0.15s;
+        }
+        .toggle-news-btn:hover { background: #1d4ed8; }
+        .news-item.is-expanded .news-content-short { display: none; }
+        .news-item:not(.is-expanded) .news-content-full { display: none; }
+        .news-item.is-expanded .news-content-full { display: block; }
+        .lumina-toggle-block[data-lumina-toggle] { display: block; margin: 1rem 0; }
+        .lumina-toggle-content { margin-top: 1rem; }
+        html, body { max-width: 100%; overflow-x: clip; }
+
+        /* When news has a Lumina toggle button, show .news-content-full
+           regardless of is-expanded state. The Lumina button handles
+           collapse/expand via lumina-toggle.js (wraps content after
+           the button in hidden .lumina-toggle-content). */
+        .news-item.has-lumina-toggle .news-content-full { display: block !important; }
+        .news-item.has-lumina-toggle .news-content-short { display: none !important; }
+        .news-item.has-lumina-toggle .toggle-news-btn:not([data-lumina-toggle] *) { display: none; }
+</style>
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <style>[x-cloak]{display:none!important}</style>
+</head>
+<body>
+    <!-- 3D Galaxy Background -->
+    <div id="galaxy-bg"></div>
+    
+    <!-- Matrix particles -->
+    <div class="particles" id="particles"></div>
+
+    <!-- Навигация -->
+   
+        <header class="navbar navbar-expand-lg fixed-top navbar-dark">
+        <div class="container">
+            <a class="navbar-brand" href="?page=home&lang={{lang}}">{{site_title}}</a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#mainNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="mainNav">
+                <ul class="navbar-nav ms-auto mb-2 mb-lg-0">
+                    {{foreach:pages as p}}
+                    <li class="nav-item">
+                        <!-- [ИЗМЕНЕНИЕ] Универсальный код подсветки меню -->
+                        <a class="nav-link {{if p.slug == page_slug}}active{{endif}}" href="?page={{p.slug}}&lang={{lang}}">{{p.title}}</a>
+                    </li>
+                    {{endforeach}}
+                </ul>
+            </div>
+        </div>
+    </header>
+        </div>
+    </nav>
+
+    <main>
+        <!-- Герой секция -->
+        <section class="hero-section">
+            <div class="container">
+                <div class="hero-content fade-in-section">
+                    <h1 class="hero-title">Создаём <span class="pulse">будущее</span> с помощью искусственного интеллекта</h1>
+                    <p class="hero-subtitle">Передовые нейросети и веб-технологии для решения сложных задач и создания инновационных продуктов</p>
+                    <div class="d-flex flex-wrap justify-content-center gap-3 mt-4">
+                        <a href="?page=services&lang={{current_lang}}" class="neon-btn pulse">
+                            <i class="fas fa-rocket me-2"></i> Начать проект
+                        </a>
+                        <a href="?page=contact&lang={{current_lang}}" class="neon-btn">
+                            <i class="fas fa-comments me-2"></i> Связаться
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Технологии -->
+        <section class="py-7">
+            <div class="container">
+                <div class="row mb-5">
+                    <div class="col-12 text-center fade-in-section">
+                        <h2 class="section-title">Наши технологии</h2>
+                        <p class="lead">Инновационные решения для цифровой трансформации</p>
+                    </div>
+                </div>
+                <div class="row g-4 justify-content-center">
+                    <div class="col-md-4 fade-in-section">
+                        <div class="tech-card p-4">
+                            <div class="card-icon">
+                                <i class="fas fa-brain"></i>
+                            </div>
+                            <h3 class="h4 mb-3">Нейронные сети</h3>
+                            <p>Глубокое обучение и нейросетевые архитектуры для анализа данных и генерации контента</p>
+                        </div>
+                    </div>
+                    <div class="col-md-4 fade-in-section">
+                        <div class="tech-card p-4">
+                            <div class="card-icon">
+                                <i class="fas fa-code"></i>
+                            </div>
+                            <h3 class="h4 mb-3">Веб-разработка</h3>
+                            <p>Современные фреймворки и технологии для создания быстрых и отзывчивых интерфейсов</p>
+                        </div>
+                    </div>
+                    <div class="col-md-4 fade-in-section">
+                        <div class="tech-card p-4">
+                            <div class="card-icon">
+                                <i class="fas fa-robot"></i>
+                            </div>
+                            <h3 class="h4 mb-3">AI-интеграция</h3>
+                            <p>Внедрение искусственного интеллекта в бизнес-процессы для автоматизации и оптимизации</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Голограмма -->
+        <section class="py-7">
+            <div class="container">
+                <div class="glass-panel fade-in-section">
+                    <div class="row align-items-center">
+                        <div class="col-lg-6 text-center text-lg-start">
+                            <h2 class="section-title">Голографические интерфейсы</h2>
+                            <p>
+                                Наши разработки позволяют взаимодействовать с цифровым миром как никогда прежде. 
+                                Используя передовые технологии, мы создаем интерфейсы, которые парит в воздухе.
+                            </p>
+                            <div class="d-flex justify-content-center justify-content-lg-start">
+                                <a href="?page=tech&lang={{current_lang}}" class="neon-btn mt-3 pulse">
+                                    <i class="fas fa-vr-cardboard me-2"></i> Демо-доступ
+                                </a>
+                            </div>
+                        </div>
+                        <div class="col-lg-6 mt-4 mt-lg-0 text-center">
+                            <div class="hologram">
+                                <img src="https://images.unsplash.com/photo-1635070041078-e363dbe005cb?q=80&w=1470" 
+                                     alt="Голографический интерфейс" 
+                                     class="img-fluid">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Призыв к действию -->
+        <section class="py-7">
+            <div class="container">
+                <div class="glass-panel text-center fade-in-section">
+                    <h2 class="section-title">Будущее начинается сегодня</h2>
+                    <p class="lead mb-4">
+                        Присоединяйтесь к нам в путешествии по цифровой галактике, где каждый проект - 
+                        это новая звезда в созвездии технологий
+                    </p>
+                    <a href="?page=contact&lang={{current_lang}}" class="neon-btn pulse">
+                        <i class="fas fa-star me-2"></i> Запустить проект
+                    </a>
+                       <!-- Main Content -->
+        <section class="py-5">
+            <div class="container">
+                <div class="glass-panel">
+                    <div class="page-content">
+                        {{page_content}}
+                    </div>
+                </div>
+            </div>
+        </section>
+                </div>
+            </div>
+        </section>
+		
+    </main>
+
+    <footer class="footer">
+        <div class="container">
+            <div class="row justify-content-center">
+                <div class="col-md-6 text-center">
+                    <h4 class="mb-4"><i class="fas fa-infinity me-2"></i> {{site_title}}</h4>
+                    <p>Исследуем границы цифровой реальности</p>
+                    <div class="d-flex justify-content-center gap-3 mt-4">
+                        <a href="#" class="btn btn-outline-light"><i class="fab fa-github"></i></a>
+                        <a href="#" class="btn btn-outline-light"><i class="fab fa-twitter"></i></a>
+                        <a href="#" class="btn btn-outline-light"><i class="fab fa-linkedin"></i></a>
+                        <a href="#" class="btn btn-outline-light"><i class="fab fa-instagram"></i></a>
+                    </div>
+                </div>
+            </div>
+            <div class="row mt-5">
+                <div class="col-12 text-center">
+                    <p>&copy; {{current_year}} {{site_title}} | Создано с помощью AICMS</p>
+                    <p class="small"><a href="admin/" class="text-light">Вход для администратора</a></p>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // 3D Galaxy Background
+        VANTA.NET({
+            el: "#galaxy-bg",
+            mouseControls: true,
+            touchControls: true,
+            gyroControls: false,
+            minHeight: 200.00,
+            minWidth: 200.00,
+            scale: 1.00,
+            scaleMobile: 1.00,
+            color: 0xff0080,
+            backgroundColor: 0x0a0a16,
+            points: 14.00,
+            maxDistance: 24.00,
+            spacing: 16.00
+        });
+        
+        // Matrix particles
+        function createMatrixParticles() {
+            const container = document.getElementById('particles');
+            const particleCount = 100;
+            
+            for (let i = 0; i < particleCount; i++) {
+                const particle = document.createElement('div');
+                particle.className = 'particle';
+                
+                // Позиция
+                const left = Math.random() * 100;
+                particle.style.left = `${left}%`;
+                
+                // Размер
+                const height = 10 + Math.random() * 30;
+                particle.style.height = `${height}px`;
+                
+                // Анимация
+                const duration = 2 + Math.random() * 8;
+                const delay = Math.random() * 10;
+                particle.style.animationDuration = `${duration}s`;
+                particle.style.animationDelay = `${delay}s`;
+                
+                container.appendChild(particle);
+            }
+        }
+        
+        // Эффект для навбара
+        window.addEventListener('scroll', function() {
+            const navbar = document.querySelector('.navbar');
+            if (window.scrollY > 50) {
+                navbar.classList.add('navbar-scrolled');
+            } else {
+                navbar.classList.remove('navbar-scrolled');
+            }
+        });
+        
+        // Анимация при прокрутке
+        function animateOnScroll() {
+            const elements = document.querySelectorAll('.fade-in-section');
+            
+            elements.forEach(element => {
+                const elementTop = element.getBoundingClientRect().top;
+                const windowHeight = window.innerHeight;
+                
+                if (elementTop < windowHeight * 0.8) {
+                    element.classList.add('is-visible');
+                }
+            });
+        }
+        
+        // Интерактивные частицы
+        document.addEventListener('mousemove', function(e) {
+            const particles = document.querySelectorAll('.particle');
+            const mouseX = e.clientX / window.innerWidth;
+            const mouseY = e.clientY / window.innerHeight;
+            
+            particles.forEach((particle) => {
+                // Эффект движения от мыши
+                const moveX = (mouseX - 0.5) * 20;
+                const moveY = (mouseY - 0.5) * 20;
+                particle.style.transform = `translate(${moveX}px, ${moveY}px)`;
+            });
+        });
+        
+        // Инициализация
+        createMatrixParticles();
+        animateOnScroll();
+        window.addEventListener('scroll', animateOnScroll);
+        
+        // Автоматическая пульсация кнопок
+        setInterval(() => {
+            const pulseElements = document.querySelectorAll('.pulse');
+            pulseElements.forEach(el => {
+                el.classList.remove('pulse');
+                setTimeout(() => el.classList.add('pulse'), 50);
+            });
+        }, 3000);
+    });
+    </script>
+    
+    <script src="assets/js/lumina-toggle.js?v=20260715" defer></script>
+    <script src="assets/js/legacy-bs-toggle.js" defer></script>
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        document.addEventListener('click', function(event) {
+            var target = event.target;
+            if (!target.matches || !target.matches('.toggle-news-btn')) return;
+
+            // 1. Lumina toggle button (inside [data-lumina-toggle])
+            var luminaToggle = target.closest('[data-lumina-toggle]');
+            if (luminaToggle) {
+                var content = luminaToggle.querySelector('.lumina-toggle-content');
+                if (!content && luminaToggle.nextElementSibling && luminaToggle.nextElementSibling.classList.contains('lumina-toggle-content')) {
+                    content = luminaToggle.nextElementSibling;
+                }
+                if (content) {
+                    var isHidden = content.style.display === 'none' || getComputedStyle(content).display === 'none';
+                    content.style.display = isHidden ? 'block' : 'none';
+                    var expandedText  = target.getAttribute('data-text-expanded')  || 'Свернуть';
+                    var collapsedText = target.getAttribute('data-text-collapsed') || 'Читать далее';
+                    target.textContent = isHidden ? expandedText : collapsedText;
+                }
+                event.preventDefault();
+                event.stopPropagation();
+                return;
+            }
+
+            // 2. Legacy toggle button (from latest_news.php widget)
+            var newsItem = target.closest('.news-item');
+            if (newsItem) {
+                newsItem.classList.toggle('is-expanded');
+                target.textContent = newsItem.classList.contains('is-expanded') ? 'Свернуть' : 'Читать далее';
+                event.preventDefault();
+            }
+        });
+    });
+    </script>
+    <script src="assets/js/lightbox.js?v=20260715b" defer></script>
+</body>
+</html>

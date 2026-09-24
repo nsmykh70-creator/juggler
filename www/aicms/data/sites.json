@@ -1,0 +1,11 @@
+[
+    {
+        "id": "default",
+        "name": "Default site",
+        "host": "localhost",
+        "theme": "sity1",
+        "default_lang": "ru",
+        "enabled": true,
+        "created": "2026-07-12 08:12:16"
+    }
+]

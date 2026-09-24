@@ -1,0 +1,1444 @@
+/* ============================================
+   AICMS Admin — Component Layer (raw CSS, Play CDN-compatible)
+   ============================================
+   IMPORTANT: Tailwind Play CDN does NOT process @apply inside
+   external CSS files. All component classes here are written as
+   raw CSS that visually matches the Tailwind utility palette.
+   ============================================ */
+
+/* ============================================
+   GLOBAL STRETCH SPEED (rubber expand-on-hover)
+   ============================================
+   --aicms-stretch-duration controls how slow the icon-only →
+   labeled-button expansion happens on hover for ALL button types
+   (.aicms-btn, .aicms-icon-btn, .aicms-act, .aicms-act-outline,
+   .aicms-fab-btn, .theme-toggle, .aicms-expand-btn).
+
+   Default 0.75s (750ms) — inside the user-requested 650–900ms
+   range. aicms-ui.js → initStretchCoordinator() randomizes the
+   value on each hover event to a value between 650ms and 900ms
+   for an organic feel, by writing the inline style on <html>:
+       documentElement.style.setProperty(
+           '--aicms-stretch-duration', ms + 'ms');
+
+   The coordinator also implements the "staggered" hand-off:
+   when the cursor moves from button A to button B, B starts
+   expanding immediately, and A only starts collapsing AFTER
+   B finishes expanding (see .aicms-stretch-keep below).
+   ============================================ */
+:root {
+    --aicms-stretch-duration: 0.75s;
+    /* Label fade uses a small delay so the text appears after the
+       button starts expanding. Kept proportional to the stretch
+       duration so slow stretches still feel coordinated. */
+    --aicms-stretch-label-delay: 0.05s;
+    /* Smooth easing for ALL rubber (stretch) buttons: a soft, fluid
+       start that decelerates gracefully at the end (easeOutQuart).
+       Applied to both expand and collapse for a gentle, organic feel. */
+    --aicms-stretch-ease: cubic-bezier(0.25, 1, 0.5, 1);
+}
+
+/* Override Tailwind v2 .container max-width constraints.
+   The admin layout uses .container as a full-width wrapper,
+   NOT a centered max-width container. Without this override,
+   tailwind-utilities.css constrains .container to max-width: 1024px
+   at the lg breakpoint, which squeezes the editor to half width.
+   We use !important AND repeat inside media queries to ensure
+   the override wins over the media-query-scoped rules. */
+.container { max-width: 100% !important; width: 100% !important; }
+@media (min-width: 640px)  { .container { max-width: 100% !important; } }
+@media (min-width: 768px)  { .container { max-width: 100% !important; } }
+@media (min-width: 1024px) { .container { max-width: 100% !important; } }
+@media (min-width: 1280px) { .container { max-width: 100% !important; } }
+@media (min-width: 1536px) { .container { max-width: 100% !important; } }
+
+/* Ensure form elements fill their parent width.
+   Tailwind v2 preflight sets `transform` on form elements (for transition
+   utilities), which in some browsers can cause the form to shrink-to-fit
+   rather than fill its container. Explicitly setting width:100% fixes this. */
+form { width: 100%; }
+.lumina-container { width: 100% !important; }
+
+/* ============================================
+   SIDEBAR (collapsible, grouped)
+   ============================================ */
+#sidebar {
+    background-color: #1e293b;
+    color: #fff;
+    display: flex;
+    flex-direction: column;
+    transition: width 0.3s ease;
+    overflow: hidden;
+    width: 260px;
+    flex-shrink: 0;
+}
+#sidebar.collapsed { width: 72px; }
+#sidebar.collapsed .sidebar-label,
+#sidebar.collapsed .sidebar-section-title,
+#sidebar.collapsed .sidebar-lang-switcher,
+#sidebar.collapsed .sidebar-user-info,
+#sidebar.collapsed .sidebar-user-info-text,
+#sidebar.collapsed .sidebar-logo-text { display: none !important; }
+#sidebar.collapsed .sidebar-item {
+    justify-content: center;
+    padding-left: 0;
+    padding-right: 0;
+    width: auto;
+    min-width: 0;
+    max-width: 100%;
+    overflow: hidden;
+    white-space: nowrap;
+    transition: max-width 0.25s var(--aicms-stretch-ease), padding 0.25s var(--aicms-stretch-ease), background-color 0.15s, color 0.15s;
+}
+#sidebar.collapsed .sidebar-item i {
+    margin-right: 0;
+    flex-shrink: 0;
+}
+#sidebar.collapsed .sidebar-item .sidebar-label {
+    display: inline-block !important;
+    opacity: 0;
+    max-width: 0;
+    overflow: hidden;
+    transition: opacity 0.2s 0.05s, max-width 0.25s var(--aicms-stretch-ease), margin 0.25s;
+    margin-left: 0;
+    font-size: 13px;
+    font-weight: 500;
+}
+#sidebar.collapsed .sidebar-item:hover {
+    max-width: 220px;
+    padding-left: 16px;
+    padding-right: 16px;
+    z-index: 20;
+}
+#sidebar.collapsed .sidebar-item:hover .sidebar-label {
+    opacity: 1;
+    max-width: 180px;
+    margin-left: 12px;
+}
+#sidebar.collapsed .sidebar-item:hover .ml-auto {
+    display: none !important;
+}
+#sidebar.collapsed .sidebar-lang-btn span { display: none; }
+
+.sidebar-section-title {
+    padding: 12px 16px 6px;
+    margin-top: 16px;
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: #64748b;
+    user-select: none;
+}
+.sidebar-section-title:first-of-type { margin-top: 0; }
+
+.sidebar-item {
+    display: flex;
+    align-items: center;
+    padding: 10px 16px;
+    border-radius: 8px;
+    margin-bottom: 2px;
+    font-size: 14px;
+    font-weight: 500;
+    color: #cbd5e1;
+    text-decoration: none;
+    transition: background-color 0.15s, color 0.15s;
+    position: relative;
+}
+.sidebar-item i {
+    width: 20px;
+    margin-right: 12px;
+    text-align: center;
+    font-size: 16px;
+}
+.sidebar-item:hover {
+    background-color: rgba(51, 65, 85, 0.6);
+    color: #fff;
+}
+.sidebar-item.active {
+    background-color: #2563eb;
+    color: #fff;
+    font-weight: 600;
+    box-shadow: 0 4px 6px -1px rgba(30, 58, 138, 0.5);
+}
+.sidebar-item.active::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 6px;
+    bottom: 6px;
+    width: 4px;
+    background: #fff;
+    border-radius: 0 4px 4px 0;
+}
+
+/* (Old .sidebar-search rules removed — the language switcher is now the
+   Alpine .sidebar-lang-switcher dropdown; see rules below.) */
+
+/* Sidebar language switcher (top) — the Alpine dropdown panel opens
+   downward (top-full) below the trigger button; give it the dark sidebar
+   palette in both themes (dedicated classes, no Tailwind-utility override). */
+.sidebar-lang-switcher { margin-bottom: 12px; }
+.sidebar-lang-panel { background-color: #334155; }
+.sidebar-lang-item:hover { background-color: #475569; }
+.sidebar-lang-active { background-color: #475569; }
+
+.sidebar-user-info {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 8px;
+    border-radius: 8px;
+    background-color: rgba(51, 65, 85, 0.4);
+}
+
+/* ============================================
+   TOPBAR (sticky)
+   ============================================ */
+.aicms-topbar {
+    position: sticky;
+    top: 0;
+    z-index: 30;
+    background-color: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    border-bottom: 1px solid #e2e8f0;
+    padding: 12px 24px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+}
+.aicms-topbar-title { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.aicms-topbar-title h1 {
+    font-size: 20px;
+    font-weight: 700;
+    color: #1e293b;
+    margin: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.aicms-breadcrumb {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    color: #94a3b8;
+    margin-bottom: 2px;
+}
+.aicms-breadcrumb a { color: #94a3b8; text-decoration: none; }
+.aicms-breadcrumb a:hover { color: #475569; }
+.aicms-breadcrumb .sep { color: #cbd5e1; }
+.aicms-topbar-actions {
+    display: flex;
+    /* row-reverse: children render right-to-left, so the FIRST DOM child
+       (the theme toggle) is pinned to the RIGHT edge and the whole block
+       stretches LEFT on hover — the topbar controls stay anchored right. */
+    flex-direction: row-reverse;
+    align-items: center;
+    gap: 8px;
+}
+/* Topbar right-side controls — one uniform 32px height so the search
+   field, the action buttons and the theme toggle share a clean baseline.
+   (.theme-toggle defaults to 38px elsewhere; here it matches the rest.) */
+.aicms-topbar-actions > * { flex-shrink: 0; }
+/* Forms in the topbar (logout, site switcher) must not stretch to 100% —
+   the global `form { width: 100% }` rule would blow them up as flex items. */
+.aicms-topbar-actions form { width: auto; margin: 0; padding: 0; }
+
+/* Light theme — topbar search field boundary raised to #64748b (slate-500):
+   the default #cbd5e1 (slate-300) border is only ≈1.5:1 against the white
+   topbar, below WCAG 1.4.11 (3:1 for UI component boundaries). The search
+   field keeps its blue #2563eb focus border (the :not(:focus) guard).
+
+   NOTE: this rule targets ONLY the search input. The topbar action buttons
+   (theme-toggle, "Сайт", "Расширенный поиск") are solid coloured with
+   white labels — their coloured :hover/:keep shades below are the hover cue,
+   and a light-theme gray override would wash the buttons out and make the
+   white labels unreadable (that was the bug: `body:not(.dark-theme)` gave
+   the gray rule higher specificity than the coloured hover rules). */
+body:not(.dark-theme) .aicms-topbar-actions input:not(:focus) {
+    border-color: #64748b;
+}
+/* Search placeholder raised to #64748b (≈4.8:1 vs the white input) so the
+   hint text is comfortably readable in light mode (default gray-400 is
+   only ≈2.5:1). */
+body:not(.dark-theme) .aicms-topbar-actions input::placeholder { color: #64748b; }
+
+/* Topbar rubber buttons — coloured in the same spirit as the filemanager
+   function bar (fm-fn-btn): each control gets a distinct solid accent with
+   white icon/label. These rules come after the ghost/light rules so they
+   win the cascade; dark theme has its own block further down. */
+.aicms-topbar-actions .theme-toggle {
+    background-color: #7c3aed; /* violet-600 ≈5.7:1 vs white */
+    color: #fff;
+    border-color: #6d28d9;
+}
+.aicms-topbar-actions .theme-toggle:hover,
+.aicms-topbar-actions .theme-toggle.aicms-stretch-keep {
+    background-color: #6d28d9;
+    border-color: #5b21b6;
+}
+/* "Сайт" (open site) */
+.aicms-topbar-actions .aicms-btn--ghost.aicms-topbar-site {
+    background-color: #2563eb; /* blue-600 ≈5.2:1 */
+    color: #fff;
+    border-color: #1d4ed8;
+}
+.aicms-topbar-actions .aicms-btn--ghost.aicms-topbar-site:hover,
+.aicms-topbar-actions .aicms-btn--ghost.aicms-topbar-site.aicms-stretch-keep {
+    background-color: #1d4ed8;
+    border-color: #1e40af;
+}
+/* "Расширенный поиск" */
+.aicms-topbar-actions .aicms-btn--ghost.aicms-topbar-search {
+    background-color: #0891b2; /* cyan-600 ≈4.6:1 */
+    color: #fff;
+    border-color: #0e7490;
+}
+.aicms-topbar-actions .aicms-btn--ghost.aicms-topbar-search:hover,
+.aicms-topbar-actions .aicms-btn--ghost.aicms-topbar-search.aicms-stretch-keep {
+    background-color: #0e7490;
+    border-color: #155e75;
+}
+/* "Выход" (logout) — already red via .aicms-btn--danger; keep the hover
+   hue stable across themes so the button reads as destructive. */
+.aicms-topbar-actions .aicms-btn--danger {
+    background-color: #dc2626; /* red-600 ≈4.8:1 */
+    color: #fff;
+}
+.aicms-topbar-actions .aicms-btn--danger:hover,
+.aicms-topbar-actions .aicms-btn--danger.aicms-stretch-keep {
+    background-color: #b91c1c;
+}
+
+.aicms-topbar-actions .aicms-expand-btn,
+.aicms-topbar-actions .theme-toggle { height: 32px; min-height: 32px; }
+.aicms-topbar-actions .theme-toggle {
+    width: 32px; min-width: 32px; max-width: 32px;
+}
+.aicms-topbar-actions .theme-toggle:hover,
+.aicms-topbar-actions .theme-toggle.aicms-stretch-keep { min-width: 32px; }
+
+/* ============================================
+   ACTION PANEL (collapsible)
+   ============================================ */
+.aicms-action-panel {
+    background-color: #fff;
+    border-radius: 12px;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+    border: 1px solid #e2e8f0;
+    margin-bottom: 20px;
+}
+.aicms-action-panel.is-collapsed .aicms-action-panel-body { display: none !important; }
+.aicms-action-panel.is-collapsed .aicms-action-panel-header { border-bottom: 0 !important; }
+.aicms-action-panel-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 20px;
+    border-bottom: 1px solid #f1f5f9;
+}
+.aicms-action-panel.is-collapsed .aicms-action-panel-header { border-bottom: 0; }
+.aicms-action-panel-title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 14px;
+    font-weight: 600;
+    color: #475569;
+}
+.aicms-action-panel-body {
+    padding: 12px 20px;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    justify-content: flex-end;
+}
+/* Ensure form elements inside table cells and action areas
+   behave as inline-flex items so buttons align horizontally. */
+.aicms-action-panel-body form.inline,
+.aicms-action-panel-body form {
+    display: inline-flex !important;
+    align-items: center !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    width: auto !important;
+}
+/* Also apply to forms with inline-flex class anywhere in the admin */
+form.inline-flex {
+    display: inline-flex !important;
+    align-items: center !important;
+    margin: 0 !important;
+    padding: 0 !important;
+}
+/* Ensure all buttons and links in the action panel have consistent
+   vertical alignment and don't stretch to full width. */
+.aicms-action-panel-body .aicms-btn {
+    flex-shrink: 0;
+    white-space: nowrap;
+}
+/* Count/info span in action panel — push to far left so buttons are right-aligned */
+.aicms-action-panel-body > span.ml-auto,
+.aicms-action-panel-body > span:not([class*="aicms-btn"]) {
+    margin-left: auto;
+    margin-right: auto;
+}
+.aicms-action-panel-body > span.ml-auto + *,
+.aicms-action-panel-body > span:not([class*="aicms-btn"]) + * {
+    margin-right: 0;
+}
+.aicms-action-panel.is-collapsed .aicms-action-panel-body { display: none !important; }
+
+/* ============================================
+   ICON-ONLY BUTTON VARIANT for action panels
+   Rubber expand-on-hover: shows icon only by default,
+   expands to reveal label text on hover.
+   ============================================ */
+.aicms-icon-btn {
+    display: inline-flex !important;
+    align-items: center;
+    justify-content: center;
+    width: 38px !important;
+    height: 38px !important;
+    min-width: 38px !important;
+    min-height: 38px !important;
+    max-width: 38px !important;
+    max-height: 38px !important;
+    padding: 0 !important;
+    border-radius: 8px;
+    border: none;
+    cursor: pointer;
+    font-size: 15px;
+    line-height: 1;
+    text-decoration: none;
+    box-sizing: border-box;
+    transition: width var(--aicms-stretch-duration) var(--aicms-stretch-ease),
+                min-width var(--aicms-stretch-duration) var(--aicms-stretch-ease),
+                max-width var(--aicms-stretch-duration) var(--aicms-stretch-ease),
+                padding var(--aicms-stretch-duration) var(--aicms-stretch-ease),
+                background-color 0.15s, box-shadow 0.15s, transform 0.15s;
+    position: relative;
+    flex-shrink: 0;
+    overflow: hidden;
+    white-space: nowrap;
+    gap: 0;
+}
+.aicms-icon-btn:hover {
+    width: auto !important;
+    min-width: 38px !important;
+    max-width: 220px !important;
+    padding: 0 12px !important;
+    gap: 6px;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px -2px rgba(0,0,0,0.2);
+    z-index: 20;
+}
+.aicms-icon-btn i { font-size: 15px; flex-shrink: 0; }
+/* Label hidden by default, shown on hover */
+.aicms-icon-btn .btn-label {
+    display: block;
+    min-width: 0;
+    max-width: 0;
+    opacity: 0;
+    overflow: hidden;
+    white-space: nowrap;
+    transition: opacity calc(var(--aicms-stretch-duration) * 0.8) var(--aicms-stretch-label-delay) var(--aicms-stretch-ease),
+                max-width var(--aicms-stretch-duration) var(--aicms-stretch-ease),
+                min-width var(--aicms-stretch-duration) var(--aicms-stretch-ease);
+    font-size: 13px;
+    font-weight: 500;
+    line-height: 1;
+    flex-shrink: 1;
+}
+.aicms-icon-btn:hover .btn-label {
+    opacity: 1;
+    max-width: 180px;
+}
+/* Color variants */
+.aicms-icon-btn--primary   { background: #2563eb; color: #fff; }
+.aicms-icon-btn--primary:hover   { background: #1d4ed8; }
+.aicms-icon-btn--success   { background: #16a34a; color: #fff; }
+.aicms-icon-btn--success:hover   { background: #15803d; }
+.aicms-icon-btn--warning   { background: #f59e0b; color: #fff; }
+.aicms-icon-btn--warning:hover   { background: #d97706; }
+.aicms-icon-btn--danger    { background: #dc2626; color: #fff; }
+.aicms-icon-btn--danger:hover    { background: #b91c1c; }
+.aicms-icon-btn--info      { background: #0891b2; color: #fff; }
+.aicms-icon-btn--info:hover      { background: #0e7490; }
+.aicms-icon-btn--secondary { background: #475569; color: #fff; }
+.aicms-icon-btn--secondary:hover { background: #334155; }
+.aicms-icon-btn--ghost     { background: #f1f5f9; color: #475569; border: 1px solid #cbd5e1; }
+.aicms-icon-btn--ghost:hover     { background: #e2e8f0; border-color: #94a3b8; }
+
+/* ============================================
+   ACTION BUTTONS — labeled, larger
+   ============================================ */
+.aicms-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    height: 40px;
+    padding: 0 16px;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: transform 0.15s, box-shadow 0.15s, background-color 0.15s;
+    text-decoration: none;
+    border: 1px solid transparent;
+    line-height: 1;
+    white-space: nowrap;
+    box-sizing: border-box;
+}
+.aicms-btn:hover { transform: translateY(-2px); box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); }
+.aicms-btn i { font-size: 14px; }
+.aicms-btn--primary   { background-color: #2563eb; color: #fff; }
+.aicms-btn--primary:hover   { background-color: #1d4ed8; }
+.aicms-btn--success   { background-color: #16a34a; color: #fff; }
+.aicms-btn--success:hover   { background-color: #15803d; }
+.aicms-btn--warning   { background-color: #f59e0b; color: #fff; }
+.aicms-btn--warning:hover   { background-color: #d97706; }
+.aicms-btn--danger    { background-color: #dc2626; color: #fff; }
+.aicms-btn--danger:hover    { background-color: #b91c1c; }
+.aicms-btn--secondary { background-color: #e2e8f0; color: #334155; }
+.aicms-btn--secondary:hover { background-color: #cbd5e1; }
+.aicms-btn--info      { background-color: #0891b2; color: #fff; }
+.aicms-btn--info:hover      { background-color: #0e7490; }
+.aicms-btn--ghost {
+    background-color: #fff;
+    color: #334155;
+    border-color: #cbd5e1;
+}
+.aicms-btn--ghost:hover { background-color: #f8fafc; border-color: #94a3b8; }
+.aicms-btn--sm { height: 32px; padding: 0 12px; font-size: 12px; }
+
+/* ============================================
+   STRETCH-ON-HOVER variant for regular .aicms-btn
+   ============================================
+   Add the .aicms-btn--stretch modifier (auto-applied by aicms-ui.js
+   to eligible buttons) to make a labeled button collapse to
+   icon-only by default and rubber-expand to reveal its label on
+   hover — same behaviour as .aicms-icon-btn / .aicms-act-outline.
+
+   Eligibility (handled in JS, NOT here):
+     • button has an <i> icon AND non-empty label text
+     • button is NOT full-width (.w-full / .flex-1 / .block / .justify-center)
+     • button is NOT inside a form-actions footer that explicitly
+       opts out via .aicms-stretch-off
+   ============================================ */
+.aicms-btn.aicms-btn--stretch {
+    width: 38px;
+    min-width: 38px;
+    max-width: 38px;
+    height: 38px;
+    padding: 0;
+    overflow: hidden;
+    white-space: nowrap;
+    justify-content: center;
+    gap: 0;
+    transition: width var(--aicms-stretch-duration) var(--aicms-stretch-ease),
+                min-width var(--aicms-stretch-duration) var(--aicms-stretch-ease),
+                max-width var(--aicms-stretch-duration) var(--aicms-stretch-ease),
+                padding var(--aicms-stretch-duration) var(--aicms-stretch-ease),
+                background-color 0.15s, border-color 0.15s, color 0.15s,
+                transform 0.15s, box-shadow 0.15s;
+}
+.aicms-btn.aicms-btn--stretch.aicms-btn--sm {
+    width: 32px;
+    min-width: 32px;
+    max-width: 32px;
+    height: 32px;
+}
+.aicms-btn.aicms-btn--stretch:hover {
+    width: auto;
+    min-width: 38px;
+    max-width: 240px;
+    padding: 0 14px;
+    gap: 6px;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
+    z-index: 20;
+}
+.aicms-btn.aicms-btn--stretch.aicms-btn--sm:hover {
+    min-width: 32px;
+    padding: 0 12px;
+}
+.aicms-btn.aicms-btn--stretch i { flex-shrink: 0; }
+.aicms-btn.aicms-btn--stretch .btn-label {
+    display: block;
+    min-width: 0;
+    max-width: 0;
+    opacity: 0;
+    overflow: hidden;
+    white-space: nowrap;
+    transition: opacity calc(var(--aicms-stretch-duration) * 0.8) var(--aicms-stretch-label-delay) var(--aicms-stretch-ease),
+                max-width var(--aicms-stretch-duration) var(--aicms-stretch-ease),
+                min-width var(--aicms-stretch-duration) var(--aicms-stretch-ease);
+    font-size: 14px;
+    font-weight: 500;
+    line-height: 1;
+    flex-shrink: 1;
+}
+.aicms-btn.aicms-btn--stretch.aicms-btn--sm .btn-label { font-size: 12px; }
+.aicms-btn.aicms-btn--stretch:hover .btn-label {
+    opacity: 1;
+    max-width: 200px;
+}
+/* Dark theme: stretch-button label inherits text colour */
+body.dark-theme .aicms-btn.aicms-btn--stretch .btn-label { color: inherit; }
+
+/* Expand-on-hover variant for labeled buttons in topbar/action areas.
+   When space is tight, shows icon only; expands to show label on hover.
+
+   NOTE: the `transform 0.15s` in the transition list below is LIVE, not
+   dead code — do not remove it during dead-transform cleanups. Topbar
+   buttons carry BOTH .aicms-btn and .aicms-expand-btn classes, and
+   .aicms-btn:hover sets transform: translateY(-2px). Since
+   .aicms-expand-btn is defined LATER in this file than .aicms-btn, its
+   transition wins the cascade for those combined buttons — so transform
+   here is what animates the hover lift smoothly. */
+.aicms-expand-btn {
+    width: 32px !important;
+    min-width: 32px !important;
+    max-width: 32px !important;
+    padding: 0 !important;
+    overflow: hidden;
+    white-space: nowrap;
+    justify-content: center;
+    gap: 0;
+    transition: width var(--aicms-stretch-duration) var(--aicms-stretch-ease),
+                min-width var(--aicms-stretch-duration) var(--aicms-stretch-ease),
+                max-width var(--aicms-stretch-duration) var(--aicms-stretch-ease),
+                padding var(--aicms-stretch-duration) var(--aicms-stretch-ease),
+                background-color 0.15s, border-color 0.15s,
+                transform 0.15s, box-shadow 0.15s;
+}
+.aicms-expand-btn:hover {
+    width: auto !important;
+    min-width: 32px !important;
+    max-width: 220px !important;
+    padding: 0 12px !important;
+    gap: 6px;
+}
+.aicms-expand-btn i { flex-shrink: 0; }
+.aicms-expand-btn .btn-label {
+    display: block;
+    min-width: 0;
+    max-width: 0;
+    opacity: 0;
+    overflow: hidden;
+    white-space: nowrap;
+    transition: opacity calc(var(--aicms-stretch-duration) * 0.8) var(--aicms-stretch-label-delay) var(--aicms-stretch-ease),
+                max-width var(--aicms-stretch-duration) var(--aicms-stretch-ease),
+                min-width var(--aicms-stretch-duration) var(--aicms-stretch-ease);
+    font-size: 12px;
+    font-weight: 500;
+    flex-shrink: 1;
+}
+.aicms-expand-btn:hover .btn-label {
+    opacity: 1;
+    max-width: 180px;
+}
+
+/* ============================================
+   ICON-ONLY ACTION BUTTONS (table rows)
+   ============================================ */
+.aicms-act {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 38px;
+    height: 38px;
+    min-width: 38px;
+    max-width: 38px;
+    border-radius: 8px;
+    border: 1px solid transparent;
+    cursor: pointer;
+    transition: width var(--aicms-stretch-duration) var(--aicms-stretch-ease),
+                min-width var(--aicms-stretch-duration) var(--aicms-stretch-ease),
+                max-width var(--aicms-stretch-duration) var(--aicms-stretch-ease),
+                padding var(--aicms-stretch-duration) var(--aicms-stretch-ease),
+                background-color 0.15s, box-shadow 0.15s, transform 0.15s;
+    font-size: 14px;
+    line-height: 1;
+    vertical-align: middle;
+    padding: 0;
+    box-sizing: border-box;
+    overflow: hidden;
+    white-space: nowrap;
+    gap: 0;
+}
+.aicms-act:hover {
+    width: auto;
+    min-width: 38px;
+    max-width: 220px;
+    padding: 0 12px;
+    gap: 6px;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
+    z-index: 20;
+}
+.aicms-act i { flex-shrink: 0; }
+.aicms-act .btn-label {
+    display: block;
+    min-width: 0;
+    max-width: 0;
+    opacity: 0;
+    overflow: hidden;
+    white-space: nowrap;
+    transition: opacity calc(var(--aicms-stretch-duration) * 0.8) var(--aicms-stretch-label-delay) var(--aicms-stretch-ease),
+                max-width var(--aicms-stretch-duration) var(--aicms-stretch-ease),
+                min-width var(--aicms-stretch-duration) var(--aicms-stretch-ease);
+    font-size: 13px;
+    font-weight: 500;
+    line-height: 1;
+    flex-shrink: 1;
+}
+.aicms-act:hover .btn-label {
+    opacity: 1;
+    max-width: 180px;
+}
+.aicms-act--primary   { background-color: #2563eb; color: #fff; }
+.aicms-act--primary:hover   { background-color: #1d4ed8; }
+.aicms-act--success   { background-color: #16a34a; color: #fff; }
+.aicms-act--success:hover   { background-color: #15803d; }
+.aicms-act--warning   { background-color: #f59e0b; color: #fff; }
+.aicms-act--warning:hover   { background-color: #d97706; }
+.aicms-act--danger    { background-color: #dc2626; color: #fff; }
+.aicms-act--danger:hover    { background-color: #b91c1c; }
+.aicms-act--secondary { background-color: #475569; color: #fff; }
+.aicms-act--secondary:hover { background-color: #334155; }
+.aicms-act--info      { background-color: #0891b2; color: #fff; }
+.aicms-act--info:hover      { background-color: #0e7490; }
+.aicms-act-lg { width: 38px; height: 38px; min-width: 38px; max-width: 38px; font-size: 16px; border-radius: 12px; }
+.aicms-act-lg:hover { width: auto; min-width: 38px; max-width: 220px; padding: 0 12px; gap: 6px; }
+
+/* Outline variant — for table row actions, expand-on-hover */
+.aicms-act-outline {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 38px;
+    height: 38px;
+    min-width: 38px;
+    max-width: 38px;
+    border-radius: 8px;
+    border: 1px solid #e2e8f0;
+    background-color: #fff;
+    color: #64748b;
+    cursor: pointer;
+    transition: width var(--aicms-stretch-duration) var(--aicms-stretch-ease),
+                min-width var(--aicms-stretch-duration) var(--aicms-stretch-ease),
+                max-width var(--aicms-stretch-duration) var(--aicms-stretch-ease),
+                padding var(--aicms-stretch-duration) var(--aicms-stretch-ease),
+                background-color 0.15s, color 0.15s, border-color 0.15s,
+                transform 0.15s, box-shadow 0.15s;
+    font-size: 14px;
+    line-height: 1;
+    vertical-align: middle;
+    padding: 0;
+    position: relative;
+    box-sizing: border-box;
+    text-decoration: none;
+    flex-shrink: 0;
+    overflow: hidden;
+    white-space: nowrap;
+    gap: 0;
+}
+.aicms-act-outline:hover {
+    width: auto;
+    min-width: 38px;
+    max-width: 220px;
+    padding: 0 12px;
+    gap: 6px;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
+    z-index: 20;
+}
+.aicms-act-outline i { flex-shrink: 0; }
+.aicms-act-outline .btn-label {
+    display: block;
+    min-width: 0;
+    max-width: 0;
+    opacity: 0;
+    overflow: hidden;
+    white-space: nowrap;
+    transition: opacity calc(var(--aicms-stretch-duration) * 0.8) var(--aicms-stretch-label-delay) var(--aicms-stretch-ease),
+                max-width var(--aicms-stretch-duration) var(--aicms-stretch-ease),
+                min-width var(--aicms-stretch-duration) var(--aicms-stretch-ease);
+    font-size: 13px;
+    font-weight: 500;
+    line-height: 1;
+    flex-shrink: 1;
+}
+.aicms-act-outline:hover .btn-label {
+    opacity: 1;
+    max-width: 180px;
+}
+.aicms-act-outline--primary:hover   { background-color: #2563eb; color: #fff; border-color: #2563eb; }
+.aicms-act-outline--success:hover   { background-color: #16a34a; color: #fff; border-color: #16a34a; }
+.aicms-act-outline--warning:hover   { background-color: #f59e0b; color: #fff; border-color: #f59e0b; }
+.aicms-act-outline--danger:hover    { background-color: #dc2626; color: #fff; border-color: #dc2626; }
+.aicms-act-outline--info:hover      { background-color: #0891b2; color: #fff; border-color: #0891b2; }
+.aicms-act-outline--secondary:hover { background-color: #475569; color: #fff; border-color: #475569; }
+
+/* ============================================
+   STAT CARDS (dashboard)
+   ============================================ */
+.aicms-stat-card {
+    background-color: #fff;
+    border-radius: 12px;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+    border: 1px solid #e2e8f0;
+    padding: 20px;
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+.aicms-stat-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
+}
+
+/* ============================================
+   FLOATING ACTION BAR (FAB) — always visible save/back
+   ============================================ */
+.aicms-fab-bar {
+    position: fixed;
+    right: 16px;
+    bottom: 16px;
+    z-index: 1080;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 6px;
+    transition: all 0.2s;
+}
+.aicms-fab-bar.is-collapsed .aicms-fab-actions { display: none; }
+.aicms-fab-actions { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; }
+.aicms-fab-btn {
+    width: 48px;
+    height: 48px;
+    min-width: 48px;
+    max-width: 48px;
+    border-radius: 12px;
+    border: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    color: #fff;
+    background: transparent;
+    position: relative;
+    font-size: 14px;
+    padding: 0;
+    overflow: hidden;
+    white-space: nowrap;
+    gap: 0;
+    transition: width var(--aicms-stretch-duration) var(--aicms-stretch-ease),
+                min-width var(--aicms-stretch-duration) var(--aicms-stretch-ease),
+                max-width var(--aicms-stretch-duration) var(--aicms-stretch-ease),
+                padding var(--aicms-stretch-duration) var(--aicms-stretch-ease),
+                background-color 0.15s, box-shadow 0.15s;
+}
+.aicms-fab-btn:hover,
+.aicms-fab-btn.aicms-stretch-keep {
+    width: auto;
+    min-width: 48px;
+    max-width: 220px;
+    padding: 0 18px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.28);
+    z-index: 20;
+}
+.aicms-fab-btn i {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 20px;
+    flex-shrink: 0;
+    transition: opacity calc(var(--aicms-stretch-duration) * 0.7) var(--aicms-stretch-ease);
+}
+.aicms-fab-btn .btn-label {
+    display: block;
+    min-width: 0;
+    max-width: 0;
+    opacity: 0;
+    overflow: hidden;
+    white-space: nowrap;
+    transition: opacity calc(var(--aicms-stretch-duration) * 0.8) var(--aicms-stretch-label-delay) var(--aicms-stretch-ease),
+                max-width var(--aicms-stretch-duration) var(--aicms-stretch-ease),
+                min-width var(--aicms-stretch-duration) var(--aicms-stretch-ease);
+    font-size: 13px;
+    font-weight: 500;
+    line-height: 1;
+    flex-shrink: 1;
+}
+.aicms-fab-btn:hover i,
+.aicms-fab-btn.aicms-stretch-keep i { opacity: 0; }
+.aicms-fab-btn:hover .btn-label,
+.aicms-fab-btn.aicms-stretch-keep .btn-label { opacity: 1; max-width: 170px; }
+.aicms-fab-btn--save     { background-color: #16a34a; }
+.aicms-fab-btn--save:hover { background-color: #15803d; }
+.aicms-fab-btn--back     { background-color: #64748b; }
+.aicms-fab-btn--back:hover { background-color: #475569; }
+.aicms-fab-btn--toggle   { background-color: #2563eb; }
+.aicms-fab-btn--toggle:hover { background-color: #1d4ed8; }
+.aicms-fab-btn--extra    { background-color: #f59e0b; }
+.aicms-fab-btn--extra:hover { background-color: #d97706; }
+.aicms-fab-label { display: none; }
+
+/* ============================================
+   TOGGLE SWITCH — settings & module settings
+   ============================================
+   Replaces the Tailwind peer/peer-checked/after:
+   pattern which does NOT work with the precompiled
+   Tailwind v2.2.19 CSS (same class of fix as the
+   .auto-backup-toggle in backups.php and the inline
+   .aicms-toggle in edit_news.php).
+
+   Markup:
+     <label class="aicms-toggle">
+       <input type="checkbox" name="..." checked>
+       <span class="aicms-toggle-track"></span>
+     </label>
+   ============================================ */
+.aicms-toggle { position: relative; display: inline-block; width: 44px; height: 24px; flex-shrink: 0; }
+.aicms-toggle input {
+    position: absolute; opacity: 0; width: 0; height: 0; margin: 0;
+}
+.aicms-toggle .aicms-toggle-track {
+    position: absolute; inset: 0;
+    background-color: #cbd5e1 !important; /* slate-300 — OFF */
+    border-radius: 9999px;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+    box-shadow: inset 0 1px 2px rgba(0,0,0,0.08);
+}
+.aicms-toggle .aicms-toggle-track::before {
+    content: '';
+    position: absolute;
+    top: 2px; left: 2px;
+    width: 20px; height: 20px;
+    background: #fff;
+    border-radius: 9999px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.25);
+    transition: transform 0.2s ease;
+}
+/* ON state — blue track + knob slides right */
+.aicms-toggle input:checked + .aicms-toggle-track {
+    background-color: #2563eb !important; /* blue-600 — ON */
+}
+.aicms-toggle input:checked + .aicms-toggle-track::before {
+    transform: translateX(20px);
+}
+/* Focus ring for accessibility */
+.aicms-toggle input:focus-visible + .aicms-toggle-track {
+    box-shadow: 0 0 0 3px rgba(37,99,235,0.35), inset 0 1px 2px rgba(0,0,0,0.08);
+}
+/* Dark theme — OFF state distinguishable */
+body.dark-theme .aicms-toggle .aicms-toggle-track {
+    background-color: #475569 !important; /* slate-600 — OFF in dark */
+}
+body.dark-theme .aicms-toggle input:checked + .aicms-toggle-track {
+    background-color: #2563eb !important; /* blue-600 — ON in dark */
+}
+
+/* ============================================
+   AUTO-DISMISS FLASH MESSAGES
+   ============================================ */
+.alert-auto-dismiss {
+    position: relative;
+    overflow: hidden;
+    transition: opacity 0.3s ease;
+}
+.alert-auto-dismiss::after {
+    content: '';
+    position: absolute;
+    left: 0;
+    bottom: 0;
+    height: 3px;
+    width: 100%;
+    background-color: currentColor;
+    opacity: 0.35;
+    animation: alert-countdown 3s linear forwards;
+}
+@keyframes alert-countdown {
+    from { width: 100%; }
+    to   { width: 0%; }
+}
+/* Only fade opacity — NO height/margin/padding collapse to prevent page jump */
+.alert-auto-dismiss.is-hiding {
+    opacity: 0 !important;
+    pointer-events: none;
+}
+
+/* ============================================
+   TABLES
+   ============================================ */
+.aicms-table-actions {
+    display: flex;
+    gap: 6px;
+    justify-content: flex-end;
+    align-items: center;
+    flex-wrap: nowrap;
+}
+/* Fallback: any <td> containing .aicms-act-outline buttons should align them
+   horizontally and push to the right edge. */
+td:has(.aicms-act-outline),
+td:has(.aicms-icon-btn) {
+    text-align: right;
+}
+td:has(.aicms-act-outline) > *,
+td:has(.aicms-icon-btn) > * {
+    display: inline-flex;
+}
+/* Ensure forms containing action buttons are inline-flex */
+form:has(.aicms-act-outline),
+form:has(.aicms-act),
+form:has(.aicms-icon-btn) {
+    display: inline-flex !important;
+    align-items: center;
+    margin: 0;
+    padding: 0;
+}
+
+@media (min-width: 1024px) {
+    .aicms-row-actions .aicms-act-outline { opacity: 0.7; }
+    .aicms-row-actions:hover .aicms-act-outline { opacity: 1; }
+}
+
+/* ============================================
+   MOBILE SIDEBAR
+   ============================================ */
+.sidebar-overlay {
+    position: fixed;
+    inset: 0;
+    background-color: rgba(0,0,0,0.5);
+    z-index: 40;
+    display: none;
+}
+.sidebar-overlay.is-visible { display: block; }
+
+@media (max-width: 1023px) {
+    #sidebar {
+        position: fixed;
+        top: 0;
+        bottom: 0;
+        left: 0;
+        z-index: 50;
+        transform: translateX(-100%);
+    }
+    #sidebar.is-mobile-open { transform: translateX(0); }
+}
+
+[x-cloak]{display:none!important}
+
+/* ============================================
+   DARK THEME
+   ============================================ */
+body.dark-theme { background-color: #0f172a !important; }
+body.dark-theme .bg-slate-100,
+body.dark-theme .bg-slate-50 { background-color: #1e293b !important; }
+body.dark-theme .bg-white { background-color: #1e293b !important; }
+body.dark-theme .text-slate-800,
+body.dark-theme .text-slate-700,
+body.dark-theme .text-slate-900 { color: #e2e8f0 !important; }
+body.dark-theme .text-slate-600,
+body.dark-theme .text-slate-500 { color: #94a3b8 !important; }
+body.dark-theme .text-slate-400 { color: #64748b !important; }
+body.dark-theme .text-slate-300 { color: #475569 !important; }
+body.dark-theme .border-slate-200,
+body.dark-theme .border-slate-100 { border-color: #334155 !important; }
+body.dark-theme .border-slate-300 { border-color: #475569 !important; }
+body.dark-theme .bg-slate-200 { background-color: #334155 !important; }
+body.dark-theme .bg-slate-50 { background-color: #1e293b !important; }
+body.dark-theme .hover\:bg-slate-50:hover { background-color: #334155 !important; }
+body.dark-theme .hover\:bg-slate-100:hover { background-color: #334155 !important; }
+body.dark-theme .divide-slate-200 > * { border-color: #334155 !important; }
+body.dark-theme .aicms-topbar { background-color: rgba(30,41,59,0.95) !important; border-bottom-color: #334155 !important; }
+/* Dark theme — topbar search field border raised to #64748b (slate-500):
+   the generic body.dark-theme input border #475569 is only ≈1.9:1 against
+   the #1e293b topbar, and the input bg (#0f172a) barely differs from the
+   bar, so the border is the only component-boundary cue (WCAG 1.4.11 3:1). */
+body.dark-theme .aicms-topbar-actions input { border-color: #64748b !important; }
+body.dark-theme .aicms-topbar-title h1 { color: #e2e8f0 !important; }
+body.dark-theme .aicms-topbar .aicms-breadcrumb,
+body.dark-theme .aicms-topbar .aicms-breadcrumb a { color: #64748b !important; }
+body.dark-theme .aicms-action-panel { background-color: #1e293b !important; border-color: #334155 !important; }
+body.dark-theme .aicms-action-panel-title { color: #94a3b8 !important; }
+body.dark-theme .aicms-stat-card { background-color: #1e293b !important; border-color: #334155 !important; }
+/* Dark theme — ghost buttons (incl. the topbar .aicms-expand-btn "Сайт" /
+   "Расширенный поиск"). The :not(:hover):not(.aicms-stretch-keep) guard is
+   REQUIRED: without it the !important base rule would beat the light-theme
+   :hover colour and the buttons would show NO hover feedback in dark mode.
+   Border raised to #64748b (slate-500) so the control is visible against the
+   #1e293b topbar (≈3:1, meets WCAG 1.4.11 for UI component boundaries). */
+body.dark-theme .aicms-btn--ghost:not(:hover):not(.aicms-stretch-keep) { background-color: #1e293b !important; color: #e2e8f0 !important; border-color: #64748b !important; }
+body.dark-theme .aicms-btn--ghost:hover,
+body.dark-theme .aicms-btn--ghost.aicms-stretch-keep { background-color: #334155 !important; color: #fff !important; border-color: #94a3b8 !important; }
+/* Dark theme — topbar rubber buttons keep their accent colours (slightly
+   deeper shades so they pop against the #1e293b bar). !important needed to
+   beat the !important ghost rules above. */
+body.dark-theme .aicms-topbar-actions .theme-toggle { background-color: #7c3aed !important; color: #fff !important; border-color: #6d28d9 !important; }
+body.dark-theme .aicms-topbar-actions .theme-toggle:hover,
+body.dark-theme .aicms-topbar-actions .theme-toggle.aicms-stretch-keep { background-color: #6d28d9 !important; border-color: #5b21b6 !important; }
+body.dark-theme .aicms-topbar-actions .aicms-btn--ghost.aicms-topbar-site { background-color: #2563eb !important; color: #fff !important; border-color: #1d4ed8 !important; }
+body.dark-theme .aicms-topbar-actions .aicms-btn--ghost.aicms-topbar-site:hover,
+body.dark-theme .aicms-topbar-actions .aicms-btn--ghost.aicms-topbar-site.aicms-stretch-keep { background-color: #1d4ed8 !important; border-color: #1e40af !important; }
+body.dark-theme .aicms-topbar-actions .aicms-btn--ghost.aicms-topbar-search { background-color: #0891b2 !important; color: #fff !important; border-color: #0e7490 !important; }
+body.dark-theme .aicms-topbar-actions .aicms-btn--ghost.aicms-topbar-search:hover,
+body.dark-theme .aicms-topbar-actions .aicms-btn--ghost.aicms-topbar-search.aicms-stretch-keep { background-color: #0e7490 !important; border-color: #155e75 !important; }
+body.dark-theme .aicms-topbar-actions .aicms-btn--danger { background-color: #dc2626 !important; color: #fff !important; }
+body.dark-theme .aicms-topbar-actions .aicms-btn--danger:hover,
+body.dark-theme .aicms-topbar-actions .aicms-btn--danger.aicms-stretch-keep { background-color: #b91c1c !important; }
+body.dark-theme .aicms-btn--secondary { background-color: #334155 !important; color: #e2e8f0 !important; }
+body.dark-theme input,
+body.dark-theme textarea,
+body.dark-theme select { background-color: #0f172a !important; color: #e2e8f0 !important; border-color: #475569 !important; }
+body.dark-theme input::placeholder,
+body.dark-theme textarea::placeholder { color: #94a3b8 !important; }
+body.dark-theme input:focus,
+body.dark-theme textarea:focus,
+body.dark-theme select:focus { border-color: #2563eb !important; }
+body.dark-theme table thead tr { background-color: #0f172a !important; }
+body.dark-theme table th { color: #64748b !important; }
+body.dark-theme code { background-color: #0f172a !important; color: #60a5fa !important; }
+body.dark-theme .bg-blue-50 { background-color: rgba(37,99,235,0.15) !important; }
+body.dark-theme .bg-amber-50 { background-color: rgba(245,158,11,0.15) !important; }
+body.dark-theme .bg-red-50 { background-color: rgba(220,38,38,0.15) !important; }
+body.dark-theme .bg-green-50 { background-color: rgba(22,163,74,0.15) !important; }
+body.dark-theme .text-blue-700,
+body.dark-theme .text-amber-700,
+body.dark-theme .text-red-700,
+body.dark-theme .text-green-700 { color: #cbd5e1 !important; }
+body.dark-theme hr { border-color: #334155 !important; }
+/* Dark theme — expand buttons
+   NOTE: the :not(:hover):not(.aicms-stretch-keep) guard is critical.
+   Without it, the !important here would override the variant :hover
+   and .aicms-stretch-keep colour rules, making all buttons look the
+   same (one colour) even when hovered — which is the bug the user
+   reported on pages.php and news.php. */
+body.dark-theme .aicms-act-outline:not(:hover):not(.aicms-stretch-keep) { background-color: #1e293b !important; border-color: #334155 !important; color: #94a3b8 !important; }
+body.dark-theme .aicms-icon-btn--ghost:not(:hover):not(.aicms-stretch-keep) { background-color: #1e293b !important; color: #e2e8f0 !important; border-color: #475569 !important; }
+body.dark-theme .aicms-act-outline .btn-label,
+body.dark-theme .aicms-act .btn-label,
+body.dark-theme .aicms-icon-btn .btn-label { color: inherit; }
+
+/* Dark theme — explicit hover/keep colours for outline buttons so the
+   variant colour wins over the base dark-theme rule above. These mirror
+   the light-theme :hover rules but with !important to defeat any other
+   dark-theme overrides. */
+body.dark-theme .aicms-act-outline--primary:hover,
+body.dark-theme .aicms-act-outline--primary.aicms-stretch-keep   { background-color: #2563eb !important; color: #fff !important; border-color: #2563eb !important; }
+body.dark-theme .aicms-act-outline--success:hover,
+body.dark-theme .aicms-act-outline--success.aicms-stretch-keep   { background-color: #16a34a !important; color: #fff !important; border-color: #16a34a !important; }
+body.dark-theme .aicms-act-outline--warning:hover,
+body.dark-theme .aicms-act-outline--warning.aicms-stretch-keep   { background-color: #f59e0b !important; color: #fff !important; border-color: #f59e0b !important; }
+body.dark-theme .aicms-act-outline--danger:hover,
+body.dark-theme .aicms-act-outline--danger.aicms-stretch-keep    { background-color: #dc2626 !important; color: #fff !important; border-color: #dc2626 !important; }
+body.dark-theme .aicms-act-outline--info:hover,
+body.dark-theme .aicms-act-outline--info.aicms-stretch-keep      { background-color: #0891b2 !important; color: #fff !important; border-color: #0891b2 !important; }
+body.dark-theme .aicms-act-outline--secondary:hover,
+body.dark-theme .aicms-act-outline--secondary.aicms-stretch-keep { background-color: #475569 !important; color: #fff !important; border-color: #475569 !important; }
+
+/* Dark theme — explicit hover/keep colours for icon buttons */
+body.dark-theme .aicms-icon-btn--primary:hover,
+body.dark-theme .aicms-icon-btn--primary.aicms-stretch-keep     { background: #1d4ed8 !important; }
+body.dark-theme .aicms-icon-btn--success:hover,
+body.dark-theme .aicms-icon-btn--success.aicms-stretch-keep     { background: #15803d !important; }
+body.dark-theme .aicms-icon-btn--warning:hover,
+body.dark-theme .aicms-icon-btn--warning.aicms-stretch-keep     { background: #d97706 !important; }
+body.dark-theme .aicms-icon-btn--danger:hover,
+body.dark-theme .aicms-icon-btn--danger.aicms-stretch-keep      { background: #b91c1c !important; }
+body.dark-theme .aicms-icon-btn--info:hover,
+body.dark-theme .aicms-icon-btn--info.aicms-stretch-keep        { background: #0e7490 !important; }
+body.dark-theme .aicms-icon-btn--secondary:hover,
+body.dark-theme .aicms-icon-btn--secondary.aicms-stretch-keep   { background: #334155 !important; }
+body.dark-theme .aicms-icon-btn--ghost:hover,
+body.dark-theme .aicms-icon-btn--ghost.aicms-stretch-keep       { background: #e2e8f0 !important; border-color: #94a3b8 !important; }
+
+/* Dark theme toggle button */
+.theme-toggle {
+    width: 38px;
+    height: 38px;
+    min-width: 38px;
+    max-width: 38px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 8px;
+    cursor: pointer;
+    border: 1px solid #cbd5e1;
+    background: #fff;
+    color: #475569;
+    font-size: 14px;
+    transition: width var(--aicms-stretch-duration) var(--aicms-stretch-ease),
+                min-width var(--aicms-stretch-duration) var(--aicms-stretch-ease),
+                max-width var(--aicms-stretch-duration) var(--aicms-stretch-ease),
+                padding var(--aicms-stretch-duration) var(--aicms-stretch-ease),
+                background-color 0.15s, color 0.15s;
+    overflow: hidden;
+    white-space: nowrap;
+    padding: 0;
+    gap: 0;
+}
+.theme-toggle:hover {
+    width: auto;
+    min-width: 38px;
+    max-width: 200px;
+    padding: 0 12px;
+    gap: 6px;
+    background: #f1f5f9;
+}
+.theme-toggle i { flex-shrink: 0; }
+.theme-toggle .btn-label {
+    display: block;
+    min-width: 0;
+    max-width: 0;
+    opacity: 0;
+    overflow: hidden;
+    white-space: nowrap;
+    transition: opacity calc(var(--aicms-stretch-duration) * 0.8) var(--aicms-stretch-label-delay) var(--aicms-stretch-ease),
+                max-width var(--aicms-stretch-duration) var(--aicms-stretch-ease),
+                min-width var(--aicms-stretch-duration) var(--aicms-stretch-ease);
+    font-size: 13px;
+    font-weight: 500;
+    flex-shrink: 1;
+}
+.theme-toggle:hover .btn-label {
+    opacity: 1;
+    max-width: 160px;
+}
+body.dark-theme .theme-toggle { background: #1e293b; color: #e2e8f0; border-color: #64748b; }
+body.dark-theme .theme-toggle:hover { background: #334155; border-color: #94a3b8; }
+
+/* Hide legacy action footer when FAB (floating action bar) is active.
+   The FAB is built from the footer's buttons by aicms-ui.js, then the
+   body gets the 'has-aicms-fab' class. This prevents duplicate buttons. */
+body.has-aicms-fab .legacy-action-footer {
+    display: none !important;
+}
+
+/* ============================================
+   STRETCH KEEP — keeps a button expanded (with hover colour)
+   after the cursor leaves it
+   ============================================
+   When the cursor moves from button A to button B, A loses :hover
+   and would normally start collapsing immediately — overlapping
+   with B's expansion. To get the user-requested "staggered"
+   behaviour (B finishes expanding FIRST, THEN A collapses), the
+   coordinator in aicms-ui.js adds .aicms-stretch-keep to A on
+   mouseout, then removes it (after a delay = the stretch
+   duration) on B's mouseover.
+
+   Each rule below MIRROS the corresponding :hover rule for every
+   stretch-aware button type — INCLUDING the variant hover colour,
+   so the kept-expanded button looks identical to the hovered state
+   (not "expanded but greyed-out").
+   ============================================ */
+
+/* --- .aicms-icon-btn --- */
+.aicms-icon-btn.aicms-stretch-keep {
+    width: auto !important;
+    min-width: 38px !important;
+    max-width: 220px !important;
+    padding: 0 12px !important;
+    gap: 6px;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px -2px rgba(0,0,0,0.2);
+    z-index: 20;
+}
+.aicms-icon-btn.aicms-stretch-keep .btn-label {
+    opacity: 1;
+    max-width: 180px;
+}
+/* Retain variant hover colours while kept-expanded */
+.aicms-icon-btn--primary.aicms-stretch-keep   { background: #1d4ed8; }
+.aicms-icon-btn--success.aicms-stretch-keep   { background: #15803d; }
+.aicms-icon-btn--warning.aicms-stretch-keep   { background: #d97706; }
+.aicms-icon-btn--danger.aicms-stretch-keep    { background: #b91c1c; }
+.aicms-icon-btn--info.aicms-stretch-keep      { background: #0e7490; }
+.aicms-icon-btn--secondary.aicms-stretch-keep { background: #334155; }
+.aicms-icon-btn--ghost.aicms-stretch-keep     { background: #e2e8f0; border-color: #94a3b8; }
+
+/* --- .aicms-btn.aicms-btn--stretch --- */
+.aicms-btn.aicms-btn--stretch.aicms-stretch-keep {
+    width: auto;
+    min-width: 38px;
+    max-width: 240px;
+    padding: 0 14px;
+    gap: 6px;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
+    z-index: 20;
+}
+.aicms-btn.aicms-btn--stretch.aicms-btn--sm.aicms-stretch-keep {
+    min-width: 32px;
+    padding: 0 12px;
+}
+.aicms-btn.aicms-btn--stretch.aicms-stretch-keep .btn-label {
+    opacity: 1;
+    max-width: 200px;
+}
+/* Retain variant hover colours while kept-expanded */
+.aicms-btn--primary.aicms-btn--stretch.aicms-stretch-keep   { background-color: #1d4ed8; }
+.aicms-btn--success.aicms-btn--stretch.aicms-stretch-keep   { background-color: #15803d; }
+.aicms-btn--warning.aicms-btn--stretch.aicms-stretch-keep   { background-color: #d97706; }
+.aicms-btn--danger.aicms-btn--stretch.aicms-stretch-keep    { background-color: #b91c1c; }
+.aicms-btn--secondary.aicms-btn--stretch.aicms-stretch-keep { background-color: #cbd5e1; }
+.aicms-btn--info.aicms-btn--stretch.aicms-stretch-keep      { background-color: #0e7490; }
+.aicms-btn--ghost.aicms-btn--stretch.aicms-stretch-keep     { background-color: #f8fafc; border-color: #94a3b8; }
+
+/* --- .aicms-expand-btn --- */
+.aicms-expand-btn.aicms-stretch-keep {
+    width: auto !important;
+    min-width: 32px !important;
+    max-width: 220px !important;
+    padding: 0 12px !important;
+    gap: 6px;
+}
+.aicms-expand-btn.aicms-stretch-keep .btn-label {
+    opacity: 1;
+    max-width: 180px;
+}
+
+/* --- .aicms-act --- */
+.aicms-act.aicms-stretch-keep {
+    width: auto;
+    min-width: 38px;
+    max-width: 220px;
+    padding: 0 12px;
+    gap: 6px;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
+    z-index: 20;
+}
+.aicms-act.aicms-stretch-keep .btn-label {
+    opacity: 1;
+    max-width: 180px;
+}
+.aicms-act-lg.aicms-stretch-keep {
+    width: auto;
+    min-width: 38px;
+    max-width: 220px;
+    padding: 0 12px;
+    gap: 6px;
+}
+/* Retain variant hover colours while kept-expanded */
+.aicms-act--primary.aicms-stretch-keep   { background-color: #1d4ed8; }
+.aicms-act--success.aicms-stretch-keep   { background-color: #15803d; }
+.aicms-act--warning.aicms-stretch-keep   { background-color: #d97706; }
+.aicms-act--danger.aicms-stretch-keep    { background-color: #b91c1c; }
+.aicms-act--secondary.aicms-stretch-keep { background-color: #334155; }
+.aicms-act--info.aicms-stretch-keep      { background-color: #0e7490; }
+
+/* --- .aicms-act-outline --- */
+.aicms-act-outline.aicms-stretch-keep {
+    width: auto;
+    min-width: 38px;
+    max-width: 220px;
+    padding: 0 12px;
+    gap: 6px;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
+    z-index: 20;
+}
+.aicms-act-outline.aicms-stretch-keep .btn-label {
+    opacity: 1;
+    max-width: 180px;
+}
+/* Retain variant hover colours + text/border recolour while kept-expanded */
+.aicms-act-outline--primary.aicms-stretch-keep   { background-color: #2563eb; color: #fff; border-color: #2563eb; }
+.aicms-act-outline--success.aicms-stretch-keep   { background-color: #16a34a; color: #fff; border-color: #16a34a; }
+.aicms-act-outline--warning.aicms-stretch-keep   { background-color: #f59e0b; color: #fff; border-color: #f59e0b; }
+.aicms-act-outline--danger.aicms-stretch-keep    { background-color: #dc2626; color: #fff; border-color: #dc2626; }
+.aicms-act-outline--info.aicms-stretch-keep      { background-color: #0891b2; color: #fff; border-color: #0891b2; }
+.aicms-act-outline--secondary.aicms-stretch-keep { background-color: #475569; color: #fff; border-color: #475569; }
+
+/* --- .aicms-fab-btn (kept-expanded by the stretch coordinator) --- */
+.aicms-fab-btn.aicms-stretch-keep {
+    width: auto;
+    min-width: 48px;
+    max-width: 220px;
+    padding: 0 18px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.28);
+    z-index: 20;
+}
+.aicms-fab-btn.aicms-stretch-keep i { opacity: 0; }
+.aicms-fab-btn.aicms-stretch-keep .btn-label {
+    opacity: 1;
+    max-width: 170px;
+}
+/* Retain variant hover colours while kept-expanded */
+.aicms-fab-btn--save.aicms-stretch-keep   { background-color: #15803d; }
+.aicms-fab-btn--back.aicms-stretch-keep   { background-color: #475569; }
+.aicms-fab-btn--toggle.aicms-stretch-keep { background-color: #1d4ed8; }
+.aicms-fab-btn--extra.aicms-stretch-keep  { background-color: #d97706; }
+
+/* --- .theme-toggle --- */
+.theme-toggle.aicms-stretch-keep {
+    width: auto;
+    min-width: 38px;
+    max-width: 200px;
+    padding: 0 12px;
+    gap: 6px;
+    background: #f1f5f9;
+}
+.theme-toggle.aicms-stretch-keep .btn-label {
+    opacity: 1;
+    max-width: 160px;
+}
+body.dark-theme .theme-toggle.aicms-stretch-keep { background: #334155; border-color: #94a3b8; }
+
+/* --- .fm-fn-btn (filemanager panel buttons) --- */
+.fm-fn-btn--stretch.aicms-stretch-keep {
+    width: auto !important;
+    min-width: 38px !important;
+    max-width: 220px !important;
+    padding: 0 12px !important;
+    gap: 6px;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 6px -1px rgba(0,0,0,0.2);
+    z-index: 20;
+    filter: none;
+}
+.fm-fn-btn--stretch.aicms-stretch-keep .btn-label {
+    opacity: 1;
+    max-width: 180px;
+}
+/* Retain the per-button background colour set via .fm-fn-* modifier.
+   The base .fm-fn-btn--stretch keeps its background-color because the
+   .fm-fn-* modifier sets it; we just need to disable the brightness
+   filter that .fm-fn-btn:hover applies. */
+
+/* Reduced-motion users: disable the stretch animation entirely.
+   The CSS variable is overridden to 0.01s so width transitions are instant,
+   and every stretch button type (incl. the topbar controls .theme-toggle /
+   .aicms-expand-btn, sidebar items and FAB) gets its transition durations
+   zeroed — no width slide, label fade or hover lift animates. */
+@media (prefers-reduced-motion: reduce) {
+    :root {
+        --aicms-stretch-duration: 0.01s !important;
+        --aicms-stretch-label-delay: 0s !important;
+    }
+    .aicms-icon-btn, .aicms-btn--stretch, .aicms-act, .aicms-act-outline,
+    .aicms-expand-btn, .theme-toggle, .aicms-fab-btn, .fm-fn-btn--stretch,
+    #sidebar, #sidebar.collapsed .sidebar-item,
+    #sidebar.collapsed .sidebar-item .sidebar-label,
+    .aicms-fab-bar, .aicms-toggle .aicms-toggle-track,
+    .aicms-toggle .aicms-toggle-track::before {
+        transition-duration: 0.01s !important;
+        transition-delay: 0s !important;
+    }
+    /* Kill the hover "lift" transform on stretch buttons — it would still
+       animate at 0.15s even with the width stretch zeroed. */
+    .aicms-btn:hover, .aicms-icon-btn:hover, .aicms-btn--stretch:hover,
+    .aicms-act:hover, .aicms-act-outline:hover, .aicms-fab-btn:hover {
+        transform: none !important;
+    }
+    /* CSS animations (not transitions) also get disabled: the flash-message
+       countdown bar and any remaining keyframe animation. */
+    .alert-auto-dismiss::after { animation: none !important; }
+}

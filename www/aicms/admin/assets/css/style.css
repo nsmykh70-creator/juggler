@@ -1,0 +1,148 @@
+body {
+    background-color: #f4f6f9;
+}
+
+#sidebar {
+    min-width: 250px;
+    max-width: 250px;
+    background: #1e293b;
+    color: #fff;
+    transition: all 0.3s;
+    display: flex;
+    flex-direction: column;
+}
+
+#sidebar .nav-link {
+    color: #cbd5e1;
+    padding: 10px 15px;
+    border-radius: 5px;
+    margin-bottom: 5px;
+    transition: all 0.2s ease-in-out;
+}
+
+#sidebar .nav-link:hover {
+    background-color: #334155;
+    color: #fff;
+}
+
+#sidebar .nav-link.active {
+    background-color: #0d6efd;
+    color: #fff;
+    font-weight: bold;
+}
+
+.main-content {
+    width: 100%;
+}
+
+.card-header h5 {
+    font-size: 1rem;
+    font-weight: 600;
+}
+.logout-btn {
+    background-color: #dc3545;
+    text-align: center;
+}
+.logout-btn:hover {
+     background-color: #c82333;
+}
+/* ... ваши существующие стили ... */
+
+/* Стили для редактора шаблонов */
+#editor-container {
+    position: relative;
+    height: 600px; /* Высота по умолчанию */
+}
+#editor {
+    position: absolute;
+    top: 0; right: 0; bottom: 0; left: 0;
+}
+#preview {
+    width: 100%;
+    height: 600px;
+    border: 1px solid #dee2e6;
+    border-radius: .375rem;
+}
+#save-status {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    z-index: 1060;
+}
+
+/* Стили для полноэкранного режима */
+.fullscreen-editor {
+    position: fixed !important;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    z-index: 1050;
+    background: #fff;
+    padding: 1rem;
+    overflow-y: auto;
+}
+.fullscreen-editor #editor-container {
+    height: calc(100vh - 80px); /* Вычисляем высоту под кнопки */
+}
+/* Добавлены стили для шрифтов */
+:root {
+    --current-font: 'Open Sans', sans-serif;
+}
+
+/* Шрифты для редактора Froala */
+@import url('https://fonts.googleapis.com/css2?family=Open+Sans:ital,wght@0,300;0,400;0,600;0,700;1,300;1,400;1,600;1,700&family=Roboto:ital,wght@0,100;0,300;0,400;0,500;0,700;0,900;1,100;1,300;1,400;1,500;1,700;1,900&family=Montserrat:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,100;1,200;1,300;1,400;1,500;1,600;1,700;1,800;1,900&family=Lobster&family=Oswald:wght@200;300;400;500;600;700&display=swap');
+
+body {
+    font-family: var(--current-font);
+}
+
+/* Для редактора Froala */
+.fr-box .fr-element {
+    font-family: var(--current-font) !important;
+}
+
+/* Для Monaco Editor */
+.monaco-editor {
+    font-family: 'Fira Code', Menlo, Monaco, 'Courier New', monospace !important;
+}
+
+/* ============================================================
+   AUTO-DISMISS FLASH MESSAGES
+   Flash messages (.alert-auto-dismiss) automatically disappear
+   after 3 seconds with a smooth slide-up + fade animation.
+   ============================================================ */
+.alert-auto-dismiss {
+    position: relative;
+    overflow: hidden;
+    transition: opacity 0.4s ease, transform 0.4s ease, max-height 0.4s ease, margin 0.4s ease, padding 0.4s ease;
+    max-height: 200px;
+}
+.alert-auto-dismiss.is-hiding {
+    opacity: 0;
+    transform: translateY(-12px);
+    max-height: 0;
+    margin: 0;
+    padding-top: 0;
+    padding-bottom: 0;
+    border-width: 0;
+}
+/* Progress bar at the bottom of the alert showing the time remaining */
+.alert-auto-dismiss::after {
+    content: '';
+    position: absolute;
+    left: 0;
+    bottom: 0;
+    height: 3px;
+    width: 100%;
+    background: currentColor;
+    opacity: 0.35;
+    animation: alert-countdown 3s linear forwards;
+}
+@keyframes alert-countdown {
+    from { width: 100%; }
+    to   { width: 0%; }
+}
+
+
+

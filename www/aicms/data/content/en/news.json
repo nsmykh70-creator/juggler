@@ -1,0 +1,50 @@
+[
+    {
+        "id": 1,
+        "title": "AICMS 1.0 — Official Launch!",
+        "date": "2026-07-01",
+        "published": true,
+        "page_slug": "news",
+        "content": "<p><strong>AICMS 1.0</strong> is a file-based CMS without a database, with a built-in AI assistant and Lumina editor.</p>\n\n<h2>Key Features</h2>\n<ul>\n<li>File-based storage (JSON) — no MySQL required</li>\n<li>AI generation of text, images and video</li>\n<li>Lumina editor with block templates</li>\n<li>Multilingual with AI translation</li>\n<li>13 configurable modules</li>\n<li>7 ready-made themes + template builder</li>\n<li>Caching, recycle bin, versioning</li>\n</ul>\n\n<p>Download AICMS and try it today!</p>"
+    },
+    {
+        "id": 2,
+        "title": "Lumina Editor — Full Feature Overview",
+        "date": "2026-07-02",
+        "published": true,
+        "page_slug": "news",
+        "content": "<p><strong>Lumina Editor</strong> is the built-in WYSIWYG editor of AICMS, designed for convenient content creation.</p>\n\n<h2>What Lumina Can Do</h2>\n<ul>\n<li>Full text formatting: styles, colors, fonts, sizes</li>\n<li>Tables with row and column management</li>\n<li>Images and video with resizing</li>\n<li>Block templates: hero sections, cards, accordions</li>\n<li>AI assistant: generate text, photos, video</li>\n<li>Toggle buttons \"Read more / Collapse\"</li>\n<li>Sticky toolbar, fullscreen mode, auto-save</li>\n<li>Source code mode with syntax highlighting</li>\n<li>Module shortcodes directly in the editor</li>\n</ul>\n\n<p>Lumina Editor is not just a text editor — it's a complete tool for creating professional web pages.</p>"
+    },
+    {
+        "id": 3,
+        "title": "New Modules: Comments, Mini-Shop and Mini-Forum",
+        "date": "2026-07-03",
+        "published": true,
+        "page_slug": "news",
+        "content": "<p>Three new modules have been added to AICMS with MySQL and SQLite support:</p>\n\n<h2>💬 Comments with Ratings</h2>\n<ul>\n<li>Comments on news and pages</li>\n<li>5-star rating system</li>\n<li>Threaded replies</li>\n<li>Moderation in admin: approve / spam / delete</li>\n<li>Auto-detect news ID</li>\n</ul>\n\n<h2>🛒 Mini-Shop</h2>\n<ul>\n<li>Product catalog with categories</li>\n<li>Product card with photo and description</li>\n<li>Shopping cart (session-based, no registration)</li>\n<li>Checkout with email notification</li>\n<li>Product and order management in admin</li>\n<li>Order statuses: new → paid → shipped → done</li>\n</ul>\n\n<h2>💬 Mini-Forum</h2>\n<ul>\n<li>Categories and topics</li>\n<li>Create topics and replies (guest mode)</li>\n<li>View and reply counters</li>\n<li>Pinned topics</li>\n<li>Avatars with initials</li>\n</ul>\n\n<p>All modules use DB abstraction (PDO) and work with MySQL and SQLite. Tables are created automatically.</p>"
+    },
+    {
+        "id": 4,
+        "title": "7 Themes + Template Builder",
+        "date": "2026-07-03",
+        "published": true,
+        "page_slug": "news",
+        "content": "<p>AICMS now includes 7 ready-made themes and a powerful template builder.</p>\n\n<h2>Ready-Made Themes</h2>\n<ul>\n<li><strong>Helios</strong> — transparent navbar, lightbox, animations</li>\n<li><strong>Default</strong> — simple Bootstrap template</li>\n<li><strong>Modern</strong> — sticky navbar, clean design</li>\n<li><strong>Aurora</strong> — gradient hero, glassmorphism</li>\n<li><strong>Editorial</strong> — magazine layout with sidebar</li>\n<li><strong>Tech</strong> — dark theme with neon accents</li>\n<li><strong>Minimal</strong> — ultra-minimalism, single column</li>\n</ul>\n\n<h2>Template Builder</h2>\n<p>3 layouts × 6 color schemes × 5 fonts = 90 combinations. Create your own theme in 1 minute!</p>"
+    },
+    {
+        "id": 5,
+        "title": "How to Install AICMS on a Hosting: Step-by-Step Guide",
+        "date": "2026-08-01",
+        "published": true,
+        "page_slug": "news",
+        "content": "<p>AICMS installs on any regular PHP 7.4+ hosting in about 10 minutes. Here is the complete step-by-step guide: from uploading the archive to your first page.</p>\n\n<img src=\"uploads/images/aicms/screens/login.png\" alt=\"AICMS admin login form\" style=\"max-width:100%; border-radius:12px; margin:20px 0;\">\n\n<h2>Step 1. Upload to Hosting</h2>\n<ul>\n<li>Download the AICMS release (the <code>aicms-release.zip</code> archive).</li>\n<li>Open your hosting control panel (cPanel, ISPmanager, DirectAdmin) and go to the <strong>File Manager</strong>.</li>\n<li>Upload the archive to the site root (<code>public_html</code> or <code>www</code>) and extract it.</li>\n<li>Alternatively, extract locally and upload via FTP (FileZilla) — the <code>aicms/</code> folder must sit in the root.</li>\n</ul>\n\n<h2>Step 2. Folder Permissions</h2>\n<p>Make sure the web server can write to the following folders:</p>\n<pre style=\"background:#1e293b;color:#e2e8f0;padding:16px;border-radius:8px;overflow-x:auto;\">chmod -R 755 aicms/\nchmod -R 775 aicms/data aicms/uploads aicms/admin/cache</pre>\n\n<h2>Step 3. Run the Installer</h2>\n<p>Open <code>https://your-site.ru/install.php</code> in your browser and complete the 5-step installation wizard:</p>\n<ol>\n<li><strong>Choose language</strong> — English or Russian.</li>\n<li><strong>Requirements check</strong> — PHP 7.4+, json, session, mbstring extensions.</li>\n<li><strong>Storage</strong> — JSON (no DB) or MySQL/SQLite for interactive modules.</li>\n<li><strong>Site settings</strong> — name, theme, default language.</li>\n<li><strong>Administrator</strong> — login and password for the admin panel.</li>\n</ol>\n<p>After installation, <strong>be sure to delete <code>install.php</code></strong>.</p>\n\n<h2>Step 4. First Login</h2>\n<img src=\"uploads/images/aicms/screens/home.png\" alt=\"AICMS homepage\" style=\"max-width:100%; border-radius:12px; margin:20px 0;\">\n<p>Visit <code>https://your-site.ru/admin/</code> and sign in with the administrator you created. You will see a dashboard with statistics. Create your first page: <strong>Pages → Create</strong> — and edit it in the Lumina editor.</p>\n\n<h2>What's Next</h2>\n<ul>\n<li>Create news — they will automatically appear in the feed on the homepage.</li>\n<li>Enable modules: contact form, booking, shop.</li>\n<li>Choose or generate a theme in the “Themes” section.</li>\n<li>Configure SEO meta tags and enable caching in “Settings”.</li>\n</ul>\n"
+    },
+    {
+        "id": 6,
+        "title": "Lumina Editor: Features and Management",
+        "date": "2026-08-01",
+        "published": true,
+        "page_slug": "news",
+        "content": "<p>Lumina is the built-in WYSIWYG editor of AICMS where all content is created: pages, news, blocks. Here is how to manage it.</p>\n\n<img src=\"uploads/images/aicms/screens/editor.png\" alt=\"Lumina editor interface\" style=\"max-width:100%; border-radius:12px; margin:20px 0;\">\n\n<h2>Toolbar</h2>\n<ul>\n<li><strong>Text</strong> — bold, italic, H1–H4 headings, quotes, lists, colors, fonts.</li>\n<li><strong>Media</strong> — images (upload, URL, drag-and-drop), YouTube/Vimeo video.</li>\n<li><strong>Tables</strong> — insert, add/remove rows and columns.</li>\n<li><strong>Blocks</strong> — ready-made sections: hero, team cards, pricing, FAQ, accordions.</li>\n<li><strong>AI ✨</strong> — generate text, images and video from a prompt.</li>\n<li><strong>Code</strong> — source code mode with syntax highlighting.</li>\n</ul>\n\n<h2>Management</h2>\n<ul>\n<li><strong>Auto-save</strong> — the editor saves a draft every 30 seconds.</li>\n<li><strong>Read more / Collapse</strong> — a toggle button hides long content.</li>\n<li><strong>Fullscreen</strong> — handy for long articles.</li>\n<li><strong>Sticky toolbar</strong> — tools stay visible while scrolling.</li>\n<li><strong>History</strong> — undo/redo with change history.</li>\n</ul>\n\n<h2>Module Shortcodes</h2>\n<p>Insert module shortcodes right in the editor — they will be executed on the page:</p>\n<pre style=\"background:#1e293b;color:#e2e8f0;padding:16px;border-radius:8px;overflow-x:auto;\">&#123;&#123;module:contact_form|email=admin@site.com&#125;&#125;\n&#123;&#123;module:latest_news|count=5&#125;&#125;\n&#123;&#123;zone:sidebar&#125;&#125;</pre>\n\n<h2>Text Animations</h2>\n<p>Select text and apply an animation: fade-in, glow, gradient, typewriter and more. The animations work on the live site too.</p>\n"
+    }
+]

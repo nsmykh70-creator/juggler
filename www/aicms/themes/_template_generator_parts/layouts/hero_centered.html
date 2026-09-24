@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="{{current_lang}}">
+<head>
+    <meta charset="UTF-8">
+    <title><?= h($currentPage['title']) ?> | <?= h($config['site_title']) ?></title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script src="https://cdn.tailwindcss.com?plugins=forms,typography"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="assets/css/bootstrap-compat.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+</head>
+<body class="m-0">
+
+<header class="site-header">
+    <div class="max-w-6xl mx-auto px-4 py-4">
+        <h1 class="site-title m-0"><a href="?page=home" class="no-underline">{{site_title}}</a></h1>
+        <nav class="main-nav mt-2">
+            {{foreach:pages as p}}
+                <a href="?page={{p.slug}}" class="{{if:p.slug == current_slug}}active{{endif}}">{{p.title}}</a>
+            {{endforeach}}
+        </nav>
+    </div>
+</header>
+
+<section class="hero-section">
+    <div class="max-w-6xl mx-auto px-4 text-center py-20">
+        <h2 class="hero-title">{{page_title}}</h2>
+        <p class="hero-subtitle">{{site_description}}</p>
+    </div>
+</section>
+
+<main class="site-content py-10">
+    <div class="max-w-6xl mx-auto px-4">
+        <article class="fr-view">{{page_content}}</article>
+    </div>
+</main>
+
+<footer class="site-footer py-6">
+    <div class="max-w-6xl mx-auto px-4 text-center text-sm text-slate-500">
+        <p class="m-0">&copy; {{current_year}} | {{site_title}}</p>
+        <p class="mt-1"><a href="admin/" class="text-slate-500 hover:text-slate-700">Вход для администратора</a></p>
+    </div>
+</footer>
+<script src="assets/js/lumina-toggle.js?v=20260712" defer></script>
+<script src="assets/js/legacy-bs-toggle.js" defer></script>
+</body>
+</html>

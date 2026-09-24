@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="{{current_lang}}">
+<head>
+    <meta charset="UTF-8">
+    <title>{{page_title}} | {{site_title}}</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="{{meta_description}}">
+    <meta name="keywords" content="{{site_keywords}}">
+    <link rel="icon" type="image/x-icon" href="{{favicon}}">
+    <meta property="og:title" content="{{og_title}}">
+    <meta property="og:description" content="{{og_description}}">
+    <meta property="og:type" content="{{og_type}}">
+    <meta property="og:url" content="{{og_url}}">
+    <meta name="twitter:card" content="summary_large_image">
+
+    <link rel="stylesheet" href="assets/css/tailwind-utilities.css?v=20260724">
+    <link rel="stylesheet" href="assets/css/tailwind-shim.css?v=20260724">
+    <link rel="stylesheet" href="assets/css/lumina-frontend.css?v=20260801">
+    <script src="assets/js/lumina-anim-observer.js?v=20260719b" defer></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+    <link rel="stylesheet" href="themes/helios/style.css">
+    <link rel="stylesheet" href="assets/css/bootstrap-compat.css">
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <style>[x-cloak]{display:none!important}
+        /* When news has a Lumina toggle button, show .news-content-full
+           regardless of is-expanded state. The Lumina button handles
+           collapse/expand via lumina-toggle.js (wraps content after
+           the button in hidden .lumina-toggle-content). */
+        .news-item.has-lumina-toggle .news-content-full { display: block !important; }
+        .news-item.has-lumina-toggle .news-content-short { display: none !important; }
+        .news-item.has-lumina-toggle .toggle-news-btn:not([data-lumina-toggle] *) { display: none; }
+</style>
+    <!-- Open Graph image (auto-generated) -->
+    <meta property="og:image" content="{{site_url}}/og_image.php?title={{page_title}}&subtitle={{site_description}}">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:image" content="{{site_url}}/og_image.php?title={{page_title}}&subtitle={{site_description}}">
+
+    <!-- Schema.org JSON-LD -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "WebSite",
+      "name": "{{site_title}}",
+      "url": "{{site_url}}",
+      "description": "{{site_description}}"
+    }
+    </script>
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "BreadcrumbList",
+      "itemListElement": [{
+        "@type": "ListItem",
+        "position": 1,
+        "name": "{{page_title}}",
+        "item": "{{canonical_url}}"
+      }]
+    }
+    </script>
+</head>
+<body>
+
+    <header class="helios-navbar" x-data="{open:false}">
+        <div class="helios-navbar-inner">
+            <a class="helios-brand" href="{{page_url:home}}">
+                <span class="helios-brand-icon"><i class="fas fa-cube"></i></span>
+                <span>{{site_title}}</span>
+            </a>
+            <button class="helios-toggle lg:hidden" type="button" @click="open=!open" aria-label="Меню">
+                <i class="fas" :class="open?'fa-times':'fa-bars'"></i>
+            </button>
+            <nav class="helios-nav desktop-only">
+                {{foreach:menu_tree as m}}
+                <div class="helios-nav-item-wrap" x-data="{dd:false}" @mouseenter="dd=true" @mouseleave="dd=false">
+                    <a class="helios-nav-link {{if:m.slug == current_slug}}active{{endif}}" href="{{page_url:m.slug}}">{{m.title}}{{if:m.has_children}}<i class="fas fa-chevron-down text-[10px] ml-1"></i>{{endif}}</a>
+                    {{if:m.has_children}}
+                    <div class="helios-dropdown" x-show="dd" x-cloak @mouseenter="dd=true" @mouseleave="dd=false" style="position:absolute;top:100%;left:0;background:#fff;border:1px solid var(--helios-border);border-radius:8px;box-shadow:0 8px 24px rgba(0,0,0,0.1);min-width:200px;padding:6px;z-index:100;">
+                    {{foreach:m.children as c}}
+                        <a style="display:block;padding:8px 14px;color:var(--helios-text-soft);text-decoration:none;font-size:14px;border-radius:6px;font-family:'Inter',sans-serif;" href="{{page_url:c.slug}}">{{c.title}}</a>
+                    {{endforeach}}
+                    </div>
+                    {{endif}}
+                </div>
+                {{endforeach}}
+                {{module:auth_block}}
+                <div class="helios-lang" x-data="{lang:false}">
+                    <button class="helios-lang-btn" @click="lang=!lang" aria-expanded="false">
+                        <i class="fas fa-globe"></i> {{current_lang_name}} <i class="fas fa-chevron-down chev"></i>
+                    </button>
+                    <ul class="helios-lang-menu" x-show="lang" x-cloak @click.outside="lang=false">
+                        {{foreach:supported_langs as lang}}
+                        <li><a href="{{lang_url:lang.code}}">{{lang.name}}</a></li>
+                        {{endforeach}}
+                    </ul>
+                </div>
+            </nav>
+        </div>
+        <!-- Mobile menu -->
+        <div class="helios-mobile-menu" x-show="open" x-cloak x-transition>
+            {{foreach:pages as p}}
+            <a class="helios-mobile-link {{if:p.slug == current_slug}}active{{endif}}" href="{{page_url:p.slug}}" @click="open=false">{{p.title}}</a>
+            {{endforeach}}
+            <div class="helios-mobile-langs">
+                {{foreach:supported_langs as lang}}
+                <a href="{{lang_url:lang.code}}" @click="open=false">{{lang.name}}</a>
+                {{endforeach}}
+            </div>
+        </div>
+    </header>
+
+    <main class="helios-main">
+        <div class="helios-container">
+             <article class="page-content">
+                {{page_content}}
+            </article>
+        </div>
+    </main>
+
+    <footer class="helios-footer">
+        <div class="helios-container">
+            <div class="helios-footer-row">
+                <div class="helios-footer-brand">
+                    <span class="helios-footer-logo"><i class="fas fa-cube"></i></span>
+                    <strong>{{site_title}}</strong>
+                </div>
+                <p class="helios-footer-copy">&copy; {{current_year}} · Создано с помощью AICMS</p>
+                <a href="admin/" class="helios-footer-admin">Вход для администратора</a>
+            </div>
+        </div>
+    </footer>
+
+    <div class="custom-lightbox" id="image-lightbox">
+        <span class="custom-lightbox-close" id="image-lightbox-close">&times;</span>
+        <img src="" alt="Увеличенное изображение">
+    </div>
+
+    <script src="assets/js/lumina-toggle.js?v=20260715" defer></script>
+    <script src="assets/js/legacy-bs-toggle.js" defer></script>
+    <script src="themes/helios/script.js"></script>
+
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const pageContent = document.querySelector('.page-content');
+        const lightbox = document.getElementById('image-lightbox');
+        if (!pageContent || !lightbox) return;
+
+        const lightboxImage = lightbox.querySelector('img');
+        const lightboxClose = document.getElementById('image-lightbox-close');
+        document.body.appendChild(lightbox);
+
+        const openLightbox = (src) => {
+            lightboxImage.src = src;
+            lightbox.classList.add('is-visible');
+            document.body.classList.add('lightbox-open');
+        };
+        const closeLightbox = () => {
+            lightbox.classList.remove('is-visible');
+            document.body.classList.remove('lightbox-open');
+        };
+
+        pageContent.addEventListener('click', function(event) {
+            const target = event.target;
+            if (target.matches('.toggle-news-btn')) {
+                const luminaToggle = target.closest('[data-lumina-toggle]');
+                if (luminaToggle) {
+                    let content = luminaToggle.querySelector('.lumina-toggle-content');
+                    if (!content && luminaToggle.nextElementSibling && luminaToggle.nextElementSibling.classList.contains('lumina-toggle-content')) {
+                        content = luminaToggle.nextElementSibling;
+                    }
+                    if (content) {
+                        const isHidden = content.style.display === 'none' || getComputedStyle(content).display === 'none';
+                        content.style.display = isHidden ? 'block' : 'none';
+                        const expandedText  = target.getAttribute('data-text-expanded')  || 'Свернуть';
+                        const collapsedText = target.getAttribute('data-text-collapsed') || 'Читать далее';
+                        target.textContent = isHidden ? expandedText : collapsedText;
+                    }
+                    event.preventDefault();
+                    event.stopPropagation();
+                    return;
+                }
+                const newsItem = target.closest('.news-item');
+                if (newsItem) {
+                    newsItem.classList.toggle('is-expanded');
+                    target.textContent = newsItem.classList.contains('is-expanded') ? 'Свернуть' : 'Читать далее';
+                }
+            } else if (target.tagName === 'IMG') {
+                event.preventDefault();
+                openLightbox(target.src);
+            }
+        });
+
+        if (lightboxClose) {
+            lightboxClose.addEventListener('click', closeLightbox);
+            lightbox.addEventListener('click', (event) => { if (event.target === lightbox) closeLightbox(); });
+            document.addEventListener('keydown', (event) => {
+                if (event.key === 'Escape' && lightbox.classList.contains('is-visible')) closeLightbox();
+            });
+        }
+    });
+    </script>
+    <script src="assets/js/lightbox.js?v=20260715b" defer></script>
+</body>
+</html>

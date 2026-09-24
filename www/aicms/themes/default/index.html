@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{page_title}} — {{site_title}}</title>
+    <link rel="stylesheet" href="assets/css/tailwind-utilities.css?v=20260724">
+    <link rel="stylesheet" href="assets/css/tailwind-shim.css?v=20260724">
+    <link rel="stylesheet" href="assets/css/lumina-frontend.css?v=20260801">
+    <script src="assets/js/lumina-anim-observer.js?v=20260719b" defer></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="themes/default/style.css">
+    <link rel="stylesheet" href="assets/css/bootstrap-compat.css">
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <style>
+        body { padding-top: 64px; }
+        .news-blog-container .news-item { margin-bottom: 32px; padding-bottom: 24px; border-bottom: 1px solid #e2e8f0; }
+        .news-blog-container .news-item:last-child { border-bottom: 0; padding-bottom: 0; margin-bottom: 0; }
+        .news-title { font-size: 26px; font-weight: 700; }
+        .news-content { max-height: 120px; overflow: hidden; position: relative; transition: max-height 0.5s; --gradient-opacity: 1; }
+        .news-content::after { content: ''; position: absolute; bottom: 0; left: 0; right: 0; height: 60px; background: linear-gradient(to top, rgba(255,255,255,1) 20%, rgba(255,255,255,0)); transition: opacity 0.3s; opacity: var(--gradient-opacity); }
+        .news-content.expanded { max-height: 2500px; }
+        .news-content.expanded::after { opacity: 0; }
+        .toggle-news-btn { margin-top: 12px; background: #2563eb; color: #fff; border: 0; padding: 8px 16px; border-radius: 8px; cursor: pointer; font-size: 14px; font-weight: 500; }
+        .toggle-news-btn:hover { background: #1d4ed8; }
+        [x-cloak]{display:none!important}
+    
+        /* is-expanded mechanism (same as helios) */
+        .news-item.is-expanded .news-content-short { display: none; }
+        .news-item:not(.is-expanded) .news-content-full { display: none; }
+        .news-item.is-expanded .news-content-full { display: block; }
+
+        /* When news has a Lumina toggle button, show .news-content-full
+           regardless of is-expanded state. The Lumina button handles
+           collapse/expand via lumina-toggle.js (wraps content after
+           the button in hidden .lumina-toggle-content). */
+        .news-item.has-lumina-toggle .news-content-full { display: block !important; }
+        .news-item.has-lumina-toggle .news-content-short { display: none !important; }
+        .news-item.has-lumina-toggle .toggle-news-btn:not([data-lumina-toggle] *) { display: none; }
+</style>
+</head>
+<body>
+
+    <nav class="default-navbar" x-data="{open:false}">
+        <div class="default-navbar-inner">
+            <a href="?page=home&lang={{current_lang}}" class="default-brand">
+                <span class="default-brand-icon"><i class="fas fa-home"></i></span>
+                <span>{{site_title}}</span>
+            </a>
+            <button class="default-toggle lg:hidden" @click="open=!open" aria-label="Меню">
+                <i class="fas" :class="open?'fa-times':'fa-bars'"></i>
+            </button>
+            <nav class="default-nav desktop-only">
+                {{foreach:menu_tree as m}}
+                <div class="default-nav-item-wrap" x-data="{dd:false}" style="position:relative;" @mouseenter="dd=true" @mouseleave="dd=false">
+                    <a href="{{page_url:m.slug}}" class="default-nav-link {{if:m.slug == current_slug}}active{{endif}}">{{m.title}}{{if:m.has_children}}<i class="fas fa-chevron-down text-[8px] ml-1"></i>{{endif}}</a>
+                    {{if:m.has_children}}
+                    <div x-show="dd" x-cloak style="position:absolute;top:100%;left:0;background:#fff;border:1px solid #e2e8f0;border-radius:8px;box-shadow:0 8px 24px rgba(0,0,0,0.1);min-width:180px;padding:4px;z-index:100;">
+                    {{foreach:m.children as c}}
+                        <a href="{{page_url:c.slug}}" style="display:block;padding:8px 12px;color:#475569;text-decoration:none;font-size:14px;border-radius:6px;font-family:'Inter',sans-serif;" onmouseover="this.style.background='#eff6ff';this.style.color='#2563eb'" onmouseout="this.style.background='';this.style.color='#475569'">{{c.title}}</a>
+                    {{endforeach}}
+                    </div>
+                    {{endif}}
+                </div>
+                {{endforeach}}
+                <div class="default-lang" x-data="{l:false}">
+                    <button class="default-lang-btn" @click="l=!l"><i class="fas fa-globe"></i> {{current_lang_name}}</button>
+                    <ul class="default-lang-menu" x-show="l" x-cloak @click.outside="l=false">
+                        {{foreach:supported_langs as lang}}
+                        <li><a href="?page=home&lang={{lang.code}}">{{lang.name}}</a></li>
+                        {{endforeach}}
+                    </ul>
+                </div>
+            </nav>
+        </div>
+        <div class="default-mobile-menu" x-show="open" x-cloak x-transition>
+            {{foreach:pages as p}}
+            <a href="?page={{p.slug}}&lang={{current_lang}}" class="default-mobile-link {{if:p.slug == current_slug}}active{{endif}}" @click="open=false">{{p.title}}</a>
+            {{endforeach}}
+        </div>
+    </nav>
+
+    <main class="default-main">
+        <div class="default-container">
+            <article class="default-article">
+                <h1 class="default-title">{{page_title}}</h1>
+                {{page_content}}
+            </article>
+        </div>
+    </main>
+
+    <footer class="default-footer">
+        <div class="default-container">
+            <div class="default-footer-row">
+                <span>&copy; {{current_year}} {{site_title}}</span>
+                <a href="admin/" class="default-footer-admin">Админ-панель</a>
+            </div>
+        </div>
+    </footer>
+    
+    <script src="assets/js/lumina-toggle.js?v=20260715" defer></script>
+    <script src="assets/js/legacy-bs-toggle.js" defer></script>
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        document.addEventListener('click', function(event) {
+            var target = event.target;
+            if (!target.matches || !target.matches('.toggle-news-btn')) return;
+
+            // 1. Lumina toggle button (inside [data-lumina-toggle])
+            var luminaToggle = target.closest('[data-lumina-toggle]');
+            if (luminaToggle) {
+                var content = luminaToggle.querySelector('.lumina-toggle-content');
+                if (!content && luminaToggle.nextElementSibling && luminaToggle.nextElementSibling.classList.contains('lumina-toggle-content')) {
+                    content = luminaToggle.nextElementSibling;
+                }
+                if (content) {
+                    var isHidden = content.style.display === 'none' || getComputedStyle(content).display === 'none';
+                    content.style.display = isHidden ? 'block' : 'none';
+                    var expandedText  = target.getAttribute('data-text-expanded')  || 'Свернуть';
+                    var collapsedText = target.getAttribute('data-text-collapsed') || 'Читать далее';
+                    if (isHidden) {
+                        target.textContent = expandedText;
+                        content.appendChild(wrapper);
+                    } else {
+                        target.textContent = collapsedText;
+                        content.parentNode.insertBefore(wrapper, content);
+                    }
+                }
+                event.preventDefault();
+                event.stopPropagation();
+                return;
+            }
+
+            // 2. Legacy toggle button (from latest_news.php widget)
+            var newsItem = target.closest('.news-item');
+            if (newsItem) {
+                newsItem.classList.toggle('is-expanded');
+                target.textContent = newsItem.classList.contains('is-expanded') ? 'Свернуть' : 'Читать далее';
+                event.preventDefault();
+            }
+        });
+    });
+    </script>
+    <script src="assets/js/lightbox.js?v=20260715b" defer></script>
+</body>
+</html>

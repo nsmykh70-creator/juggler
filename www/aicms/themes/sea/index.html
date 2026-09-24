@@ -1,0 +1,833 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <link rel="stylesheet" href="assets/css/tailwind-utilities.css?v=20260724">
+    <link rel="stylesheet" href="assets/css/tailwind-shim.css?v=20260724">
+    <link rel="stylesheet" href="assets/css/lumina-frontend.css?v=20260801">
+    <script src="assets/js/lumina-anim-observer.js?v=20260719b" defer></script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{site_title}} | Океанские Глубины</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;600;700&family=Raleway:wght@300;400;600;700&family=Open+Sans:wght@300;400;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="assets/css/bootstrap.local.css?v=20260718">
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #1abc9c;
+            --primary-dark: #16a085;
+            --secondary: #3498db;
+            --deep-blue: #2c3e50;
+            --light-text: #ecf0f1;
+            --glass-bg: rgba(255, 255, 255, 0.08);
+            --glass-border: rgba(255, 255, 255, 0.15);
+            --glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+            --gradient: linear-gradient(135deg, var(--primary), var(--secondary));
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Raleway', sans-serif;
+            color: var(--light-text);
+            overflow-x: clip;
+            background: var(--deep-blue);
+            min-height: 100vh;
+            background-image: 
+                radial-gradient(circle at 10% 20%, rgba(26, 188, 156, 0.1) 0%, transparent 25%),
+                radial-gradient(circle at 90% 80%, rgba(52, 152, 219, 0.1) 0%, transparent 25%);
+            background-attachment: fixed;
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+        }
+
+        .main-content {
+            flex: 1;
+        }
+
+        .animated-bg {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -2;
+            overflow: hidden;
+        }
+
+        .fish {
+            position: absolute;
+            width: 80px;
+            height: 40px;
+            background: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 50"><path d="M10,25 Q40,5 70,25 T90,25 Q70,45 40,25 T10,25" fill="%231abc9c" opacity="0.6"/></svg>');
+            animation: swim 25s linear infinite;
+            opacity: 0.7;
+            z-index: -1;
+        }
+
+        .bubble {
+            position: absolute;
+            width: 20px;
+            height: 20px;
+            background: rgba(255, 255, 255, 0.5);
+            border-radius: 50%;
+            animation: bubble-rise 10s linear infinite;
+            opacity: 0.6;
+            z-index: -1;
+        }
+
+        @keyframes swim {
+            0% { 
+                transform: translateX(-100px);
+                opacity: 0;
+            }
+            10% { 
+                opacity: 0.7;
+            }
+            90% { 
+                opacity: 0.7;
+            }
+            100% { 
+                transform: translateX(calc(100vw + 100px));
+                opacity: 0;
+            }
+        }
+
+        @keyframes bubble-rise {
+            0% { 
+                transform: translateY(100vh) scale(0.3);
+                opacity: 0;
+            }
+            10% { 
+                opacity: 0.6;
+            }
+            90% { 
+                opacity: 0.6;
+            }
+            100% { 
+                transform: translateY(-100px) scale(1);
+                opacity: 0;
+            }
+        }
+
+        .glass-panel {
+            background: var(--glass-bg);
+            backdrop-filter: blur(12px);
+            -webkit-background-filter: blur(12px);
+            border: 1px solid var(--glass-border);
+            border-radius: 16px;
+            box-shadow: var(--glass-shadow);
+            padding: 2rem;
+            margin-bottom: 2rem;
+            transition: all 0.5s ease;
+        }
+
+        h1, h2, h3, h4, h5, h6 {
+            font-family: 'Oswald', sans-serif;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .hero-title {
+            font-size: 3.5rem;
+            line-height: 1.1;
+            background: var(--gradient);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 1.5rem;
+            text-shadow: 0 0 15px rgba(26, 188, 156, 0.3);
+        }
+
+        .btn-theme {
+            background: var(--gradient);
+            border: none;
+            color: white;
+            padding: 0.8rem 2rem;
+            border-radius: 50px;
+            font-weight: 600;
+            position: relative;
+            overflow: hidden;
+            transition: all 0.3s ease;
+            font-family: 'Oswald', sans-serif;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            box-shadow: 0 5px 15px rgba(26, 188, 156, 0.3);
+        }
+
+        .btn-theme:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.2), 0 0 20px rgba(26, 188, 156, 0.4);
+        }
+
+        .navbar {
+            background: rgba(44, 62, 80, 0.85);
+            backdrop-filter: blur(10px);
+            transition: all 0.4s ease;
+            border-bottom: 1px solid rgba(26, 188, 156, 0.2);
+        }
+
+        .navbar-scrolled {
+            background: rgba(44, 62, 80, 0.95);
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+        }
+
+        .navbar-brand {
+            font-family: 'Oswald', sans-serif;
+            font-weight: 700;
+            font-size: 1.8rem;
+            background: var(--gradient);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .nav-link {
+            font-family: 'Oswald', sans-serif;
+            font-weight: 500;
+            position: relative;
+            margin: 0 0.5rem;
+            padding: 0.5rem 0;
+            color: var(--light-text) !important;
+            transition: all 0.3s ease;
+        }
+
+        .nav-link:after {
+            content: '';
+            position: absolute;
+            width: 0;
+            height: 3px;
+            bottom: 0;
+            left: 0;
+            background: var(--gradient);
+            transition: width 0.3s ease;
+        }
+
+        .nav-link:hover:after,
+        .nav-link.active:after {
+            width: 100%;
+        }
+
+        .hero-section {
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            position: relative;
+            padding-top: 80px;
+        }
+
+        .section-title {
+            position: relative;
+            padding-bottom: 1rem;
+            margin-bottom: 2rem;
+            display: inline-block;
+            text-align: center;
+            width: 100%;
+        }
+
+        .section-title:after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 60px;
+            height: 4px;
+            background: var(--gradient);
+            border-radius: 2px;
+        }
+
+        .tech-card {
+            background: rgba(30, 50, 70, 0.3);
+            border-radius: 16px;
+            overflow: hidden;
+            transition: transform 0.3s ease;
+            border: 1px solid var(--glass-border);
+            height: 100%;
+            backdrop-filter: blur(5px);
+            padding: 1.5rem;
+            position: relative;
+            overflow: hidden;
+            text-align: center;
+        }
+
+        .tech-card:before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: radial-gradient(circle, rgba(26, 188, 156, 0.1) 0%, transparent 70%);
+            z-index: -1;
+        }
+
+        .tech-card:hover {
+            transform: translateY(-10px);
+            border: 1px solid var(--primary);
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.2), 0 0 20px rgba(26, 188, 156, 0.3);
+        }
+
+        .card-icon {
+            font-size: 3rem;
+            margin-bottom: 1.5rem;
+            background: var(--gradient);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            display: block;
+            text-align: center;
+        }
+
+        .page-content img {
+            max-width: 100%;
+            height: auto;
+            border-radius: 12px;
+            margin: 2rem auto;
+            display: block;
+            cursor: pointer;
+            transition: transform 0.3s ease;
+            border: 2px solid var(--glass-border);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+        }
+
+        .page-content img:hover {
+            transform: scale(1.03);
+            border: 2px solid var(--primary);
+            box-shadow: 0 15px 40px rgba(0, 0, 0, 0.3), 0 0 20px rgba(26, 188, 156, 0.3);
+        }
+
+        .parallax-section {
+            padding: 8rem 0;
+            position: relative;
+            background-attachment: fixed;
+            background-position: center;
+            background-repeat: no-repeat;
+            background-size: cover;
+            overflow: hidden;
+        }
+
+        .parallax-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(44, 62, 80, 0.85);
+            z-index: 1;
+        }
+
+        .parallax-content {
+            position: relative;
+            z-index: 2;
+            text-align: center;
+        }
+
+        .footer {
+            background: rgba(44, 62, 80, 0.95);
+            padding: 3rem 0;
+            position: relative;
+            border-top: 1px solid rgba(26, 188, 156, 0.2);
+            text-align: center;
+        }
+
+        .fade-in-section {
+            opacity: 0;
+            transform: translateY(30px);
+            transition: opacity 0.6s ease, transform 0.6s ease;
+        }
+
+        .fade-in-section.is-visible {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        .ocean-pattern {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200"><path d="M0,150 Q50,130 100,150 Q150,130 200,150 L200,200 L0,200 Z" fill="%2316a085" opacity="0.06"/></svg>');
+            background-size: 300px;
+            opacity: 0.3;
+            z-index: -1;
+        }
+
+        .text-center {
+            text-align: center;
+        }
+
+        .d-flex-center {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        @media (max-width: 768px) {
+            .hero-title { 
+                font-size: 2.5rem;
+                text-align: center;
+            }
+            .section-title { 
+                font-size: 2rem; 
+                text-align: center;
+            }
+            .navbar-collapse {
+                background: rgba(44, 62, 80, 0.95);
+                padding: 1rem;
+                border-radius: 8px;
+                margin-top: 10px;
+            }
+            .hero-content {
+                text-align: center;
+            }
+            .btn-container {
+                justify-content: center;
+            }
+        }
+		 /* [ИЗМЕНЕНИЕ] Глобальные CSS-переменные для шрифтов */
+        :root {
+            --font-headers: '{{font_headers}}', sans-serif;
+            --font-body: '{{font_body}}', sans-serif;
+            
+            /* Цветовая схема темы */
+            --primary: #2ecc71;
+            --primary-dark: #27ae60;
+            --secondary: #1abc9c;
+            --dark-bg: #0a1929;
+            --light-text: #ecf0f1;
+            --glass-bg: rgba(255, 255, 255, 0.08);
+            --glass-border: rgba(255, 255, 255, 0.15);
+            --glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+            --gradient: linear-gradient(135deg, var(--primary), var(--secondary));
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: var(--font-body); /* Используем переменную */
+            color: var(--light-text);
+            background: var(--dark-bg);
+            background-attachment: fixed;
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+        }
+
+        h1, h2, h3, h4, h5, h6 {
+            font-family: var(--font-headers); /* Используем переменную */
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .main-content { flex: 1; }
+        .page-content p { font-family: var(--font-body); }
+        .page-content img { max-width: 100%; height: auto; border-radius: 12px; margin: 1.5rem 0; }
+
+        .navbar { background: rgba(10, 25, 41, 0.85); backdrop-filter: blur(10px); border-bottom: 1px solid rgba(46, 204, 113, 0.2); }
+        .navbar-brand { font-family: var(--font-headers); font-weight: 700; font-size: 1.8rem; background: var(--gradient); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        .nav-link { font-family: var(--font-headers); position: relative; color: var(--light-text) !important; transition: all 0.3s ease; }
+        .nav-link:after { content: ''; position: absolute; width: 0; height: 3px; bottom: 0; left: 0; background: var(--gradient); transition: width 0.3s ease; }
+        .nav-link:hover:after, .nav-link.active:after { width: 100%; }
+        
+        .glass-panel { background: var(--glass-bg); backdrop-filter: blur(12px); border: 1px solid var(--glass-border); border-radius: 16px; padding: 2rem; }
+        
+        .footer { background: rgba(10, 25, 41, 0.95); padding: 2rem 0; border-top: 1px solid rgba(46, 204, 113, 0.2); text-align: center; }
+    
+
+        .news-blog-container .news-item { margin-bottom: 2rem; padding-bottom: 1.5rem; border-bottom: 1px solid rgba(128,128,128,0.2); }
+        .news-blog-container .news-item:last-child { border-bottom: 0; padding-bottom: 0; margin-bottom: 0; }
+        .news-title { font-size: 1.6rem; font-weight: 700; margin-bottom: 0.5rem; }
+        .news-date { font-size: 0.85rem; opacity: 0.7; margin-bottom: 1rem; }
+        .news-content-full { line-height: 1.75; }
+        .news-content-full p { margin-bottom: 1rem; }
+        .news-content-full h2, .news-content-full h3 { margin-top: 1.5rem; margin-bottom: 0.75rem; }
+        .news-content-full img { max-width: 100%; height: auto; border-radius: 8px; margin: 1rem 0; }
+        .news-content-full ul, .news-content-full ol { margin: 0 0 1rem 1.5rem; }
+        .news-content-full li { margin-bottom: 0.4rem; }
+        .news-content-full pre { background: rgba(0,0,0,0.06); padding: 1rem; border-radius: 8px; overflow-x: auto; max-width: 100%; }
+        .news-content-full code { font-family: 'Fira Code', monospace; font-size: 0.9em; }
+        .news-content-full blockquote { border-left: 3px solid #2563eb; padding-left: 1rem; margin: 1rem 0; opacity: 0.85; font-style: italic; }
+        .news-content-full table { display: block; overflow-x: auto; max-width: 100%; }
+        .lumina-toggle-block[data-lumina-toggle] { display: block; margin: 1rem 0; }
+        .toggle-news-btn { cursor: pointer; transition: filter 0.15s ease, transform 0.1s ease; }
+        .toggle-news-btn:hover { filter: brightness(1.1); }
+        .toggle-news-btn:active { transform: translateY(1px); }
+        .lumina-toggle-content { margin-top: 1rem; animation: luminaToggleFadeIn 0.25s ease-out; }
+        @keyframes luminaToggleFadeIn { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: translateY(0); } }
+
+        /* News toggle button (from helios — working mechanism) */
+        .news-blog-container .news-item { margin-bottom: 32px; padding-bottom: 24px; border-bottom: 1px solid rgba(128,128,128,0.2); }
+        .news-blog-container .news-item:last-child { border-bottom: 0; padding-bottom: 0; margin-bottom: 0; }
+        .news-title { font-size: 1.6rem; font-weight: 700; margin-bottom: 8px; }
+        .news-date { font-size: 0.85rem; opacity: 0.7; margin-bottom: 1rem; }
+        .news-content-short, .news-content-full { line-height: 1.75; }
+        .news-content-short p, .news-content-full p { margin-bottom: 1rem; }
+        .news-content-short img, .news-content-full img { max-width: 100%; height: auto; border-radius: 8px; margin: 1rem 0; }
+        .news-content-short ul, .news-content-full ul,
+        .news-content-short ol, .news-content-full ol { margin: 0 0 1rem 1.5rem; }
+        .news-content-short pre, .news-content-full pre { background: rgba(0,0,0,0.06); padding: 1rem; border-radius: 8px; overflow-x: auto; max-width: 100%; }
+        .news-content-short code, .news-content-full code { font-family: 'Fira Code', monospace; font-size: 0.9em; }
+        .news-content-short table, .news-content-full table { display: block; overflow-x: auto; max-width: 100%; }
+        .toggle-news-btn {
+            margin-top: 12px; background: #2563eb; color: #fff; border: 0;
+            padding: 8px 18px; border-radius: 8px; cursor: pointer;
+            font-size: 14px; font-weight: 500; transition: background 0.15s;
+        }
+        .toggle-news-btn:hover { background: #1d4ed8; }
+        .news-item.is-expanded .news-content-short { display: none; }
+        .news-item:not(.is-expanded) .news-content-full { display: none; }
+        .news-item.is-expanded .news-content-full { display: block; }
+        .lumina-toggle-block[data-lumina-toggle] { display: block; margin: 1rem 0; }
+        .lumina-toggle-content { margin-top: 1rem; }
+        html, body { max-width: 100%; overflow-x: clip; }
+
+        /* When news has a Lumina toggle button, show .news-content-full
+           regardless of is-expanded state. The Lumina button handles
+           collapse/expand via lumina-toggle.js (wraps content after
+           the button in hidden .lumina-toggle-content). */
+        .news-item.has-lumina-toggle .news-content-full { display: block !important; }
+        .news-item.has-lumina-toggle .news-content-short { display: none !important; }
+        .news-item.has-lumina-toggle .toggle-news-btn:not([data-lumina-toggle] *) { display: none; }
+</style>
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <style>[x-cloak]{display:none!important}</style>
+</head>
+<body>
+    <!-- Анимированные морские обитатели -->
+    <div class="animated-bg" id="animated-bg"></div>
+    
+    <!-- Океанский узор -->
+    <div class="ocean-pattern"></div>
+
+    <!-- Навигация -->
+    <header class="navbar navbar-expand-lg fixed-top navbar-dark">
+        <div class="container">
+            <a class="navbar-brand" href="?page=home&lang={{lang}}">{{site_title}}</a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#mainNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="mainNav">
+                <ul class="navbar-nav ms-auto mb-2 mb-lg-0">
+                    {{foreach:pages as p}}
+                    <li class="nav-item">
+                        <!-- [ИЗМЕНЕНИЕ] Универсальный код подсветки меню -->
+                        <a class="nav-link {{if p.slug == page_slug}}active{{endif}}" href="?page={{p.slug}}&lang={{lang}}">{{p.title}}</a>
+                    </li>
+                    {{endforeach}}
+                </ul>
+            </div>
+        </div>
+    </header>
+
+    <main class="main-content">
+        <!-- Герой секция -->
+        <section class="hero-section">
+            <div class="container">
+                <div class="row justify-content-center">
+                    <div class="col-lg-8 fade-in-section">
+                        <div class="glass-panel text-center">
+                            <h1 class="hero-title">Погрузитесь в мир инноваций</h1>
+                            <p class="lead" style="font-family: 'Open Sans', sans-serif;">
+                                Как океан скрывает невероятные глубины, так и наши решения открывают новые возможности
+                            </p>
+                            <div class="d-flex flex-wrap gap-3 mt-4 justify-content-center">
+                                <a href="?page=services&lang={{current_lang}}" class="btn-theme">Исследовать глубины</a>
+                                <a href="?page=contacts&lang={{current_lang}}" class="btn btn-outline-light">Начать путешествие</a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Параллакс секция -->
+        <section class="parallax-section" style="background-image: url('https://images.unsplash.com/photo-1439405326854-014607f694d7?q=80&w=1500');">
+            <div class="parallax-overlay"></div>
+            <div class="container parallax-content">
+                <div class="row justify-content-center">
+                    <div class="col-lg-8 fade-in-section text-center">
+                        <h2 class="section-title text-white">Безграничные возможности</h2>
+                        <p class="lead mb-5" style="font-family: 'Open Sans', sans-serif;">
+                            Как океанские течения соединяют континенты, наши решения связывают идеи и технологии
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Услуги -->
+        <section class="py-7">
+            <div class="container">
+                <div class="row mb-5 fade-in-section">
+                    <div class="col-12 text-center">
+                        <h2 class="section-title">Наши глубины</h2>
+                    </div>
+                </div>
+                <div class="row g-4 justify-content-center">
+                    <div class="col-md-4 fade-in-section">
+                        <div class="tech-card">
+                            <div class="card-icon d-flex-center">
+                                <i class="fas fa-fish"></i>
+                            </div>
+                            <h3>Гибкие решения</h3>
+                            <p style="font-family: 'Open Sans', sans-serif;">
+                                Создаем адаптивные проекты, которые легко меняются как морские течения
+                            </p>
+                        </div>
+                    </div>
+                    <div class="col-md-4 fade-in-section">
+                        <div class="tech-card">
+                            <div class="card-icon d-flex-center">
+                                <i class="fas fa-anchor"></i>
+                            </div>
+                            <h3>Надежная основа</h3>
+                            <p style="font-family: 'Open Sans', sans-serif;">
+                                Строим стабильные системы, на которые можно положиться как на морской якорь
+                            </p>
+                        </div>
+                    </div>
+                    <div class="col-md-4 fade-in-section">
+                        <div class="tech-card">
+                            <div class="card-icon d-flex-center">
+                                <i class="fas fa-ship"></i>
+                            </div>
+                            <h3>Крупные проекты</h3>
+                            <p style="font-family: 'Open Sans', sans-serif;">
+                                Реализуем масштабные решения, которые ведут ваш бизнес как мощный корабль
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- О нас -->
+        <section class="py-7">
+            <div class="container">
+                <div class="glass-panel fade-in-section">
+                    <div class="row align-items-center">
+                        <div class="col-lg-6 text-center text-lg-start">
+                            <h2 class="section-title">Наша философия</h2>
+                            <p style="font-family: 'Open Sans', sans-serif;">
+                                Как океан бесконечен в своих проявлениях, так и наши возможности безграничны. 
+                                Мы погружаемся в каждую задачу, исследуя ее глубины, чтобы найти оптимальное решение.
+                            </p>
+                            <p style="font-family: 'Open Sans', sans-serif;">
+                                Наша команда - это опытные ныряльщики в мире цифровых технологий, 
+                                готовые исследовать самые сложные задачи.
+                            </p>
+                            <div class="d-flex-center">
+                                <a href="?page=about&lang={{current_lang}}" class="btn-theme mt-3">Исследовать с нами</a>
+                            </div>
+                        </div>
+                        <div class="col-lg-6 mt-4 mt-lg-0 text-center">
+                            <img src="https://images.unsplash.com/photo-1506973035872-a4ec16b8e8d9?q=80&w=1470" 
+                                 alt="Океанские глубины" 
+                                 class="img-fluid rounded shadow-lg"
+                                 style="max-height: 400px;">
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+            <section class="py-5"><div class="container"><div class="page-content">{{page_content}}</div></div></section>
+    </main>
+
+    <footer class="footer">
+        <div class="container">
+            <div class="row justify-content-center">
+                <div class="col-md-4 mb-4 mb-md-0 text-center">
+                    <h4 class="mb-4"><i class="fas fa-water me-2"></i> {{site_title}}</h4>
+                    <p style="font-family: 'Open Sans', sans-serif;">
+                        Исследуем цифровые глубины
+                    </p>
+                </div>
+                <div class="col-md-4 mb-4 mb-md-0 text-center">
+                    <h4 class="mb-4">Контакты</h4>
+                    <p style="font-family: 'Open Sans', sans-serif;">
+                        <i class="fas fa-map-marker-alt me-2"></i> Москва, ул. Океанская, 7
+                    </p>
+                    <p style="font-family: 'Open Sans', sans-serif;">
+                        <i class="fas fa-phone me-2"></i> +7 (495) 765-43-21
+                    </p>
+                    <p style="font-family: 'Open Sans', sans-serif;">
+                        <i class="fas fa-envelope me-2"></i> ocean@{{site_title|lower}}.ru
+                    </p>
+                </div>
+                <div class="col-md-4 text-center">
+                    <h4 class="mb-4">Социальные сети</h4>
+                    <div class="d-flex justify-content-center gap-3">
+                        <a href="#" class="btn btn-outline-light"><i class="fab fa-vk"></i></a>
+                        <a href="#" class="btn btn-outline-light"><i class="fab fa-telegram"></i></a>
+                        <a href="#" class="btn btn-outline-light"><i class="fab fa-instagram"></i></a>
+                        <a href="#" class="btn btn-outline-light"><i class="fab fa-github"></i></a>
+                    </div>
+                </div>
+            </div>
+            <div class="row mt-5">
+                <div class="col-12 text-center">
+                    <p>&copy; {{current_year}} {{site_title}} | Создано с любовью к океану</p>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <script src="assets/js/bootstrap.bundle.local.js?v=20260718"></script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <script>
+    // Создание анимированных морских обитателей
+    function createMarineLife() {
+        const container = document.getElementById('animated-bg');
+        
+        // Создаем рыбок
+        const fishCount = 8;
+        for (let i = 0; i < fishCount; i++) {
+            const fish = document.createElement('div');
+            fish.className = 'fish';
+            
+            // Размер
+            const sizeModifier = 0.7 + Math.random() * 0.6;
+            fish.style.width = `${80 * sizeModifier}px`;
+            fish.style.height = `${40 * sizeModifier}px`;
+            
+            // Позиция
+            const top = 10 + Math.random() * 80;
+            fish.style.top = `${top}%`;
+            
+            // Анимация
+            const duration = 30 + Math.random() * 30;
+            const delay = Math.random() * 20;
+            fish.style.animationDuration = `${duration}s`;
+            fish.style.animationDelay = `${delay}s`;
+            
+            // Направление
+            if (Math.random() > 0.5) {
+                fish.style.transform = 'scaleX(-1)';
+            }
+            
+            container.appendChild(fish);
+        }
+        
+        // Создаем пузырьки
+        const bubbleCount = 20;
+        for (let i = 0; i < bubbleCount; i++) {
+            const bubble = document.createElement('div');
+            bubble.className = 'bubble';
+            
+            // Размер
+            const size = 5 + Math.random() * 15;
+            bubble.style.width = `${size}px`;
+            bubble.style.height = `${size}px`;
+            
+            // Позиция
+            const left = Math.random() * 100;
+            bubble.style.left = `${left}%`;
+            
+            // Анимация
+            const duration = 5 + Math.random() * 10;
+            const delay = Math.random() * 5;
+            bubble.style.animationDuration = `${duration}s`;
+            bubble.style.animationDelay = `${delay}s`;
+            
+            container.appendChild(bubble);
+        }
+    }
+    
+    // Параллакс эффект
+    window.addEventListener('scroll', function() {
+        const yOffset = window.pageYOffset;
+        const fish = document.querySelectorAll('.fish');
+        const bubbles = document.querySelectorAll('.bubble');
+        
+        fish.forEach(f => {
+            const speed = parseFloat(f.style.animationDuration) * 0.1;
+            f.style.transform = `translateX(${yOffset * 0.05}px) ${f.style.transform.includes('scaleX') ? 'scaleX(-1)' : ''}`;
+        });
+        
+        bubbles.forEach(b => {
+            b.style.transform = `translateY(${yOffset * -0.2}px) scale(${1 + yOffset * 0.0005})`;
+        });
+        
+        // Эффект для навбара
+        const navbar = document.querySelector('.navbar');
+        if (window.scrollY > 50) {
+            navbar.classList.add('navbar-scrolled');
+        } else {
+            navbar.classList.remove('navbar-scrolled');
+        }
+    });
+    
+    // Анимация при прокрутке
+    function animateOnScroll() {
+        const elements = document.querySelectorAll('.fade-in-section');
+        
+        elements.forEach(element => {
+            const elementTop = element.getBoundingClientRect().top;
+            const windowHeight = window.innerHeight;
+            
+            if (elementTop < windowHeight * 0.9) {
+                element.classList.add('is-visible');
+            }
+        });
+    }
+    
+    // Инициализация
+    document.addEventListener('DOMContentLoaded', function() {
+        createMarineLife();
+        animateOnScroll();
+        window.addEventListener('scroll', animateOnScroll);
+    });
+    </script>
+    
+    <script src="assets/js/lumina-toggle.js?v=20260715" defer></script>
+    <script src="assets/js/legacy-bs-toggle.js" defer></script>
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        document.addEventListener('click', function(event) {
+            var target = event.target;
+            if (!target.matches || !target.matches('.toggle-news-btn')) return;
+
+            // 1. Lumina toggle button (inside [data-lumina-toggle])
+            var luminaToggle = target.closest('[data-lumina-toggle]');
+            if (luminaToggle) {
+                var content = luminaToggle.querySelector('.lumina-toggle-content');
+                if (!content && luminaToggle.nextElementSibling && luminaToggle.nextElementSibling.classList.contains('lumina-toggle-content')) {
+                    content = luminaToggle.nextElementSibling;
+                }
+                if (content) {
+                    var isHidden = content.style.display === 'none' || getComputedStyle(content).display === 'none';
+                    content.style.display = isHidden ? 'block' : 'none';
+                    var expandedText  = target.getAttribute('data-text-expanded')  || 'Свернуть';
+                    var collapsedText = target.getAttribute('data-text-collapsed') || 'Читать далее';
+                    target.textContent = isHidden ? expandedText : collapsedText;
+                }
+                event.preventDefault();
+                event.stopPropagation();
+                return;
+            }
+
+            // 2. Legacy toggle button (from latest_news.php widget)
+            var newsItem = target.closest('.news-item');
+            if (newsItem) {
+                newsItem.classList.toggle('is-expanded');
+                target.textContent = newsItem.classList.contains('is-expanded') ? 'Свернуть' : 'Читать далее';
+                event.preventDefault();
+            }
+        });
+    });
+    </script>
+    <script src="assets/js/lightbox.js?v=20260715b" defer></script>
+</body>
+</html>

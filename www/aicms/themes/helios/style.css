@@ -1,0 +1,389 @@
+/* ============================================
+   Helios Theme — Modern, Solid Navbar, Readable
+   ============================================ */
+:root {
+    --helios-primary: #2563eb;
+    --helios-primary-dark: #1d4ed8;
+    --helios-text: #0f172a;
+    --helios-text-soft: #475569;
+    --helios-muted: #94a3b8;
+    --helios-bg: #f8fafc;
+    --helios-border: #e2e8f0;
+    --helios-card: #ffffff;
+    --helios-radius: 12px;
+    --helios-shadow-sm: 0 1px 2px rgba(15,23,42,0.06);
+    --helios-shadow-md: 0 4px 12px rgba(15,23,42,0.08);
+    --helios-shadow-lg: 0 12px 32px rgba(15,23,42,0.12);
+}
+
+* { box-sizing: border-box; }
+body {
+    font-family: 'Manrope', system-ui, sans-serif;
+    background-color: var(--helios-bg);
+    color: var(--helios-text);
+    margin: 0;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+}
+body.lightbox-open { overflow: hidden; }
+
+h1, h2, h3, h4, h5, h6 {
+    font-family: 'Inter', sans-serif;
+    font-weight: 700;
+    color: var(--helios-text);
+    line-height: 1.25;
+}
+
+/* ============================================
+   NAVBAR — SOLID (not transparent)
+   ============================================ */
+.helios-navbar {
+    position: sticky;
+    top: 0;
+    z-index: 50;
+    background: #ffffff;
+    border-bottom: 1px solid var(--helios-border);
+    box-shadow: var(--helios-shadow-sm);
+}
+
+/* IMPORTANT: overflow-x: hidden on html/body BREAKS position: sticky.
+   To prevent horizontal scroll while keeping navbar sticky, we use
+   overflow-x: clip on body only (not html), and max-width: 100vw.
+   overflow-x: clip doesn't create a scroll container, so sticky still works. */
+body {
+    overflow-x: clip;
+    max-width: 100vw;
+}
+.helios-navbar-inner {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 14px 20px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+}
+.helios-brand {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-family: 'Inter', sans-serif;
+    font-weight: 800;
+    font-size: 20px;
+    color: var(--helios-text);
+    text-decoration: none;
+}
+.helios-brand-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    border-radius: 10px;
+    background: linear-gradient(135deg, #2563eb, #7c3aed);
+    color: #fff;
+    font-size: 16px;
+    box-shadow: 0 4px 12px rgba(37,99,235,0.3);
+}
+.helios-toggle {
+    background: transparent;
+    border: 0;
+    color: var(--helios-text);
+    font-size: 22px;
+    cursor: pointer;
+    padding: 4px 8px;
+}
+.helios-nav {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+.desktop-only { display: none; }
+@media (min-width: 1024px) { .desktop-only { display: flex; } }
+
+.helios-nav-link {
+    font-family: 'Inter', sans-serif;
+    font-weight: 500;
+    font-size: 15px;
+    color: var(--helios-text-soft);
+    text-decoration: none;
+    padding: 8px 14px;
+    border-radius: 8px;
+    transition: background-color 0.15s, color 0.15s;
+    display: inline-block;
+}
+.helios-nav-link:hover {
+    background-color: #eff6ff;
+    color: var(--helios-primary);
+}
+.helios-nav-link.active {
+    background-color: var(--helios-primary);
+    color: #fff;
+}
+.helios-nav-item-wrap { position: relative; display: inline-block; }
+.helios-dropdown-link:hover { background-color: #eff6ff !important; color: var(--helios-primary) !important; }
+
+/* Language switcher */
+.helios-lang { position: relative; margin-left: 8px; }
+.helios-lang-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: transparent;
+    border: 1px solid var(--helios-border);
+    color: var(--helios-text-soft);
+    font-size: 14px;
+    font-weight: 500;
+    padding: 7px 12px;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: background-color 0.15s, color 0.15s, border-color 0.15s;
+}
+.helios-lang-btn:hover { background-color: #f1f5f9; border-color: #cbd5e1; }
+.helios-lang-btn .chev { font-size: 10px; }
+.helios-lang-menu {
+    position: absolute;
+    right: 0;
+    top: calc(100% + 6px);
+    background: #fff;
+    border: 1px solid var(--helios-border);
+    border-radius: 10px;
+    box-shadow: var(--helios-shadow-md);
+    padding: 6px;
+    margin: 0;
+    min-width: 160px;
+    list-style: none;
+    z-index: 50;
+}
+.helios-lang-menu li a {
+    display: block;
+    padding: 8px 12px;
+    color: var(--helios-text);
+    text-decoration: none;
+    border-radius: 6px;
+    font-size: 14px;
+}
+.helios-lang-menu li a:hover { background-color: #f1f5f9; }
+
+/* Mobile menu */
+.helios-mobile-menu {
+    background: #fff;
+    border-top: 1px solid var(--helios-border);
+    padding: 12px 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+.helios-mobile-link {
+    display: block;
+    padding: 10px 12px;
+    color: var(--helios-text);
+    text-decoration: none;
+    border-radius: 8px;
+    font-weight: 500;
+}
+.helios-mobile-link:hover { background-color: #f1f5f9; }
+.helios-mobile-link.active { background-color: #eff6ff; color: var(--helios-primary); }
+.helios-mobile-langs {
+    margin-top: 8px;
+    padding-top: 8px;
+    border-top: 1px solid var(--helios-border);
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+.helios-mobile-langs a {
+    padding: 6px 10px;
+    background: #f1f5f9;
+    color: var(--helios-text-soft);
+    border-radius: 6px;
+    text-decoration: none;
+    font-size: 13px;
+}
+
+/* ============================================
+   MAIN CONTENT
+   ============================================ */
+.helios-main { padding: 40px 0 60px; min-height: 60vh; }
+.helios-container { max-width: 1200px; margin: 0 auto; padding: 0 20px; }
+
+.page-content {
+    background: var(--helios-card);
+    border-radius: var(--helios-radius);
+    box-shadow: var(--helios-shadow-sm);
+    border: 1px solid var(--helios-border);
+    padding: 32px;
+    line-height: 1.75;
+    font-size: 16px;
+    color: var(--helios-text-soft);
+}
+@media (max-width: 768px) { .page-content { padding: 20px; } }
+
+.page-content h1 { font-size: 32px; margin: 0 0 16px; color: var(--helios-text); }
+.page-content h2 { font-size: 26px; margin: 32px 0 12px; color: var(--helios-text); }
+.page-content h3 { font-size: 21px; margin: 24px 0 10px; color: var(--helios-text); }
+.page-content h1:first-child, .page-content h2:first-child { margin-top: 0; }
+.page-content p { margin: 0 0 16px; }
+.page-content ul, .page-content ol { margin: 0 0 16px 1.5rem; }
+.page-content li { margin-bottom: 6px; }
+.page-content a { color: var(--helios-primary); text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 2px; }
+.page-content a:hover { color: var(--helios-primary-dark); }
+.page-content img {
+    max-width: 100%;
+    height: auto;
+    border-radius: 10px;
+    margin: 20px 0;
+    box-shadow: var(--helios-shadow-md);
+    display: block;
+    cursor: pointer;
+    transition: transform 0.2s;
+    loading: lazy;
+}
+.page-content img:hover { transform: scale(1.01); }
+.page-content blockquote {
+    border-left: 4px solid var(--helios-primary);
+    padding: 8px 16px;
+    margin: 16px 0;
+    background: #f8fafc;
+    border-radius: 0 8px 8px 0;
+    color: var(--helios-text-soft);
+    font-style: italic;
+}
+.page-content pre {
+    background: #0f172a;
+    color: #e2e8f0;
+    padding: 16px;
+    border-radius: 10px;
+    overflow-x: auto;
+    font-family: 'Fira Code', monospace;
+    font-size: 14px;
+    margin: 16px 0;
+}
+.page-content code { font-family: 'Fira Code', monospace; background: #f1f5f9; padding: 2px 6px; border-radius: 4px; color: #db2777; font-size: 0.9em; }
+.page-content pre code { background: transparent; color: inherit; padding: 0; }
+.page-content table { width: 100%; border-collapse: collapse; margin: 16px 0; }
+.page-content th, .page-content td { padding: 10px 14px; border: 1px solid var(--helios-border); text-align: left; }
+.page-content th { background: #f8fafc; font-weight: 600; }
+.page-content hr { border: 0; border-top: 1px solid var(--helios-border); margin: 24px 0; }
+
+/* ============================================
+   NEWS BLOG
+   ============================================ */
+.news-blog-container .news-item {
+    margin-bottom: 32px;
+    padding-bottom: 24px;
+    border-bottom: 1px solid var(--helios-border);
+}
+.news-blog-container .news-item:last-child { border-bottom: 0; padding-bottom: 0; margin-bottom: 0; }
+.news-title { font-size: 26px; font-weight: 700; margin-bottom: 8px; color: var(--helios-text); }
+.toggle-news-btn {
+    margin-top: 12px;
+    background: var(--helios-primary);
+    color: #fff;
+    border: 0;
+    padding: 8px 16px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 500;
+    transition: background-color 0.15s;
+}
+.toggle-news-btn:hover { background: var(--helios-primary-dark); }
+.news-item.is-expanded .news-content-short { display: none; }
+.news-item:not(.is-expanded) .news-content-full { display: none; }
+.news-item.is-expanded .news-content-full { display: block; }
+
+/* ============================================
+   FROALA IMAGE ALIGNMENT
+   ============================================ */
+.fr-view img.fr-fic, .fr-view img.fr-dib { display: block; margin: 20px auto; }
+.fr-view img.fr-fil { float: left; margin: 5px 20px 15px 0; max-width: calc(50% - 20px); }
+.fr-view img.fr-fir { float: right; margin: 5px 0 15px 20px; max-width: calc(50% - 20px); }
+.fr-view p::after, .fr-view div::after { content: ""; display: table; clear: both; }
+
+/* ============================================
+   LIGHTBOX
+   ============================================ */
+.custom-lightbox {
+    position: fixed;
+    top: 0; left: 0; width: 100%; height: 100%;
+    background: rgba(0,0,0,0.88);
+    z-index: 2000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    box-sizing: border-box;
+    cursor: pointer;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.3s, visibility 0s 0.3s;
+}
+.custom-lightbox.is-visible { opacity: 1; visibility: visible; transition-delay: 0s; }
+.custom-lightbox img {
+    display: block;
+    max-width: 90vw;
+    max-height: 90vh;
+    width: auto; height: auto;
+    border-radius: 8px;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.6);
+    cursor: default;
+}
+.custom-lightbox-close {
+    position: absolute;
+    top: 20px;
+    right: 30px;
+    color: #fff;
+    font-size: 36px;
+    font-weight: 300;
+    line-height: 1;
+    cursor: pointer;
+    user-select: none;
+}
+
+/* ============================================
+   FOOTER
+   ============================================ */
+.helios-footer {
+    background: #0f172a;
+    color: #cbd5e1;
+    padding: 32px 0;
+    margin-top: 60px;
+}
+.helios-footer-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+}
+.helios-footer-brand {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: #fff;
+    font-size: 16px;
+}
+.helios-footer-logo {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    border-radius: 8px;
+    background: linear-gradient(135deg, #2563eb, #7c3aed);
+    color: #fff;
+    font-size: 13px;
+}
+.helios-footer-copy { margin: 0; font-size: 14px; color: #94a3b8; }
+.helios-footer-admin { color: #94a3b8; text-decoration: none; font-size: 14px; transition: color 0.15s; }
+.helios-footer-admin:hover { color: #fff; }
+
+/* ============================================
+   FADE-IN (IntersectionObserver animation)
+   ============================================ */
+.fade-in-section { opacity: 0; transform: translateY(20px); transition: opacity 0.6s ease, transform 0.6s ease; }
+.fade-in-section.is-visible { opacity: 1; transform: translateY(0); }
+
+/* Horizontal scroll prevention — uses overflow-x: clip (not hidden)
+   to avoid breaking position: sticky on navbar. See comment above. */

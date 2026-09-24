@@ -1,0 +1,149 @@
+/* --- Глобальные стили и переменные --- */
+:root {
+    --text-color: #333;
+    --background-color: #fff;
+    --accent-color: #007bff;
+    --border-color: #e0e0e0;
+    --font-family: 'Inter', sans-serif;
+}
+
+/* --- Базовая настройка --- */
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+body {
+    font-family: var(--font-family);
+    line-height: 1.6;
+    background-color: var(--background-color);
+    color: var(--text-color);
+}
+
+.container {
+    max-width: 800px;
+    margin: 0 auto;
+    padding: 0 20px;
+}
+
+/* --- Шапка сайта --- */
+.site-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 20px 0;
+    border-bottom: 1px solid var(--border-color);
+    margin-bottom: 40px;
+}
+
+.site-title a {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--text-color);
+    text-decoration: none;
+}
+
+/* --- Навигация --- */
+.main-navigation ul {
+    display: flex;
+    list-style-type: none;
+}
+
+.main-navigation li {
+    margin-left: 20px;
+}
+
+.main-navigation a {
+    text-decoration: none;
+    color: var(--text-color);
+    font-weight: 400;
+    padding-bottom: 5px;
+    border-bottom: 2px solid transparent;
+    transition: color 0.2s, border-color 0.2s;
+}
+
+.main-navigation a:hover {
+    color: var(--accent-color);
+}
+
+.main-navigation a.active {
+    color: var(--accent-color);
+    font-weight: 700;
+    border-bottom-color: var(--accent-color);
+}
+
+/* --- Основной контент --- */
+.main-content h1 {
+    font-size: 2.5rem;
+    margin-bottom: 20px;
+    line-height: 1.2;
+}
+
+.content-area {
+    font-size: 1.1rem;
+}
+
+/* Стили для контента из редактора */
+.content-area p {
+    margin-bottom: 1.5em;
+}
+
+.content-area a {
+    color: var(--accent-color);
+    text-decoration: none;
+}
+
+.content-area a:hover {
+    text-decoration: underline;
+}
+
+.content-area img {
+    max-width: 100%;
+    height: auto;
+    border-radius: 4px;
+}
+
+.content-area blockquote {
+    border-left: 3px solid var(--accent-color);
+    padding-left: 1.5em;
+    margin: 1.5em 0;
+    font-style: italic;
+    color: #555;
+}
+
+/* --- Подвал --- */
+.site-footer {
+    margin-top: 60px;
+    padding: 20px 0;
+    border-top: 1px solid var(--border-color);
+    text-align: center;
+    color: #888;
+    font-size: 0.9rem;
+}
+
+/* --- Адаптивность для мобильных устройств --- */
+@media (max-width: 600px) {
+    .site-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 20px;
+    }
+
+    .main-navigation ul {
+        flex-direction: column;
+        gap: 10px;
+    }
+
+    .main-navigation li {
+        margin-left: 0;
+    }
+
+    .main-content h1 {
+        font-size: 2rem;
+    }
+
+    .content-area {
+        font-size: 1rem;
+    }
+}

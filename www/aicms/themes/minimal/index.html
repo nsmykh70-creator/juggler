@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="{{current_lang}}">
+<head>
+    <meta charset="UTF-8">
+    <title>{{page_title}} | {{site_title}}</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="{{site_description}}">
+    <meta name="keywords" content="{{site_keywords}}">
+    <link rel="icon" type="image/x-icon" href="{{favicon}}">
+
+    <link rel="stylesheet" href="assets/css/tailwind-utilities.css?v=20260724">
+    <link rel="stylesheet" href="assets/css/tailwind-shim.css?v=20260724">
+    <link rel="stylesheet" href="assets/css/lumina-frontend.css?v=20260801">
+    <script src="assets/js/lumina-anim-observer.js?v=20260719b" defer></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="themes/minimal/style.css">
+    <link rel="stylesheet" href="assets/css/bootstrap-compat.css">
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <style>[x-cloak]{display:none!important}
+
+        .news-blog-container .news-item { margin-bottom: 2rem; padding-bottom: 1.5rem; border-bottom: 1px solid rgba(128,128,128,0.2); }
+        .news-blog-container .news-item:last-child { border-bottom: 0; padding-bottom: 0; margin-bottom: 0; }
+        .news-title { font-size: 1.6rem; font-weight: 700; margin-bottom: 0.5rem; }
+        .news-date { font-size: 0.85rem; opacity: 0.7; margin-bottom: 1rem; }
+        .news-content-full { line-height: 1.75; }
+        .news-content-full p { margin-bottom: 1rem; }
+        .news-content-full h2, .news-content-full h3 { margin-top: 1.5rem; margin-bottom: 0.75rem; }
+        .news-content-full img { max-width: 100%; height: auto; border-radius: 8px; margin: 1rem 0; }
+        .news-content-full ul, .news-content-full ol { margin: 0 0 1rem 1.5rem; }
+        .news-content-full li { margin-bottom: 0.4rem; }
+        .news-content-full pre { background: rgba(0,0,0,0.06); padding: 1rem; border-radius: 8px; overflow-x: auto; max-width: 100%; }
+        .news-content-full code { font-family: 'Fira Code', monospace; font-size: 0.9em; }
+        .news-content-full blockquote { border-left: 3px solid #2563eb; padding-left: 1rem; margin: 1rem 0; opacity: 0.85; font-style: italic; }
+        .news-content-full table { display: block; overflow-x: auto; max-width: 100%; }
+        .lumina-toggle-block[data-lumina-toggle] { display: block; margin: 1rem 0; }
+        .toggle-news-btn { cursor: pointer; transition: filter 0.15s ease, transform 0.1s ease; }
+        .toggle-news-btn:hover { filter: brightness(1.1); }
+        .toggle-news-btn:active { transform: translateY(1px); }
+        .lumina-toggle-content { margin-top: 1rem; animation: luminaToggleFadeIn 0.25s ease-out; }
+        @keyframes luminaToggleFadeIn { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: translateY(0); } }
+
+        /* News toggle button (from helios — working mechanism) */
+        .news-blog-container .news-item { margin-bottom: 32px; padding-bottom: 24px; border-bottom: 1px solid rgba(128,128,128,0.2); }
+        .news-blog-container .news-item:last-child { border-bottom: 0; padding-bottom: 0; margin-bottom: 0; }
+        .news-title { font-size: 1.6rem; font-weight: 700; margin-bottom: 8px; }
+        .news-date { font-size: 0.85rem; opacity: 0.7; margin-bottom: 1rem; }
+        .news-content-short, .news-content-full { line-height: 1.75; }
+        .news-content-short p, .news-content-full p { margin-bottom: 1rem; }
+        .news-content-short img, .news-content-full img { max-width: 100%; height: auto; border-radius: 8px; margin: 1rem 0; }
+        .news-content-short ul, .news-content-full ul,
+        .news-content-short ol, .news-content-full ol { margin: 0 0 1rem 1.5rem; }
+        .news-content-short pre, .news-content-full pre { background: rgba(0,0,0,0.06); padding: 1rem; border-radius: 8px; overflow-x: auto; max-width: 100%; }
+        .news-content-short code, .news-content-full code { font-family: 'Fira Code', monospace; font-size: 0.9em; }
+        .news-content-short table, .news-content-full table { display: block; overflow-x: auto; max-width: 100%; }
+        .toggle-news-btn {
+            margin-top: 12px; background: #2563eb; color: #fff; border: 0;
+            padding: 8px 18px; border-radius: 8px; cursor: pointer;
+            font-size: 14px; font-weight: 500; transition: background 0.15s;
+        }
+        .toggle-news-btn:hover { background: #1d4ed8; }
+        .news-item.is-expanded .news-content-short { display: none; }
+        .news-item:not(.is-expanded) .news-content-full { display: none; }
+        .news-item.is-expanded .news-content-full { display: block; }
+        .lumina-toggle-block[data-lumina-toggle] { display: block; margin: 1rem 0; }
+        .lumina-toggle-content { margin-top: 1rem; }
+        html, body { max-width: 100%; overflow-x: clip; }
+
+        /* When news has a Lumina toggle button, show .news-content-full
+           regardless of is-expanded state. The Lumina button handles
+           collapse/expand via lumina-toggle.js (wraps content after
+           the button in hidden .lumina-toggle-content). */
+        .news-item.has-lumina-toggle .news-content-full { display: block !important; }
+        .news-item.has-lumina-toggle .news-content-short { display: none !important; }
+        .news-item.has-lumina-toggle .toggle-news-btn:not([data-lumina-toggle] *) { display: none; }
+</style>
+</head>
+<body x-data="{menu:false}">
+
+<!-- Minimal top bar -->
+<header class="minimal-topbar">
+    <a href="?page=home&lang={{current_lang}}" class="minimal-logo">{{site_title}}</a>
+    <button class="minimal-menu-btn" :class="menu?'open':''" @click="menu=!menu" aria-label="Меню">
+        <span></span><span></span><span></span>
+    </button>
+</header>
+
+<!-- Slide-down menu -->
+<nav class="minimal-menu" :class="menu?'open':''" x-show="menu" x-cloak x-transition>
+    <ul class="minimal-menu-list">
+        {{foreach:pages as p}}
+        <li><a class="minimal-menu-link {{if:p.slug == current_slug}}active{{endif}}" href="?page={{p.slug}}&lang={{current_lang}}" @click="menu=false">{{p.title}}</a></li>
+        {{endforeach}}
+    </ul>
+    <div class="minimal-menu-lang">
+        {{foreach:supported_langs as lang}}
+        <a href="?page={{current_slug}}&lang={{lang.code}}" class="minimal-lang-link" @click="menu=false">{{lang.name}}</a>
+        {{endforeach}}
+    </div>
+</nav>
+
+<!-- Main content -->
+<main class="minimal-main">
+    <article class="minimal-article">
+        <h1 class="minimal-title">{{page_title}}</h1>
+        <div class="minimal-content">
+            {{page_content}}
+        </div>
+    </article>
+</main>
+
+<!-- Minimal footer -->
+<footer class="minimal-footer">
+    <div class="minimal-footer-inner">
+        <span>&copy; {{current_year}} {{site_title}}</span>
+        <a href="admin/" class="minimal-admin">Admin</a>
+    </div>
+</footer>
+    
+    <script src="assets/js/lumina-toggle.js?v=20260715" defer></script>
+    <script src="assets/js/legacy-bs-toggle.js" defer></script>
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        document.addEventListener('click', function(event) {
+            var target = event.target;
+            if (!target.matches || !target.matches('.toggle-news-btn')) return;
+
+            // 1. Lumina toggle button (inside [data-lumina-toggle])
+            var luminaToggle = target.closest('[data-lumina-toggle]');
+            if (luminaToggle) {
+                var content = luminaToggle.querySelector('.lumina-toggle-content');
+                if (!content && luminaToggle.nextElementSibling && luminaToggle.nextElementSibling.classList.contains('lumina-toggle-content')) {
+                    content = luminaToggle.nextElementSibling;
+                }
+                if (content) {
+                    var isHidden = content.style.display === 'none' || getComputedStyle(content).display === 'none';
+                    content.style.display = isHidden ? 'block' : 'none';
+                    var expandedText  = target.getAttribute('data-text-expanded')  || 'Свернуть';
+                    var collapsedText = target.getAttribute('data-text-collapsed') || 'Читать далее';
+                    target.textContent = isHidden ? expandedText : collapsedText;
+                }
+                event.preventDefault();
+                event.stopPropagation();
+                return;
+            }
+
+            // 2. Legacy toggle button (from latest_news.php widget)
+            var newsItem = target.closest('.news-item');
+            if (newsItem) {
+                newsItem.classList.toggle('is-expanded');
+                target.textContent = newsItem.classList.contains('is-expanded') ? 'Свернуть' : 'Читать далее';
+                event.preventDefault();
+            }
+        });
+    });
+    </script>
+    <script src="assets/js/lightbox.js?v=20260715b" defer></script>
+</body>
+</html>

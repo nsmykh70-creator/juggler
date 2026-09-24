@@ -1,0 +1,32 @@
+# AICMS uploads/ — запрещаем исполнение скриптов в загруженных файлах
+# NB: php_flag engine off намеренно НЕ используется — на многих хостингах это вызывает HTTP 500
+# для всей директории. FilesMatch-запрет полностью блокирует исполнение: запрос получает 403
+# ещё до передачи PHP-обработчику.
+<IfModule mod_authz_core.c>
+    # Apache 2.4+
+    <FilesMatch "\.(php|phtml|phar|php3|php4|php5|php7|php8|php9|phps|pht|cgi|pl|py|asp|aspx|jsp|sh)$">
+        Require all denied
+    </FilesMatch>
+</IfModule>
+<IfModule !mod_authz_core.c>
+    # Apache 2.2
+    <FilesMatch "\.(php|phtml|phar|php3|php4|php5|php7|php8|php9|phps|pht|cgi|pl|py|asp|aspx|jsp|sh)$">
+        Order allow,deny
+        Deny from all
+    </FilesMatch>
+</IfModule>
+
+# NB: Options -Indexes и php_flag намеренно НЕ используются — на хостингах с ограниченным
+# AllowOverride директива Options вызывает HTTP 500 для всей директории. Directory listing
+# закрыт самим FilesMatch-запретом (а файлы .php всё равно недоступны).
+
+# Запрещаем доступ к dot-файлам (.trash, .htaccess, скрытые файлы)
+<FilesMatch "^\.">
+    <IfModule mod_authz_core.c>
+        Require all denied
+    </IfModule>
+    <IfModule !mod_authz_core.c>
+        Order allow,deny
+        Deny from all
+    </IfModule>
+</FilesMatch>

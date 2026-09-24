@@ -1,0 +1,13 @@
+# Ensure correct MIME types for ES Modules
+<IfModule mod_mime.c>
+    AddType application/javascript .js
+    AddType text/javascript .js
+    AddType application/json .json
+</IfModule>
+
+# Enable CORS for local assets
+<IfModule mod_headers.c>
+    <FilesMatch "\.(js|css|json)$">
+        Header set Access-Control-Allow-Origin "*"
+    </FilesMatch>
+</IfModule>

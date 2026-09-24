@@ -1,0 +1,913 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <link rel="stylesheet" href="assets/css/tailwind-utilities.css?v=20260724">
+    <link rel="stylesheet" href="assets/css/tailwind-shim.css?v=20260724">
+    <link rel="stylesheet" href="assets/css/lumina-frontend.css?v=20260801">
+    <script src="assets/js/lumina-anim-observer.js?v=20260719b" defer></script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{site_title}} | Матрица</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;600;700&family=Share+Tech+Mono&family=Orbitron:wght@400;700&family=Open+Sans:wght@300;400;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="assets/css/bootstrap.local.css?v=20260718">
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        :root {
+            --matrix-green: #00ff41;
+            --matrix-dark: #0d0208;
+            --matrix-darker: #030;
+            --matrix-text: #e0f8e0;
+            --glass-bg: rgba(0, 20, 0, 0.15);
+            --glass-border: rgba(0, 255, 65, 0.2);
+            --glass-shadow: 0 0 20px rgba(0, 255, 65, 0.1);
+            --gradient: linear-gradient(135deg, var(--matrix-green), #00cc33);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Share Tech Mono', monospace;
+            color: var(--matrix-text);
+            overflow-x: clip;
+            background: var(--matrix-darker);
+            min-height: 100vh;
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+            perspective: 1000px;
+        }
+
+        .main-content {
+            flex: 1;
+            position: relative;
+            z-index: 2;
+        }
+
+        /* Анимация цифрового дождя */
+        .matrix-rain {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 1;
+            overflow: hidden;
+            pointer-events: none;
+        }
+
+        .matrix-column {
+            display: inline-block;
+            width: 1em;
+            margin-right: 1.5em;
+            vertical-align: top;
+            animation: rain-fall 15s linear infinite;
+            animation-delay: calc(var(--delay) * 1s);
+            transform: translateY(-100%);
+            opacity: 0.7;
+            font-size: 18px;
+        }
+
+        @keyframes rain-fall {
+            0% {
+                transform: translateY(-100%);
+                opacity: 0;
+            }
+            2% {
+                opacity: 0.8;
+            }
+            90% {
+                opacity: 0.8;
+            }
+            100% {
+                transform: translateY(100vh);
+                opacity: 0;
+            }
+        }
+
+        .matrix-character {
+            color: var(--matrix-green);
+            text-shadow: 0 0 5px var(--matrix-green);
+            opacity: 0;
+            animation: fade-in 0.5s forwards;
+            animation-delay: calc(var(--char-delay) * 0.1s);
+        }
+
+        @keyframes fade-in {
+            to {
+                opacity: 1;
+            }
+        }
+
+        .glass-panel {
+            background: var(--glass-bg);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            border: 1px solid var(--glass-border);
+            border-radius: 4px;
+            box-shadow: var(--glass-shadow);
+            padding: 2rem;
+            margin-bottom: 2rem;
+            transition: all 0.5s ease;
+            position: relative;
+            overflow: hidden;
+            transform-style: preserve-3d;
+        }
+
+        .glass-panel::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(0, 255, 65, 0.1), transparent);
+            animation: scan 6s linear infinite;
+            z-index: -1;
+        }
+
+        @keyframes scan {
+            0% {
+                left: -100%;
+            }
+            100% {
+                left: 100%;
+            }
+        }
+
+        h1, h2, h3, h4, h5, h6 {
+            font-family: 'Orbitron', sans-serif;
+            font-weight: 700;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+        }
+
+        .hero-title {
+            font-size: 3.5rem;
+            line-height: 1.1;
+            color: var(--matrix-green);
+            margin-bottom: 1.5rem;
+            text-shadow: 0 0 10px var(--matrix-green);
+            animation: text-glow 2s infinite alternate;
+        }
+
+        @keyframes text-glow {
+            0% {
+                text-shadow: 0 0 5px var(--matrix-green);
+            }
+            100% {
+                text-shadow: 0 0 20px var(--matrix-green), 0 0 30px var(--matrix-green);
+            }
+        }
+
+        .btn-theme {
+            background: transparent;
+            border: 2px solid var(--matrix-green);
+            color: var(--matrix-green);
+            padding: 0.8rem 2rem;
+            border-radius: 0;
+            font-weight: 600;
+            position: relative;
+            overflow: hidden;
+            transition: all 0.3s ease;
+            font-family: 'Orbitron', sans-serif;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            box-shadow: 0 0 10px rgba(0, 255, 65, 0.3);
+            z-index: 1;
+        }
+
+        .btn-theme::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(0, 255, 65, 0.2), transparent);
+            transition: 0.5s;
+            z-index: -1;
+        }
+
+        .btn-theme:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 0 20px var(--matrix-green), 0 0 30px rgba(0, 255, 65, 0.5);
+            background: rgba(0, 20, 0, 0.3);
+        }
+
+        .btn-theme:hover::before {
+            left: 100%;
+        }
+
+        .navbar {
+            background: rgba(3, 13, 3, 0.85);
+            backdrop-filter: blur(10px);
+            transition: all 0.4s ease;
+            border-bottom: 1px solid var(--glass-border);
+            z-index: 1000;
+        }
+
+        .navbar-scrolled {
+            background: rgba(3, 13, 3, 0.95);
+            box-shadow: 0 0 20px rgba(0, 255, 65, 0.1);
+        }
+
+        .navbar-brand {
+            font-family: 'Orbitron', sans-serif;
+            font-weight: 700;
+            font-size: 1.8rem;
+            color: var(--matrix-green);
+            text-shadow: 0 0 5px var(--matrix-green);
+            letter-spacing: 2px;
+        }
+
+        .nav-link {
+            font-family: 'Orbitron', sans-serif;
+            font-weight: 500;
+            position: relative;
+            margin: 0 0.5rem;
+            padding: 0.5rem 0;
+            color: var(--matrix-text) !important;
+            transition: all 0.3s ease;
+            letter-spacing: 1px;
+        }
+
+        .nav-link:after {
+            content: '';
+            position: absolute;
+            width: 0;
+            height: 2px;
+            bottom: 0;
+            left: 0;
+            background: var(--matrix-green);
+            transition: width 0.3s ease;
+            box-shadow: 0 0 5px var(--matrix-green);
+        }
+
+        .nav-link:hover:after,
+        .nav-link.active:after {
+            width: 100%;
+        }
+
+        .hero-section {
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            position: relative;
+            padding-top: 80px;
+        }
+
+        .section-title {
+            position: relative;
+            padding-bottom: 1rem;
+            margin-bottom: 2rem;
+            display: inline-block;
+            text-align: center;
+            width: 100%;
+            color: var(--matrix-green);
+            text-shadow: 0 0 5px var(--matrix-green);
+        }
+
+        .section-title:after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 60px;
+            height: 2px;
+            background: var(--matrix-green);
+            box-shadow: 0 0 5px var(--matrix-green);
+        }
+
+        .tech-card {
+            background: rgba(3, 23, 3, 0.3);
+            border-radius: 4px;
+            overflow: hidden;
+            transition: transform 0.3s ease;
+            border: 1px solid var(--glass-border);
+            height: 100%;
+            backdrop-filter: blur(5px);
+            padding: 1.5rem;
+            position: relative;
+            overflow: hidden;
+            text-align: center;
+            transform-style: preserve-3d;
+            box-shadow: 0 0 10px rgba(0, 255, 65, 0.1);
+        }
+
+        .tech-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 2px;
+            background: var(--matrix-green);
+            box-shadow: 0 0 10px var(--matrix-green);
+            animation: card-scan 4s linear infinite;
+            animation-delay: calc(var(--delay) * 1s);
+            z-index: 1;
+        }
+
+        @keyframes card-scan {
+            0% {
+                left: -100%;
+            }
+            100% {
+                left: 100%;
+            }
+        }
+
+        .tech-card:hover {
+            transform: translateY(-10px) rotateX(5deg);
+            box-shadow: 0 0 20px rgba(0, 255, 65, 0.3);
+        }
+
+        .card-icon {
+            font-size: 3rem;
+            margin-bottom: 1.5rem;
+            color: var(--matrix-green);
+            text-shadow: 0 0 5px var(--matrix-green);
+            display: block;
+            text-align: center;
+            animation: icon-pulse 2s infinite alternate;
+        }
+
+        @keyframes icon-pulse {
+            0% {
+                text-shadow: 0 0 5px var(--matrix-green);
+            }
+            100% {
+                text-shadow: 0 0 15px var(--matrix-green), 0 0 20px var(--matrix-green);
+            }
+        }
+
+        .page-content img {
+            max-width: 100%;
+            height: auto;
+            border-radius: 4px;
+            margin: 2rem auto;
+            display: block;
+            cursor: pointer;
+            transition: transform 0.3s ease;
+            border: 1px solid var(--glass-border);
+            box-shadow: 0 0 10px rgba(0, 255, 65, 0.1);
+        }
+
+        .page-content img:hover {
+            transform: scale(1.03);
+            border: 1px solid var(--matrix-green);
+            box-shadow: 0 0 20px rgba(0, 255, 65, 0.3);
+        }
+
+        .parallax-section {
+            padding: 8rem 0;
+            position: relative;
+            background-attachment: fixed;
+            background-position: center;
+            background-repeat: no-repeat;
+            background-size: cover;
+            overflow: hidden;
+        }
+
+        .parallax-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(3, 13, 3, 0.85);
+            z-index: 1;
+        }
+
+        .parallax-content {
+            position: relative;
+            z-index: 2;
+            text-align: center;
+        }
+
+        .footer {
+            background: rgba(3, 13, 3, 0.95);
+            padding: 3rem 0;
+            position: relative;
+            border-top: 1px solid var(--glass-border);
+            text-align: center;
+            z-index: 2;
+        }
+
+        .fade-in-section {
+            opacity: 0;
+            transform: translateY(30px) rotateX(20deg);
+            transition: opacity 0.6s ease, transform 0.6s ease;
+        }
+
+        .fade-in-section.is-visible {
+            opacity: 1;
+            transform: translateY(0) rotateX(0);
+        }
+
+        .matrix-grid {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-image: 
+                linear-gradient(rgba(0, 255, 65, 0.05) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(0, 255, 65, 0.05) 1px, transparent 1px);
+            background-size: 40px 40px;
+            opacity: 0.3;
+            z-index: -1;
+        }
+
+        .text-center {
+            text-align: center;
+        }
+
+        .d-flex-center {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .terminal-text {
+            background: rgba(0, 10, 0, 0.5);
+            border: 1px solid var(--glass-border);
+            padding: 1.5rem;
+            font-family: 'Share Tech Mono', monospace;
+            overflow: hidden;
+        }
+
+        .terminal-line {
+            animation: typewriter 4s steps(40) 1s forwards;
+            white-space: nowrap;
+            overflow: hidden;
+            border-right: 2px solid var(--matrix-green);
+            margin-bottom: 0.5rem;
+            width: 0;
+        }
+
+        @keyframes typewriter {
+            to {
+                width: 100%;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .hero-title { 
+                font-size: 2.5rem;
+                text-align: center;
+            }
+            .section-title { 
+                font-size: 2rem; 
+                text-align: center;
+            }
+            .navbar-collapse {
+                background: rgba(3, 13, 3, 0.95);
+                padding: 1rem;
+                border-radius: 4px;
+                margin-top: 10px;
+                border: 1px solid var(--glass-border);
+            }
+            .hero-content {
+                text-align: center;
+            }
+            .btn-container {
+                justify-content: center;
+            }
+            .matrix-column {
+                font-size: 14px;
+                margin-right: 1em;
+            }
+        }
+		 /* [ИЗМЕНЕНИЕ] Глобальные CSS-переменные для шрифтов */
+        :root {
+            --font-headers: '{{font_headers}}', sans-serif;
+            --font-body: '{{font_body}}', sans-serif;
+            
+            /* Цветовая схема темы */
+            --primary: #2ecc71;
+            --primary-dark: #27ae60;
+            --secondary: #1abc9c;
+            --dark-bg: #0a1929;
+            --light-text: #ecf0f1;
+            --glass-bg: rgba(255, 255, 255, 0.08);
+            --glass-border: rgba(255, 255, 255, 0.15);
+            --glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+            --gradient: linear-gradient(135deg, var(--primary), var(--secondary));
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: var(--font-body); /* Используем переменную */
+            color: var(--light-text);
+            background: var(--dark-bg);
+            background-attachment: fixed;
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+        }
+
+        h1, h2, h3, h4, h5, h6 {
+            font-family: var(--font-headers); /* Используем переменную */
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .main-content { flex: 1; }
+        .page-content p { font-family: var(--font-body); }
+        .page-content img { max-width: 100%; height: auto; border-radius: 12px; margin: 1.5rem 0; }
+
+        .navbar { background: rgba(10, 25, 41, 0.85); backdrop-filter: blur(10px); border-bottom: 1px solid rgba(46, 204, 113, 0.2); }
+        .navbar-brand { font-family: var(--font-headers); font-weight: 700; font-size: 1.8rem; background: var(--gradient); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        .nav-link { font-family: var(--font-headers); position: relative; color: var(--light-text) !important; transition: all 0.3s ease; }
+        .nav-link:after { content: ''; position: absolute; width: 0; height: 3px; bottom: 0; left: 0; background: var(--gradient); transition: width 0.3s ease; }
+        .nav-link:hover:after, .nav-link.active:after { width: 100%; }
+        
+        .glass-panel { background: var(--glass-bg); backdrop-filter: blur(12px); border: 1px solid var(--glass-border); border-radius: 16px; padding: 2rem; }
+        
+        .footer { background: rgba(10, 25, 41, 0.95); padding: 2rem 0; border-top: 1px solid rgba(46, 204, 113, 0.2); text-align: center; }
+    
+
+        .news-blog-container .news-item { margin-bottom: 2rem; padding-bottom: 1.5rem; border-bottom: 1px solid rgba(128,128,128,0.2); }
+        .news-blog-container .news-item:last-child { border-bottom: 0; padding-bottom: 0; margin-bottom: 0; }
+        .news-title { font-size: 1.6rem; font-weight: 700; margin-bottom: 0.5rem; }
+        .news-date { font-size: 0.85rem; opacity: 0.7; margin-bottom: 1rem; }
+        .news-content-full { line-height: 1.75; }
+        .news-content-full p { margin-bottom: 1rem; }
+        .news-content-full h2, .news-content-full h3 { margin-top: 1.5rem; margin-bottom: 0.75rem; }
+        .news-content-full img { max-width: 100%; height: auto; border-radius: 8px; margin: 1rem 0; }
+        .news-content-full ul, .news-content-full ol { margin: 0 0 1rem 1.5rem; }
+        .news-content-full li { margin-bottom: 0.4rem; }
+        .news-content-full pre { background: rgba(0,0,0,0.06); padding: 1rem; border-radius: 8px; overflow-x: auto; max-width: 100%; }
+        .news-content-full code { font-family: 'Fira Code', monospace; font-size: 0.9em; }
+        .news-content-full blockquote { border-left: 3px solid #2563eb; padding-left: 1rem; margin: 1rem 0; opacity: 0.85; font-style: italic; }
+        .news-content-full table { display: block; overflow-x: auto; max-width: 100%; }
+        .lumina-toggle-block[data-lumina-toggle] { display: block; margin: 1rem 0; }
+        .toggle-news-btn { cursor: pointer; transition: filter 0.15s ease, transform 0.1s ease; }
+        .toggle-news-btn:hover { filter: brightness(1.1); }
+        .toggle-news-btn:active { transform: translateY(1px); }
+        .lumina-toggle-content { margin-top: 1rem; animation: luminaToggleFadeIn 0.25s ease-out; }
+        @keyframes luminaToggleFadeIn { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: translateY(0); } }
+
+        /* News toggle button (from helios — working mechanism) */
+        .news-blog-container .news-item { margin-bottom: 32px; padding-bottom: 24px; border-bottom: 1px solid rgba(128,128,128,0.2); }
+        .news-blog-container .news-item:last-child { border-bottom: 0; padding-bottom: 0; margin-bottom: 0; }
+        .news-title { font-size: 1.6rem; font-weight: 700; margin-bottom: 8px; }
+        .news-date { font-size: 0.85rem; opacity: 0.7; margin-bottom: 1rem; }
+        .news-content-short, .news-content-full { line-height: 1.75; }
+        .news-content-short p, .news-content-full p { margin-bottom: 1rem; }
+        .news-content-short img, .news-content-full img { max-width: 100%; height: auto; border-radius: 8px; margin: 1rem 0; }
+        .news-content-short ul, .news-content-full ul,
+        .news-content-short ol, .news-content-full ol { margin: 0 0 1rem 1.5rem; }
+        .news-content-short pre, .news-content-full pre { background: rgba(0,0,0,0.06); padding: 1rem; border-radius: 8px; overflow-x: auto; max-width: 100%; }
+        .news-content-short code, .news-content-full code { font-family: 'Fira Code', monospace; font-size: 0.9em; }
+        .news-content-short table, .news-content-full table { display: block; overflow-x: auto; max-width: 100%; }
+        .toggle-news-btn {
+            margin-top: 12px; background: #2563eb; color: #fff; border: 0;
+            padding: 8px 18px; border-radius: 8px; cursor: pointer;
+            font-size: 14px; font-weight: 500; transition: background 0.15s;
+        }
+        .toggle-news-btn:hover { background: #1d4ed8; }
+        .news-item.is-expanded .news-content-short { display: none; }
+        .news-item:not(.is-expanded) .news-content-full { display: none; }
+        .news-item.is-expanded .news-content-full { display: block; }
+        .lumina-toggle-block[data-lumina-toggle] { display: block; margin: 1rem 0; }
+        .lumina-toggle-content { margin-top: 1rem; }
+        html, body { max-width: 100%; overflow-x: clip; }
+
+        /* When news has a Lumina toggle button, show .news-content-full
+           regardless of is-expanded state. The Lumina button handles
+           collapse/expand via lumina-toggle.js (wraps content after
+           the button in hidden .lumina-toggle-content). */
+        .news-item.has-lumina-toggle .news-content-full { display: block !important; }
+        .news-item.has-lumina-toggle .news-content-short { display: none !important; }
+        .news-item.has-lumina-toggle .toggle-news-btn:not([data-lumina-toggle] *) { display: none; }
+</style>
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <style>[x-cloak]{display:none!important}</style>
+</head>
+<body>
+    <!-- Цифровой дождь -->
+    <div class="matrix-rain" id="matrix-rain"></div>
+    
+    <!-- Матричная сетка -->
+    <div class="matrix-grid"></div>
+
+    <!-- Навигация -->
+    <header class="navbar navbar-expand-lg fixed-top navbar-dark">
+        <div class="container">
+            <a class="navbar-brand" href="?page=home&lang={{lang}}">{{site_title}}</a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#mainNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="mainNav">
+                <ul class="navbar-nav ms-auto mb-2 mb-lg-0">
+                    {{foreach:pages as p}}
+                    <li class="nav-item">
+                        <!-- [ИЗМЕНЕНИЕ] Универсальный код подсветки меню -->
+                        <a class="nav-link {{if p.slug == page_slug}}active{{endif}}" href="?page={{p.slug}}&lang={{lang}}">{{p.title}}</a>
+                    </li>
+                    {{endforeach}}
+                </ul>
+            </div>
+        </div>
+    </header>
+
+    <main class="main-content">
+        <!-- Герой секция -->
+        <section class="hero-section">
+            <div class="container">
+                <div class="row justify-content-center">
+                    <div class="col-lg-8 fade-in-section">
+                        <div class="glass-panel">
+                            <h1 class="hero-title">Добро пожаловать в Матрицу</h1>
+                            
+                            <div class="terminal-text mt-4">
+                                <div class="terminal-line">> Система загружена: {{site_title}}</div>
+                                <div class="terminal-line">> Дата: {{current_date}}</div>
+                                <div class="terminal-line">> Статус: Активен</div>
+                                <div class="terminal-line">> Готов к работе</div>
+                            </div>
+                            
+                            <p class="mt-4" style="font-family: 'Share Tech Mono', monospace;">
+                                Мы создаем цифровые миры, которые бросают вызов реальности
+                            </p>
+                            <div class="d-flex flex-wrap gap-3 mt-4 justify-content-center">
+                                <a href="?page=services&lang={{current_lang}}" class="btn-theme">Войти в систему</a>
+                                <a href="?page=contacts&lang={{current_lang}}" class="btn btn-outline-light">Код доступа</a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Параллакс секция -->
+        <section class="parallax-section" style="background-image: url('https://images.unsplash.com/photo-1535223289827-42f1e9919769?q=80&w=1500');">
+            <div class="parallax-overlay"></div>
+            <div class="container parallax-content">
+                <div class="row justify-content-center">
+                    <div class="col-lg-8 fade-in-section text-center">
+                        <h2 class="section-title">НЕО: Что такое Матрица?</h2>
+                        <p class="lead mb-5" style="font-family: 'Share Tech Mono', monospace;">
+                            Матрица повсюду. Это мир, который натянут на глаза, чтобы скрыть правду
+                        </p>
+                        <div class="d-flex-center">
+                            <a href="?page=about&lang={{current_lang}}" class="btn-theme">Узнать правду</a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Услуги -->
+        <section class="py-7">
+            <div class="container">
+                <div class="row mb-5 fade-in-section">
+                    <div class="col-12 text-center">
+                        <h2 class="section-title">Наши Системы</h2>
+                    </div>
+                </div>
+                <div class="row g-4 justify-content-center">
+                    <div class="col-md-4 fade-in-section">
+                        <div class="tech-card" style="--delay: 0.5">
+                            <div class="card-icon d-flex-center">
+                                <i class="fas fa-code"></i>
+                            </div>
+                            <h3>Виртуализация</h3>
+                            <p style="font-family: 'Share Tech Mono', monospace;">
+                                Создание цифровых миров и симуляций реальности
+                            </p>
+                        </div>
+                    </div>
+                    <div class="col-md-4 fade-in-section">
+                        <div class="tech-card" style="--delay: 1">
+                            <div class="card-icon d-flex-center">
+                                <i class="fas fa-brain"></i>
+                            </div>
+                            <h3>Искусственный Интеллект</h3>
+                            <p style="font-family: 'Share Tech Mono', monospace;">
+                                Системы машинного обучения и нейросети
+                            </p>
+                        </div>
+                    </div>
+                    <div class="col-md-4 fade-in-section">
+                        <div class="tech-card" style="--delay: 1.5">
+                            <div class="card-icon d-flex-center">
+                                <i class="fas fa-shield-alt"></i>
+                            </div>
+                            <h3>Кибербезопасность</h3>
+                            <p style="font-family: 'Share Tech Mono', monospace;">
+                                Защита от агентов Смита и других угроз
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- О нас -->
+        <section class="py-7">
+            <div class="container">
+                <div class="glass-panel fade-in-section">
+                    <div class="row align-items-center">
+                        <div class="col-lg-6 text-center text-lg-start">
+                            <h2 class="section-title">Мы - Сопротивление</h2>
+                            <p style="font-family: 'Share Tech Mono', monospace;">
+                                Наша команда борется за свободу информации и цифровой суверенитет. 
+                                Мы создаем инструменты для тех, кто готов увидеть мир за пределами Матрицы.
+                            </p>
+                            <p style="font-family: 'Share Tech Mono', monospace;">
+                                Наша миссия - освобождение сознания и защита цифровых прав каждого человека.
+                            </p>
+                            <div class="d-flex-center">
+                                <a href="?page=about&lang={{current_lang}}" class="btn-theme mt-3">Присоединиться</a>
+                            </div>
+                        </div>
+                        <div class="col-lg-6 mt-4 mt-lg-0 text-center">
+                            <div class="terminal-text">
+                                <div class="terminal-line">> Система: ZION</div>
+                                <div class="terminal-line">> Статус: Активна</div>
+                                <div class="terminal-line">> Защита: Включена</div>
+                                <div class="terminal-line">> Готовность: 100%</div>
+                                <div class="terminal-line">> Сообщение: Свобода - это право по рождению</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+            <section class="py-5"><div class="container"><div class="page-content">{{page_content}}</div></div></section>
+    </main>
+
+    <footer class="footer">
+        <div class="container">
+            <div class="row justify-content-center">
+                <div class="col-md-4 mb-4 mb-md-0 text-center">
+                    <h4 class="mb-4"><i class="fas fa-terminal me-2"></i> {{site_title}}</h4>
+                    <p style="font-family: 'Share Tech Mono', monospace;">
+                        Освобождаем разум с 1999
+                    </p>
+                </div>
+                <div class="col-md-4 mb-4 mb-md-0 text-center">
+                    <h4 class="mb-4">Контакты</h4>
+                    <p style="font-family: 'Share Tech Mono', monospace;">
+                        <i class="fas fa-map-marker-alt me-2"></i> Зион, Док 12
+                    </p>
+                    <p style="font-family: 'Share Tech Mono', monospace;">
+                        <i class="fas fa-phone me-2"></i> +7 (495) 010-101
+                    </p>
+                    <p style="font-family: 'Share Tech Mono', monospace;">
+                        <i class="fas fa-envelope me-2"></i> neo@{{site_title|lower}}.matrix
+                    </p>
+                </div>
+                <div class="col-md-4 text-center">
+                    <h4 class="mb-4">Социальные сети</h4>
+                    <div class="d-flex justify-content-center gap-3">
+                        <a href="#" class="btn btn-outline-light"><i class="fab fa-hacker-news"></i></a>
+                        <a href="#" class="btn btn-outline-light"><i class="fab fa-github"></i></a>
+                        <a href="#" class="btn btn-outline-light"><i class="fab fa-keybase"></i></a>
+                        <a href="#" class="btn btn-outline-light"><i class="fab fa-steam"></i></a>
+                    </div>
+                </div>
+            </div>
+            <div class="row mt-5">
+                <div class="col-12 text-center">
+                    <p style="font-family: 'Share Tech Mono', monospace;">
+                        &copy; {{current_year}} {{site_title}} | Wake up, Neo...
+                    </p>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <script src="assets/js/bootstrap.bundle.local.js?v=20260718"></script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <script>
+    // Создание цифрового дождя
+    function createMatrixRain() {
+        const container = document.getElementById('matrix-rain');
+        const columns = Math.floor(window.innerWidth / 24);
+        const characters = '01abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ$#@%&*^';
+        
+        for (let i = 0; i < columns; i++) {
+            const column = document.createElement('div');
+            column.className = 'matrix-column';
+            column.style.setProperty('--delay', Math.random() * 5);
+            
+            const charCount = 30 + Math.floor(Math.random() * 20);
+            
+            for (let j = 0; j < charCount; j++) {
+                const char = document.createElement('div');
+                char.className = 'matrix-character';
+                char.textContent = characters.charAt(Math.floor(Math.random() * characters.length));
+                char.style.setProperty('--char-delay', j);
+                column.appendChild(char);
+            }
+            
+            container.appendChild(column);
+        }
+    }
+    
+    // Параллакс эффект
+    window.addEventListener('scroll', function() {
+        const yOffset = window.pageYOffset;
+        const speed = 0.3;
+        
+        // Эффект для навбара
+        const navbar = document.querySelector('.navbar');
+        if (window.scrollY > 50) {
+            navbar.classList.add('navbar-scrolled');
+        } else {
+            navbar.classList.remove('navbar-scrolled');
+        }
+        
+        // Эффект параллакса для элементов
+        document.querySelectorAll('.fade-in-section').forEach(el => {
+            const depth = parseFloat(el.getAttribute('data-depth')) || 0.1;
+            const offset = -yOffset * depth;
+            el.style.transform = `translateY(${offset}px)`;
+        });
+    });
+    
+    // Анимация при прокрутке
+    function animateOnScroll() {
+        const elements = document.querySelectorAll('.fade-in-section');
+        
+        elements.forEach(element => {
+            const elementTop = element.getBoundingClientRect().top;
+            const windowHeight = window.innerHeight;
+            
+            if (elementTop < windowHeight * 0.9) {
+                element.classList.add('is-visible');
+            }
+        });
+    }
+    
+    // Инициализация
+    document.addEventListener('DOMContentLoaded', function() {
+        createMatrixRain();
+        animateOnScroll();
+        window.addEventListener('scroll', animateOnScroll);
+        
+        // Анимация терминальных строк
+        document.querySelectorAll('.terminal-line').forEach((line, index) => {
+            line.style.animationDelay = `${index * 2}s`;
+        });
+    });
+    </script>
+    
+    <script src="assets/js/lumina-toggle.js?v=20260715" defer></script>
+    <script src="assets/js/legacy-bs-toggle.js" defer></script>
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        document.addEventListener('click', function(event) {
+            var target = event.target;
+            if (!target.matches || !target.matches('.toggle-news-btn')) return;
+
+            // 1. Lumina toggle button (inside [data-lumina-toggle])
+            var luminaToggle = target.closest('[data-lumina-toggle]');
+            if (luminaToggle) {
+                var content = luminaToggle.querySelector('.lumina-toggle-content');
+                if (!content && luminaToggle.nextElementSibling && luminaToggle.nextElementSibling.classList.contains('lumina-toggle-content')) {
+                    content = luminaToggle.nextElementSibling;
+                }
+                if (content) {
+                    var isHidden = content.style.display === 'none' || getComputedStyle(content).display === 'none';
+                    content.style.display = isHidden ? 'block' : 'none';
+                    var expandedText  = target.getAttribute('data-text-expanded')  || 'Свернуть';
+                    var collapsedText = target.getAttribute('data-text-collapsed') || 'Читать далее';
+                    target.textContent = isHidden ? expandedText : collapsedText;
+                }
+                event.preventDefault();
+                event.stopPropagation();
+                return;
+            }
+
+            // 2. Legacy toggle button (from latest_news.php widget)
+            var newsItem = target.closest('.news-item');
+            if (newsItem) {
+                newsItem.classList.toggle('is-expanded');
+                target.textContent = newsItem.classList.contains('is-expanded') ? 'Свернуть' : 'Читать далее';
+                event.preventDefault();
+            }
+        });
+    });
+    </script>
+    <script src="assets/js/lightbox.js?v=20260715b" defer></script>
+</body>
+</html>

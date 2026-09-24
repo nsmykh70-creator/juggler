@@ -1,0 +1,27 @@
+/* Color Scheme: Sunset — Warm Orange/Pink */
+:root {
+    --gen-bg: #fff8f0;
+    --gen-card: #ffffff;
+    --gen-text: #3d2817;
+    --gen-muted: #8a6a52;
+    --gen-primary: #ea580c;
+    --gen-primary-light: #fb923c;
+    --gen-accent: #f59e0b;
+    --gen-border: #fed7aa;
+    --gen-header-bg: linear-gradient(135deg, #ea580c 0%, #f59e0b 100%);
+    --gen-header-text: #ffffff;
+    --gen-footer-bg: #3d2817;
+    --gen-footer-text: #fed7aa;
+}
+body { background: var(--gen-bg); color: var(--gen-text); }
+.navbar, .site-header { background: var(--gen-header-bg) !important; color: var(--gen-header-text); }
+.navbar a, .site-header a { color: var(--gen-header-text) !important; }
+.navbar a.active, .site-header a.active { background: rgba(255,255,255,0.2); border-radius: 6px; }
+.card, .main-content { background: var(--gen-card); border-color: var(--gen-border); }
+.btn-primary { background: var(--gen-primary); border-color: var(--gen-primary); }
+.btn-primary:hover { background: var(--gen-primary-light); border-color: var(--gen-primary-light); }
+a { color: var(--gen-primary); }
+a:hover { color: var(--gen-primary-light); }
+.site-footer { background: var(--gen-footer-bg); color: var(--gen-footer-text); }
+.site-footer a { color: var(--gen-accent); }
+h1, h2, h3, h4, h5, h6 { color: var(--gen-primary); }

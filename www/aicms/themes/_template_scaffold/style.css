@@ -1,0 +1,83 @@
+/* Scaffold — clean starter theme */
+:root {
+    --scaf-text: #1e293b;
+    --scaf-muted: #64748b;
+    --scaf-accent: #2563eb;
+    --scaf-bg: #f8fafc;
+    --scaf-card: #ffffff;
+    --scaf-border: #e2e8f0;
+}
+
+* { box-sizing: border-box; }
+body {
+    font-family: 'Inter', system-ui, sans-serif;
+    background: var(--scaf-bg);
+    color: var(--scaf-text);
+    margin: 0;
+    line-height: 1.65;
+    -webkit-font-smoothing: antialiased;
+}
+h1, h2, h3, h4, h5, h6 { font-weight: 700; color: #0f172a; }
+a { color: var(--scaf-accent); text-decoration: none; }
+a:hover { text-decoration: underline; }
+
+.site-container { max-width: 1100px; margin: 0 auto; padding: 0 20px; }
+
+/* Header */
+.site-header {
+    background: var(--scaf-card);
+    border-bottom: 1px solid var(--scaf-border);
+    padding: 24px 0;
+    text-align: center;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+}
+.site-title { margin: 0 0 12px; font-size: 24px; }
+.site-title a { color: #0f172a; text-decoration: none; font-weight: 800; }
+.main-nav { display: flex; justify-content: center; flex-wrap: wrap; gap: 6px; }
+.main-nav a {
+    margin: 0;
+    padding: 8px 14px;
+    color: var(--scaf-muted);
+    font-weight: 500;
+    text-decoration: none;
+    border-radius: 8px;
+    font-size: 15px;
+    transition: background-color 0.15s, color 0.15s;
+}
+.main-nav a:hover { background: #eff6ff; color: var(--scaf-accent); }
+.main-nav a.active { background: var(--scaf-accent); color: #fff; }
+
+/* Content */
+.site-content { padding: 32px 0 60px; min-height: 60vh; }
+.fr-view {
+    background: var(--scaf-card);
+    border-radius: 12px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+    border: 1px solid var(--scaf-border);
+    padding: 32px;
+    line-height: 1.75;
+}
+@media (max-width: 768px) { .fr-view { padding: 20px; } }
+.fr-view h1 { font-size: 28px; margin: 0 0 16px; }
+.fr-view h2 { font-size: 22px; margin: 28px 0 12px; }
+.fr-view p { margin: 0 0 16px; }
+.fr-view img { max-width: 100%; height: auto; border-radius: 8px; margin: 16px 0; }
+.fr-view a { color: var(--scaf-accent); text-decoration: underline; }
+
+/* Footer */
+.site-footer {
+    background: #0f172a;
+    color: #94a3b8;
+    padding: 24px 0;
+    text-align: center;
+    font-size: 14px;
+}
+.site-footer p { margin: 4px 0; }
+.site-footer a { color: #94a3b8; }
+.site-footer a:hover { color: #fff; }
+
+/* Froala img alignment */
+.fr-view img.fr-fic, .fr-view img.fr-dib { display: block; margin: 1.5rem auto; }
+.fr-view img.fr-fil { float: left; margin: 5px 20px 15px 0; max-width: calc(50% - 20px); }
+.fr-view img.fr-fir { float: right; margin: 5px 0 15px 20px; max-width: calc(50% - 20px); }
+.fr-view p::after, .fr-view div::after { content: ""; display: table; clear: both; }

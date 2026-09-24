@@ -1,0 +1,863 @@
+<!DOCTYPE html>
+<html lang="{{current_lang}}">
+<head>
+    <link rel="stylesheet" href="assets/css/tailwind-utilities.css?v=20260724">
+    <link rel="stylesheet" href="assets/css/tailwind-shim.css?v=20260724">
+    <link rel="stylesheet" href="assets/css/lumina-frontend.css?v=20260801">
+    <script src="assets/js/lumina-anim-observer.js?v=20260719b" defer></script>
+    <meta charset="UTF-8">
+    <title>{{page_title}} | {{site_title}}</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="{{site_description}}">
+    <meta name="keywords" content="{{site_keywords}}">
+    <link rel="icon" type="image/x-icon" href="{{favicon}}">
+    
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;700&family=Raleway:wght@300;400;500;700&family=Open+Sans:wght@300;400;600&display=swap" rel="stylesheet">
+    
+    <style>
+        /* ===== ОБЩИЕ СТИЛИ ===== */
+        :root {
+            --theme-color-1: #6366f1;
+            --theme-color-2: #0ea5e9;
+            --dark-bg: #0f172a;
+            --light-text: #f8fafc;
+            --dark-text: #0f172a;
+            --glass-bg: rgba(255, 255, 255, 0.1);
+            --glass-border: rgba(255, 255, 255, 0.2);
+            --glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+            --gradient: linear-gradient(135deg, var(--theme-color-1), var(--theme-color-2));
+            --neon-glow: 0 0 15px rgba(99, 102, 241, 0.5);
+        }
+
+        body {
+            font-family: 'Raleway', sans-serif;
+            color: var(--light-text);
+            overflow-x: clip;
+            background: var(--dark-bg);
+            min-height: 100vh;
+            background-attachment: fixed;
+        }
+
+        .theme-bg {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -2;
+            overflow: hidden;
+        }
+
+        .glass-panel {
+            background: var(--glass-bg);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid var(--glass-border);
+            border-radius: 16px;
+            box-shadow: var(--glass-shadow);
+            padding: 2rem;
+            margin-bottom: 2rem;
+        }
+
+        h1, h2, h3, h4, h5, h6 {
+            font-family: 'Oswald', sans-serif;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .hero-title {
+            font-size: 3.5rem;
+            line-height: 1.1;
+            background: var(--gradient);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 1.5rem;
+        }
+
+        .btn-theme {
+            background: var(--gradient);
+            border: none;
+            color: white;
+            padding: 0.8rem 2rem;
+            border-radius: 50px;
+            font-weight: 600;
+            position: relative;
+            overflow: hidden;
+            transition: all 0.3s ease;
+            font-family: 'Oswald', sans-serif;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .btn-theme:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.2);
+        }
+
+        .navbar {
+            background: rgba(15, 23, 42, 0.85);
+            backdrop-filter: blur(10px);
+        }
+
+        /* ===== ТЕМЫ ===== */
+        
+        /* 1. ЗЕЛЕНАЯ ТЕМА (Тропический лес) */
+        .theme-1 {
+            --theme-color-1: #10b981;
+            --theme-color-2: #06b6d4;
+            --dark-bg: #0a1929;
+            background-image: 
+                radial-gradient(circle at 90% 10%, rgba(16, 185, 129, 0.1) 0%, transparent 30%),
+                radial-gradient(circle at 10% 90%, rgba(6, 182, 212, 0.1) 0%, transparent 30%);
+        }
+        .theme-1 .theme-bg {
+            background-image: url('https://assets.codepen.io/4175254/tropical-leaves.png');
+            opacity: 0.05;
+        }
+
+        /* 2. КРАСНАЯ ТЕМА (Вулкан) */
+        .theme-2 {
+            --theme-color-1: #ef4444;
+            --theme-color-2: #f97316;
+            --dark-bg: #1a0a0f;
+            background-image: 
+                radial-gradient(circle at 20% 30%, rgba(239, 68, 68, 0.15) 0%, transparent 25%),
+                radial-gradient(circle at 80% 70%, rgba(249, 115, 22, 0.15) 0%, transparent 25%);
+        }
+        .theme-2 .theme-bg {
+            background-image: url('https://assets.codepen.io/4175254/lava-pattern.png');
+            opacity: 0.07;
+        }
+
+        /* 3. ОРАНЖЕВАЯ ТЕМА (Пустыня) */
+        .theme-3 {
+            --theme-color-1: #f97316;
+            --theme-color-2: #eab308;
+            --dark-bg: #1f1206;
+            background-image: 
+                radial-gradient(circle at 10% 20%, rgba(249, 115, 22, 0.15) 0%, transparent 25%),
+                radial-gradient(circle at 90% 80%, rgba(234, 179, 8, 0.15) 0%, transparent 25%);
+        }
+        .theme-3 .theme-bg {
+            background-image: url('https://assets.codepen.io/4175254/desert-pattern.png');
+            opacity: 0.06;
+        }
+
+        /* 4. РОЗОВАЯ ТЕМА (Цветение) */
+        .theme-4 {
+            --theme-color-1: #ec4899;
+            --theme-color-2: #f472b6;
+            --dark-bg: #1a0a14;
+            background-image: 
+                radial-gradient(circle at 30% 20%, rgba(236, 72, 153, 0.15) 0%, transparent 25%),
+                radial-gradient(circle at 70% 80%, rgba(244, 114, 182, 0.15) 0%, transparent 25%);
+        }
+        .theme-4 .theme-bg {
+            background-image: url('https://assets.codepen.io/4175254/floral-pattern.png');
+            opacity: 0.05;
+        }
+
+        /* 5. СИНЕ-ЗЕЛЕНАЯ ТЕМА (Океан) */
+        .theme-5 {
+            --theme-color-1: #06b6d4;
+            --theme-color-2: #10b981;
+            --dark-bg: #0a1929;
+            background-image: 
+                radial-gradient(circle at 20% 70%, rgba(6, 182, 212, 0.15) 0%, transparent 25%),
+                radial-gradient(circle at 80% 30%, rgba(16, 185, 129, 0.15) 0%, transparent 25%);
+        }
+        .theme-5 .theme-bg {
+            background-image: url('https://assets.codepen.io/4175254/wave-pattern.png');
+            opacity: 0.06;
+        }
+
+        /* 6. ЖЕЛТАЯ ТЕМА (Солнечный свет) */
+        .theme-6 {
+            --theme-color-1: #eab308;
+            --theme-color-2: #f97316;
+            --dark-bg: #1c1406;
+            background-image: 
+                radial-gradient(circle at 50% 20%, rgba(234, 179, 8, 0.2) 0%, transparent 30%),
+                radial-gradient(circle at 50% 80%, rgba(249, 115, 22, 0.2) 0%, transparent 30%);
+        }
+        .theme-6 .theme-bg {
+            background-image: url('https://assets.codepen.io/4175254/sunburst.png');
+            opacity: 0.04;
+        }
+
+        /* 7. БЕЛАЯ ТЕМА (Мороз) */
+        .theme-7 {
+            --theme-color-1: #93c5fd;
+            --theme-color-2: #c7d2fe;
+            --dark-bg: #0f172a;
+            --light-text: #e2e8f0;
+            background-image: 
+                radial-gradient(circle at 20% 30%, rgba(147, 197, 253, 0.1) 0%, transparent 25%),
+                radial-gradient(circle at 80% 70%, rgba(199, 210, 254, 0.1) 0%, transparent 25%);
+        }
+        .theme-7 .theme-bg {
+            background-image: url('https://assets.codepen.io/4175254/snowflake-pattern.png');
+            opacity: 0.05;
+        }
+
+        /* 8. СЕРАЯ ТЕМА (Город) */
+        .theme-8 {
+            --theme-color-1: #9ca3af;
+            --theme-color-2: #6b7280;
+            --dark-bg: #111827;
+            background-image: 
+                radial-gradient(circle at 10% 20%, rgba(156, 163, 175, 0.1) 0%, transparent 20%),
+                radial-gradient(circle at 90% 80%, rgba(107, 114, 128, 0.1) 0%, transparent 20%);
+        }
+        .theme-8 .theme-bg {
+            background-image: url('https://assets.codepen.io/4175254/city-skyline.png');
+            opacity: 0.05;
+        }
+
+        /* 9. ЧЕРНАЯ ТЕМА (Космос) */
+        .theme-9 {
+            --theme-color-1: #8b5cf6;
+            --theme-color-2: #ec4899;
+            --dark-bg: #030712;
+            background-image: 
+                radial-gradient(circle at 20% 30%, rgba(139, 92, 246, 0.1) 0%, transparent 15%),
+                radial-gradient(circle at 80% 70%, rgba(236, 72, 153, 0.1) 0%, transparent 15%),
+                radial-gradient(circle at 50% 50%, rgba(255, 255, 255, 0.02) 0%, transparent 100%);
+        }
+        .theme-9 .theme-bg {
+            background-image: url('https://assets.codepen.io/4175254/constellation.png');
+            opacity: 0.08;
+        }
+
+        /* 10. ФИОЛЕТОВАЯ ТЕМА (Нейросеть) */
+        .theme-10 {
+            --theme-color-1: #8b5cf6;
+            --theme-color-2: #ec4899;
+            --dark-bg: #0f172a;
+            background-image: 
+                radial-gradient(circle at 10% 20%, rgba(139, 92, 246, 0.1) 0%, transparent 20%),
+                radial-gradient(circle at 90% 80%, rgba(236, 72, 153, 0.1) 0%, transparent 20%);
+        }
+        .theme-10 .theme-bg {
+            background-image: url('https://assets.codepen.io/4175254/neural-network.png');
+            opacity: 0.05;
+        }
+
+        /* ===== КОМПОНЕНТЫ ===== */
+        .navbar-brand {
+            font-family: 'Oswald', sans-serif;
+            font-weight: 700;
+            font-size: 1.8rem;
+            background: var(--gradient);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .nav-link {
+            font-family: 'Oswald', sans-serif;
+            font-weight: 500;
+            position: relative;
+            margin: 0 0.5rem;
+            padding: 0.5rem 0;
+            color: var(--light-text) !important;
+        }
+
+        .nav-link:after {
+            content: '';
+            position: absolute;
+            width: 0;
+            height: 3px;
+            bottom: 0;
+            left: 0;
+            background: var(--gradient);
+            transition: width 0.3s ease;
+        }
+
+        .nav-link:hover:after,
+        .nav-link.active:after {
+            width: 100%;
+        }
+
+        .hero-section {
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            position: relative;
+            padding-top: 80px;
+        }
+
+        .section-title {
+            position: relative;
+            padding-bottom: 1rem;
+            margin-bottom: 2rem;
+        }
+
+        .section-title:after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 60px;
+            height: 4px;
+            background: var(--gradient);
+            border-radius: 2px;
+        }
+
+        .tech-card {
+            background: rgba(30, 41, 59, 0.3);
+            border-radius: 16px;
+            overflow: hidden;
+            transition: transform 0.3s ease;
+            border: 1px solid var(--glass-border);
+            height: 100%;
+            backdrop-filter: blur(5px);
+            padding: 1.5rem;
+        }
+
+        .tech-card:hover {
+            transform: translateY(-10px);
+            border: 1px solid var(--theme-color-1);
+        }
+
+        .card-icon {
+            font-size: 3rem;
+            margin-bottom: 1.5rem;
+            background: var(--gradient);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .page-content img {
+            max-width: 100%;
+            height: auto;
+            border-radius: 12px;
+            margin: 2rem auto;
+            display: block;
+            cursor: pointer;
+            transition: transform 0.3s ease;
+            border: 2px solid var(--glass-border);
+        }
+
+        .page-content img:hover {
+            transform: scale(1.03);
+            border: 2px solid var(--theme-color-1);
+        }
+
+        .custom-lightbox {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.95);
+            z-index: 2000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.4s ease;
+        }
+
+        .custom-lightbox.is-visible {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .custom-lightbox img {
+            max-width: 90vw;
+            max-height: 90vh;
+            width: auto;
+            height: auto;
+            border-radius: 8px;
+            animation: lightboxAppear 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+
+        @keyframes lightboxAppear {
+            from { transform: scale(0.8); opacity: 0; }
+            to { transform: scale(1); opacity: 1; }
+        }
+
+        .custom-lightbox-close {
+            position: absolute;
+            top: 30px;
+            right: 40px;
+            color: white;
+            font-size: 3rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .custom-lightbox-close:hover {
+            color: var(--theme-color-1);
+        }
+
+        .footer {
+            background: rgba(15, 23, 42, 0.95);
+            padding: 3rem 0;
+            position: relative;
+        }
+
+        .theme-selector {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            z-index: 1000;
+            background: rgba(15, 23, 42, 0.8);
+            backdrop-filter: blur(10px);
+            border-radius: 12px;
+            padding: 15px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+        }
+
+        .theme-colors {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            max-width: 200px;
+        }
+
+        .color-option {
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            cursor: pointer;
+            border: 2px solid transparent;
+            transition: transform 0.2s ease;
+        }
+
+        .color-option:hover {
+            transform: scale(1.1);
+        }
+
+        .color-option.active {
+            border: 2px solid white;
+            transform: scale(1.15);
+        }
+
+        @media (max-width: 1024px) {
+            .hero-title { font-size: 2.5rem; }
+            .section-title { font-size: 2rem; }
+            .theme-selector {
+                bottom: 10px;
+                right: 10px;
+                padding: 10px;
+            }
+            .theme-colors {
+                max-width: 160px;
+            }
+            .color-option {
+                width: 25px;
+                height: 25px;
+            }
+        }
+		        /* [ИЗМЕНЕНИЕ] Глобальные CSS-переменные для шрифтов */
+        :root {
+            --font-headers: '{{font_headers}}', sans-serif;
+            --font-body: '{{font_body}}', sans-serif;
+            
+            /* Цветовая схема темы */
+            --primary: #2ecc71;
+            --primary-dark: #27ae60;
+            --secondary: #1abc9c;
+            --dark-bg: #0a1929;
+            --light-text: #ecf0f1;
+            --glass-bg: rgba(255, 255, 255, 0.08);
+            --glass-border: rgba(255, 255, 255, 0.15);
+            --glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+            --gradient: linear-gradient(135deg, var(--primary), var(--secondary));
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: var(--font-body); /* Используем переменную */
+            color: var(--light-text);
+            background: var(--dark-bg);
+            background-attachment: fixed;
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+        }
+
+        h1, h2, h3, h4, h5, h6 {
+            font-family: var(--font-headers); /* Используем переменную */
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .main-content { flex: 1; }
+        .page-content p { font-family: var(--font-body); }
+        .page-content img { max-width: 100%; height: auto; border-radius: 12px; margin: 1.5rem 0; }
+
+        .navbar { background: rgba(10, 25, 41, 0.85); backdrop-filter: blur(10px); border-bottom: 1px solid rgba(46, 204, 113, 0.2); }
+        .navbar-brand { font-family: var(--font-headers); font-weight: 700; font-size: 1.8rem; background: var(--gradient); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        .nav-link { font-family: var(--font-headers); position: relative; color: var(--light-text) !important; transition: all 0.3s ease; }
+        .nav-link:after { content: ''; position: absolute; width: 0; height: 3px; bottom: 0; left: 0; background: var(--gradient); transition: width 0.3s ease; }
+        .nav-link:hover:after, .nav-link.active:after { width: 100%; }
+        
+        .glass-panel { background: var(--glass-bg); backdrop-filter: blur(12px); border: 1px solid var(--glass-border); border-radius: 16px; padding: 2rem; }
+        
+        .footer { background: rgba(10, 25, 41, 0.95); padding: 2rem 0; border-top: 1px solid rgba(46, 204, 113, 0.2); text-align: center; }
+		        /* [ИЗМЕНЕНИЕ] Глобальные CSS-переменные для шрифтов */
+        :root {
+            --font-headers: '{{font_headers}}', sans-serif;
+            --font-body: '{{font_body}}', sans-serif;
+            
+            /* Цветовая схема темы */
+            --primary: #2ecc71;
+            --primary-dark: #27ae60;
+            --secondary: #1abc9c;
+            --dark-bg: #0a1929;
+            --light-text: #ecf0f1;
+            --glass-bg: rgba(255, 255, 255, 0.08);
+            --glass-border: rgba(255, 255, 255, 0.15);
+            --glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+            --gradient: linear-gradient(135deg, var(--primary), var(--secondary));
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: var(--font-body); /* Используем переменную */
+            color: var(--light-text);
+            background: var(--dark-bg);
+            background-attachment: fixed;
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+        }
+
+        h1, h2, h3, h4, h5, h6 {
+            font-family: var(--font-headers); /* Используем переменную */
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .main-content { flex: 1; }
+        .page-content p { font-family: var(--font-body); }
+        .page-content img { max-width: 100%; height: auto; border-radius: 12px; margin: 1.5rem 0; }
+
+        .navbar { background: rgba(10, 25, 41, 0.85); backdrop-filter: blur(10px); border-bottom: 1px solid rgba(46, 204, 113, 0.2); }
+        .navbar-brand { font-family: var(--font-headers); font-weight: 700; font-size: 1.8rem; background: var(--gradient); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        .nav-link { font-family: var(--font-headers); position: relative; color: var(--light-text) !important; transition: all 0.3s ease; }
+        .nav-link:after { content: ''; position: absolute; width: 0; height: 3px; bottom: 0; left: 0; background: var(--gradient); transition: width 0.3s ease; }
+        .nav-link:hover:after, .nav-link.active:after { width: 100%; }
+        
+        .glass-panel { background: var(--glass-bg); backdrop-filter: blur(12px); border: 1px solid var(--glass-border); border-radius: 16px; padding: 2rem; }
+        
+        .footer { background: rgba(10, 25, 41, 0.95); padding: 2rem 0; border-top: 1px solid rgba(46, 204, 113, 0.2); text-align: center; }
+    
+
+        .news-blog-container .news-item { margin-bottom: 2rem; padding-bottom: 1.5rem; border-bottom: 1px solid rgba(128,128,128,0.2); }
+        .news-blog-container .news-item:last-child { border-bottom: 0; padding-bottom: 0; margin-bottom: 0; }
+        .news-title { font-size: 1.6rem; font-weight: 700; margin-bottom: 0.5rem; }
+        .news-date { font-size: 0.85rem; opacity: 0.7; margin-bottom: 1rem; }
+        .news-content-full { line-height: 1.75; }
+        .news-content-full p { margin-bottom: 1rem; }
+        .news-content-full h2, .news-content-full h3 { margin-top: 1.5rem; margin-bottom: 0.75rem; }
+        .news-content-full img { max-width: 100%; height: auto; border-radius: 8px; margin: 1rem 0; }
+        .news-content-full ul, .news-content-full ol { margin: 0 0 1rem 1.5rem; }
+        .news-content-full li { margin-bottom: 0.4rem; }
+        .news-content-full pre { background: rgba(0,0,0,0.06); padding: 1rem; border-radius: 8px; overflow-x: auto; max-width: 100%; }
+        .news-content-full code { font-family: 'Fira Code', monospace; font-size: 0.9em; }
+        .news-content-full blockquote { border-left: 3px solid #2563eb; padding-left: 1rem; margin: 1rem 0; opacity: 0.85; font-style: italic; }
+        .news-content-full table { display: block; overflow-x: auto; max-width: 100%; }
+        .lumina-toggle-block[data-lumina-toggle] { display: block; margin: 1rem 0; }
+        .toggle-news-btn { cursor: pointer; transition: filter 0.15s ease, transform 0.1s ease; }
+        .toggle-news-btn:hover { filter: brightness(1.1); }
+        .toggle-news-btn:active { transform: translateY(1px); }
+        .lumina-toggle-content { margin-top: 1rem; animation: luminaToggleFadeIn 0.25s ease-out; }
+        @keyframes luminaToggleFadeIn { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: translateY(0); } }
+
+        /* News toggle button (from helios — working mechanism) */
+        .news-blog-container .news-item { margin-bottom: 32px; padding-bottom: 24px; border-bottom: 1px solid rgba(128,128,128,0.2); }
+        .news-blog-container .news-item:last-child { border-bottom: 0; padding-bottom: 0; margin-bottom: 0; }
+        .news-title { font-size: 1.6rem; font-weight: 700; margin-bottom: 8px; }
+        .news-date { font-size: 0.85rem; opacity: 0.7; margin-bottom: 1rem; }
+        .news-content-short, .news-content-full { line-height: 1.75; }
+        .news-content-short p, .news-content-full p { margin-bottom: 1rem; }
+        .news-content-short img, .news-content-full img { max-width: 100%; height: auto; border-radius: 8px; margin: 1rem 0; }
+        .news-content-short ul, .news-content-full ul,
+        .news-content-short ol, .news-content-full ol { margin: 0 0 1rem 1.5rem; }
+        .news-content-short pre, .news-content-full pre { background: rgba(0,0,0,0.06); padding: 1rem; border-radius: 8px; overflow-x: auto; max-width: 100%; }
+        .news-content-short code, .news-content-full code { font-family: 'Fira Code', monospace; font-size: 0.9em; }
+        .news-content-short table, .news-content-full table { display: block; overflow-x: auto; max-width: 100%; }
+        .toggle-news-btn {
+            margin-top: 12px; background: #2563eb; color: #fff; border: 0;
+            padding: 8px 18px; border-radius: 8px; cursor: pointer;
+            font-size: 14px; font-weight: 500; transition: background 0.15s;
+        }
+        .toggle-news-btn:hover { background: #1d4ed8; }
+        .news-item.is-expanded .news-content-short { display: none; }
+        .news-item:not(.is-expanded) .news-content-full { display: none; }
+        .news-item.is-expanded .news-content-full { display: block; }
+        .lumina-toggle-block[data-lumina-toggle] { display: block; margin: 1rem 0; }
+        .lumina-toggle-content { margin-top: 1rem; }
+        html, body { max-width: 100%; overflow-x: clip; }
+
+        /* When news has a Lumina toggle button, show .news-content-full
+           regardless of is-expanded state. The Lumina button handles
+           collapse/expand via lumina-toggle.js (wraps content after
+           the button in hidden .lumina-toggle-content). */
+        .news-item.has-lumina-toggle .news-content-full { display: block !important; }
+        .news-item.has-lumina-toggle .news-content-short { display: none !important; }
+        .news-item.has-lumina-toggle .toggle-news-btn:not([data-lumina-toggle] *) { display: none; }
+</style>
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <style>[x-cloak]{display:none!important}</style>
+</head>
+<body class="theme-10">
+    <!-- Бэкграунд темы -->
+    <div class="theme-bg"></div>
+
+    <!-- Селектор тем -->
+    <div class="theme-selector glass-panel">
+        <h6 class="mb-3">Выберите тему:</h6>
+        <div class="theme-colors">
+            <div class="color-option active" style="background: linear-gradient(135deg, #10b981, #06b6d4);" data-theme="1"></div>
+            <div class="color-option" style="background: linear-gradient(135deg, #ef4444, #f97316);" data-theme="2"></div>
+            <div class="color-option" style="background: linear-gradient(135deg, #f97316, #eab308);" data-theme="3"></div>
+            <div class="color-option" style="background: linear-gradient(135deg, #ec4899, #f472b6);" data-theme="4"></div>
+            <div class="color-option" style="background: linear-gradient(135deg, #06b6d4, #10b981);" data-theme="5"></div>
+            <div class="color-option" style="background: linear-gradient(135deg, #eab308, #f97316);" data-theme="6"></div>
+            <div class="color-option" style="background: linear-gradient(135deg, #93c5fd, #c7d2fe);" data-theme="7"></div>
+            <div class="color-option" style="background: linear-gradient(135deg, #9ca3af, #6b7280);" data-theme="8"></div>
+            <div class="color-option" style="background: linear-gradient(135deg, #8b5cf6, #ec4899);" data-theme="9"></div>
+            <div class="color-option" style="background: linear-gradient(135deg, #8b5cf6, #ec4899);" data-theme="10"></div>
+        </div>
+    </div>
+
+    <header class="navbar navbar-expand-lg fixed-top navbar-dark">
+        <div class="container">
+            <a class="navbar-brand" href="?page=home&lang={{lang}}">{{site_title}}</a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#mainNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="mainNav">
+                <ul class="navbar-nav ms-auto mb-2 mb-lg-0">
+                    {{foreach:pages as p}}
+                    <li class="nav-item">
+                        <!-- [ИЗМЕНЕНИЕ] Универсальный код подсветки меню -->
+                        <a class="nav-link {{if p.slug == page_slug}}active{{endif}}" href="?page={{p.slug}}&lang={{lang}}">{{p.title}}</a>
+                    </li>
+                    {{endforeach}}
+                </ul>
+            </div>
+        </div>
+    </header>
+
+    <main>
+        <!-- Hero Section -->
+        <section class="hero-section">
+            <div class="container">
+                <div class="glass-panel">
+                    <div class="row">
+                        <div class="col-lg-8">
+                            <h1 class="hero-title">Создаём будущее с помощью искусственного интеллекта</h1>
+                            <p class="lead" style="font-family: 'Open Sans', sans-serif;">Передовые нейросети и веб-технологии для решения сложных задач и создания инновационных продуктов</p>
+                            <div class="d-flex flex-wrap gap-3 mt-4">
+                                <a href="?page=services&lang={{current_lang}}" class="btn-theme">Наши решения</a>
+                                <a href="?page=contact&lang={{current_lang}}" class="btn btn-outline-light">Связаться с нами</a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            
+            
+                <section class="py-5">
+            <div class="container">
+                <div class="glass-panel">
+                    <div class="page-content">
+                        {{page_content}}
+                    </div>
+                </div>
+            </div>
+        </section>
+            
+            </div>
+        </section>
+
+        <!-- Technology Section -->
+        <section class="py-5">
+            <div class="container">
+                <div class="row mb-5">
+                    <div class="col-12 text-center">
+                        <h2 class="section-title">Наши ключевые технологии</h2>
+                    </div>
+                </div>
+                <div class="row g-4">
+                    <div class="col-md-4">
+                        <div class="tech-card">
+                            <div class="card-icon">
+                                <i class="bi bi-robot"></i>
+                            </div>
+                            <h3>Нейронные сети</h3>
+                            <p style="font-family: 'Open Sans', sans-serif;">Глубокое обучение и нейросетевые архитектуры для анализа данных и генерации контента</p>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="tech-card">
+                            <div class="card-icon">
+                                <i class="bi bi-code-square"></i>
+                            </div>
+                            <h3>Веб-разработка</h3>
+                            <p style="font-family: 'Open Sans', sans-serif;">Современные фреймворки и технологии для создания быстрых и отзывчивых интерфейсов</p>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="tech-card">
+                            <div class="card-icon">
+                                <i class="bi bi-diagram-3"></i>
+                            </div>
+                            <h3>AI-интеграция</h3>
+                            <p style="font-family: 'Open Sans', sans-serif;">Внедрение искусственного интеллекта в бизнес-процессы для автоматизации и оптимизации</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+    
+
+        <!-- CTA Section -->
+        <section class="py-5">
+            <div class="container">
+                <div class="glass-panel text-center">
+                    <h2 class="section-title">Готовы к инновациям?</h2>
+                    <p class="lead mb-4" style="font-family: 'Open Sans', sans-serif;">Свяжитесь с нами для создания уникального AI-решения для вашего бизнеса</p>
+                    <a href="?page=contact&lang={{current_lang}}" class="btn-theme btn-lg">Начать проект</a>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <footer class="footer">
+        <div class="container">
+            <div class="row">
+                <div class="col-12 text-center">
+                    <p>&copy; {{current_year}} | {{site_title}}. Создано с помощью AICMS.</p>
+                    <p class="small"><a href="admin/" class="text-light">Вход для администратора</a></p>
+                </div>
+            </div>
+        </div>
+    </footer>
+    
+    <div class="custom-lightbox" id="image-lightbox">
+        <span class="custom-lightbox-close" id="image-lightbox-close">&times;</span>
+        <img src="" alt="Увеличенное изображение">
+    </div>
+    
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Переключение тем
+        const themeOptions = document.querySelectorAll('.color-option');
+        themeOptions.forEach(option => {
+            option.addEventListener('click', function() {
+                const theme = this.getAttribute('data-theme');
+                document.body.className = `theme-${theme}`;
+                
+                // Обновляем активный класс
+                themeOptions.forEach(opt => opt.classList.remove('active'));
+                this.classList.add('active');
+            });
+        });
+        
+        // Lightbox
+        const lightbox = document.getElementById('image-lightbox');
+        const lightboxImage = lightbox.querySelector('img');
+        const lightboxClose = document.getElementById('image-lightbox-close');
+        
+        const openLightbox = (src) => {
+            lightboxImage.src = src;
+            lightbox.classList.add('is-visible');
+            document.body.classList.add('lightbox-open');
+        };
+        
+        const closeLightbox = () => {
+            lightbox.classList.remove('is-visible');
+            document.body.classList.remove('lightbox-open');
+        };
+        
+        // Обработчики для изображений
+        document.querySelectorAll('.page-content img').forEach(img => {
+            img.addEventListener('click', function() {
+                openLightbox(this.src);
+            });
+        });
+        
+        // Закрытие лайтбокса
+        lightboxClose.addEventListener('click', closeLightbox);
+        lightbox.addEventListener('click', function(e) {
+            if (e.target === this) closeLightbox();
+        });
+        
+        // Закрытие по клавише ESC
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape' && lightbox.classList.contains('is-visible')) {
+                closeLightbox();
+            }
+        });
+    });
+    </script>
+    
+    <script src="assets/js/lumina-toggle.js?v=20260715" defer></script>
+    <script src="assets/js/legacy-bs-toggle.js" defer></script>
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        document.addEventListener('click', function(event) {
+            var target = event.target;
+            if (!target.matches || !target.matches('.toggle-news-btn')) return;
+
+            // 1. Lumina toggle button (inside [data-lumina-toggle])
+            var luminaToggle = target.closest('[data-lumina-toggle]');
+            if (luminaToggle) {
+                var content = luminaToggle.querySelector('.lumina-toggle-content');
+                if (!content && luminaToggle.nextElementSibling && luminaToggle.nextElementSibling.classList.contains('lumina-toggle-content')) {
+                    content = luminaToggle.nextElementSibling;
+                }
+                if (content) {
+                    var isHidden = content.style.display === 'none' || getComputedStyle(content).display === 'none';
+                    content.style.display = isHidden ? 'block' : 'none';
+                    var expandedText  = target.getAttribute('data-text-expanded')  || 'Свернуть';
+                    var collapsedText = target.getAttribute('data-text-collapsed') || 'Читать далее';
+                    target.textContent = isHidden ? expandedText : collapsedText;
+                }
+                event.preventDefault();
+                event.stopPropagation();
+                return;
+            }
+
+            // 2. Legacy toggle button (from latest_news.php widget)
+            var newsItem = target.closest('.news-item');
+            if (newsItem) {
+                newsItem.classList.toggle('is-expanded');
+                target.textContent = newsItem.classList.contains('is-expanded') ? 'Свернуть' : 'Читать далее';
+                event.preventDefault();
+            }
+        });
+    });
+    </script>
+    <script src="assets/js/lightbox.js?v=20260715b" defer></script>
+</body>
+</html>

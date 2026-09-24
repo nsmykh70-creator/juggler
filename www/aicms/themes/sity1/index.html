@@ -1,0 +1,412 @@
+<!DOCTYPE html>
+<html lang="{{current_lang}}">
+<head>
+    <link rel="stylesheet" href="assets/css/tailwind-utilities.css?v=20260724">
+    <link rel="stylesheet" href="assets/css/tailwind-shim.css?v=20260724">
+    <link rel="stylesheet" href="assets/css/lumina-frontend.css?v=20260801">
+    <script src="assets/js/lumina-anim-observer.js?v=20260719b" defer></script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{page_title}} | {{site_title}}</title>
+    <meta name="description" content="{{meta_description}}">
+    <link rel="icon" type="image/x-icon" href="{{favicon}}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;600;700&family=Raleway:wght@300;400;600;700&family=Open+Sans:wght@300;400;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="assets/css/bootstrap.local.css?v=20260718">
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script src="assets/js/three.min.js?v=20260724"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="assets/js/vanta.net.min.js?v=20260724"></script>
+<script src="https://cdn.jsdelivr.net/npm/vanta@0.5.21/dist/vanta.net.min.js"></script>
+    <style>
+        :root {
+            --primary: #6a11cb;
+            --primary-light: #8a2be2;
+            --secondary: #2575fc;
+            --accent: #00f2fe;
+            --dark-bg: #0a0e17;
+            --light-text: #e6f1ff;
+            --glass-bg: rgba(20, 25, 45, 0.6);
+            --glass-border: rgba(100, 150, 255, 0.2);
+            --glass-shadow: 0 8px 32px rgba(0, 10, 30, 0.5);
+            --gradient: linear-gradient(135deg, var(--primary), var(--secondary));
+            --neon-glow: 0 0 15px rgba(106, 17, 203, 0.7);
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Raleway', sans-serif;
+            color: var(--light-text);
+            overflow-x: clip;
+            min-height: 100vh;
+            background: var(--dark-bg);
+            display: flex;
+            flex-direction: column;
+        }
+        #galaxy-bg {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: -1;
+        }
+        .main-content { flex: 1; position: relative; z-index: 1; }
+        .glass-panel {
+            background: var(--glass-bg);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid var(--glass-border);
+            border-radius: 16px;
+            box-shadow: var(--glass-shadow), var(--neon-glow);
+            padding: 2rem;
+            margin-bottom: 2rem;
+            transition: all 0.5s ease;
+            position: relative;
+            overflow: hidden;
+        }
+        .glass-panel::before {
+            content: '';
+            position: absolute;
+            top: -50%; left: -50%;
+            width: 200%; height: 200%;
+            background: radial-gradient(circle, rgba(106, 17, 203, 0.1) 0%, transparent 70%);
+            z-index: -1;
+        }
+        h1, h2, h3, h4, h5, h6 {
+            font-family: 'Oswald', sans-serif;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        .hero-title {
+            font-size: 4rem;
+            line-height: 1.1;
+            background: linear-gradient(135deg, var(--accent), var(--secondary));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 1.5rem;
+            text-shadow: var(--neon-glow);
+            animation: titleGlow 3s infinite alternate;
+        }
+        @keyframes titleGlow {
+            0% { text-shadow: 0 0 10px rgba(0, 242, 254, 0.5); }
+            100% { text-shadow: 0 0 30px rgba(0, 242, 254, 0.8), 0 0 50px rgba(37, 117, 252, 0.6); }
+        }
+        .btn-theme {
+            background: var(--gradient);
+            border: none;
+            color: white;
+            padding: 0.8rem 2rem;
+            border-radius: 50px;
+            font-weight: 600;
+            position: relative;
+            overflow: hidden;
+            transition: all 0.3s ease;
+            font-family: 'Oswald', sans-serif;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            box-shadow: var(--neon-glow);
+            z-index: 1;
+            text-decoration: none;
+            display: inline-block;
+        }
+        .btn-theme::before {
+            content: '';
+            position: absolute;
+            top: 0; left: -100%;
+            width: 100%; height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+            transition: 0.5s;
+            z-index: -1;
+        }
+        .btn-theme:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.2), 0 0 30px rgba(106, 17, 203, 0.8);
+            color: white;
+        }
+        .btn-theme:hover::before { left: 100%; }
+        .navbar {
+            background: rgba(10, 14, 23, 0.85);
+            backdrop-filter: blur(10px);
+            transition: all 0.4s ease;
+            border-bottom: 1px solid rgba(100, 150, 255, 0.2);
+            z-index: 1000;
+        }
+        .navbar-scrolled {
+            background: rgba(10, 14, 23, 0.95);
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+        }
+        .navbar-brand {
+            font-family: 'Oswald', sans-serif;
+            font-weight: 700;
+            font-size: 1.8rem;
+            background: var(--gradient);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            text-decoration: none;
+        }
+        .nav-link {
+            font-family: 'Oswald', sans-serif;
+            font-weight: 500;
+            position: relative;
+            margin: 0 0.5rem;
+            padding: 0.5rem 0;
+            color: var(--light-text) !important;
+            transition: all 0.3s ease;
+            text-decoration: none;
+        }
+        .nav-link::after {
+            content: '';
+            position: absolute;
+            width: 0; height: 3px;
+            bottom: 0; left: 0;
+            background: var(--gradient);
+            transition: width 0.3s ease;
+        }
+        .nav-link:hover::after, .nav-link.active::after { width: 100%; }
+        .page-content {
+            font-family: 'Open Sans', sans-serif;
+            line-height: 1.8;
+            font-size: 1.05rem;
+        }
+        .page-content h1, .page-content h2, .page-content h3 {
+            font-family: 'Oswald', sans-serif;
+            margin-top: 1.5rem;
+            margin-bottom: 1rem;
+        }
+        .page-content p { margin-bottom: 1rem; }
+        .page-content img { max-width: 100%; height: auto; border-radius: 12px; margin: 1rem 0; }
+        .page-content a { color: var(--accent); }
+        .page-content table { width: 100%; border-collapse: collapse; margin: 1rem 0; }
+        .page-content td, .page-content th { border: 1px solid var(--glass-border); padding: 0.5rem; }
+        .page-content pre { background: rgba(0,0,0,0.4); padding: 1rem; border-radius: 8px; overflow-x: auto; }
+        .page-content code { color: var(--accent); }
+        .page-content blockquote { border-left: 3px solid var(--accent); padding-left: 1rem; margin: 1rem 0; opacity: 0.9; }
+        .footer {
+            background: rgba(10, 14, 23, 0.95);
+            padding: 2rem 0;
+            border-top: 1px solid rgba(100, 150, 255, 0.2);
+            text-align: center;
+            z-index: 1;
+        }
+        .fade-in-section {
+            opacity: 0;
+            transform: translateY(30px);
+            transition: opacity 0.6s ease, transform 0.6s ease;
+        }
+        .fade-in-section.is-visible {
+            opacity: 1;
+            transform: translateY(0);
+        }
+        .text-center { text-align: center; }
+        .d-flex-center { display: flex; justify-content: center; align-items: center; }
+        @media (max-width: 768px) {
+            .hero-title { font-size: 2.5rem; text-align: center; }
+            .navbar-collapse {
+                background: rgba(10, 14, 23, 0.95);
+                padding: 1rem;
+                border-radius: 8px;
+                margin-top: 10px;
+            }
+        }
+    
+        .news-blog-container .news-item { margin-bottom: 2rem; padding-bottom: 1.5rem; border-bottom: 1px solid rgba(128,128,128,0.2); }
+        .news-blog-container .news-item:last-child { border-bottom: 0; padding-bottom: 0; margin-bottom: 0; }
+        .news-title { font-size: 1.6rem; font-weight: 700; margin-bottom: 0.5rem; }
+        .news-date { font-size: 0.85rem; opacity: 0.7; margin-bottom: 1rem; }
+        .news-content-full { line-height: 1.75; }
+        .news-content-full p { margin-bottom: 1rem; }
+        .news-content-full h2, .news-content-full h3 { margin-top: 1.5rem; margin-bottom: 0.75rem; }
+        .news-content-full img { max-width: 100%; height: auto; border-radius: 8px; margin: 1rem 0; }
+        .news-content-full ul, .news-content-full ol { margin: 0 0 1rem 1.5rem; }
+        .news-content-full li { margin-bottom: 0.4rem; }
+        .news-content-full pre { background: rgba(0,0,0,0.06); padding: 1rem; border-radius: 8px; overflow-x: auto; max-width: 100%; }
+        .news-content-full code { font-family: 'Fira Code', monospace; font-size: 0.9em; }
+        .news-content-full blockquote { border-left: 3px solid #2563eb; padding-left: 1rem; margin: 1rem 0; opacity: 0.85; font-style: italic; }
+        .news-content-full table { display: block; overflow-x: auto; max-width: 100%; }
+        .lumina-toggle-block[data-lumina-toggle] { display: block; margin: 1rem 0; }
+        .toggle-news-btn { cursor: pointer; transition: filter 0.15s ease, transform 0.1s ease; }
+        .toggle-news-btn:hover { filter: brightness(1.1); }
+        .toggle-news-btn:active { transform: translateY(1px); }
+        .lumina-toggle-content { margin-top: 1rem; animation: luminaToggleFadeIn 0.25s ease-out; }
+        @keyframes luminaToggleFadeIn { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: translateY(0); } }
+
+        /* News toggle button (from helios — working mechanism) */
+        .news-blog-container .news-item { margin-bottom: 32px; padding-bottom: 24px; border-bottom: 1px solid rgba(128,128,128,0.2); }
+        .news-blog-container .news-item:last-child { border-bottom: 0; padding-bottom: 0; margin-bottom: 0; }
+        .news-title { font-size: 1.6rem; font-weight: 700; margin-bottom: 8px; }
+        .news-date { font-size: 0.85rem; opacity: 0.7; margin-bottom: 1rem; }
+        .news-content-short, .news-content-full { line-height: 1.75; }
+        .news-content-short p, .news-content-full p { margin-bottom: 1rem; }
+        .news-content-short img, .news-content-full img { max-width: 100%; height: auto; border-radius: 8px; margin: 1rem 0; }
+        .news-content-short ul, .news-content-full ul,
+        .news-content-short ol, .news-content-full ol { margin: 0 0 1rem 1.5rem; }
+        .news-content-short pre, .news-content-full pre { background: rgba(0,0,0,0.06); padding: 1rem; border-radius: 8px; overflow-x: auto; max-width: 100%; }
+        .news-content-short code, .news-content-full code { font-family: 'Fira Code', monospace; font-size: 0.9em; }
+        .news-content-short table, .news-content-full table { display: block; overflow-x: auto; max-width: 100%; }
+        .toggle-news-btn {
+            margin-top: 12px; background: #2563eb; color: #fff; border: 0;
+            padding: 8px 18px; border-radius: 8px; cursor: pointer;
+            font-size: 14px; font-weight: 500; transition: background 0.15s;
+        }
+        .toggle-news-btn:hover { background: #1d4ed8; }
+        .news-item.is-expanded .news-content-short { display: none; }
+        .news-item:not(.is-expanded) .news-content-full { display: none; }
+        .news-item.is-expanded .news-content-full { display: block; }
+        .lumina-toggle-block[data-lumina-toggle] { display: block; margin: 1rem 0; }
+        .lumina-toggle-content { margin-top: 1rem; }
+        html, body { max-width: 100%; overflow-x: clip; }
+
+        /* When news has a Lumina toggle button, show .news-content-full
+           regardless of is-expanded state. The Lumina button handles
+           collapse/expand via lumina-toggle.js (wraps content after
+           the button in hidden .lumina-toggle-content). */
+        .news-item.has-lumina-toggle .news-content-full { display: block !important; }
+        .news-item.has-lumina-toggle .news-content-short { display: none !important; }
+        .news-item.has-lumina-toggle .toggle-news-btn:not([data-lumina-toggle] *) { display: none; }
+
+.dropdown:hover > .dropdown-menu-css,
+.dropdown:hover > ul[style*="display:none"] { display: block !important; }
+</style>
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <style>[x-cloak]{display:none!important}</style>
+</head>
+<body>
+    <div id="galaxy-bg"></div>
+    <header class="navbar navbar-expand-lg fixed-top navbar-dark">
+        <div class="container">
+            <a class="navbar-brand" href="{{page_url:home}}">
+                <i class="fas fa-infinity"></i> {{site_title}}
+            </a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#mainNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="mainNav">
+                <ul class="navbar-nav ms-auto mb-2 mb-lg-0">
+                    {{foreach:menu_tree as m}}
+                    <li class="nav-item dropdown" style="position:relative;">
+                        <a class="nav-link {{if:m.slug == current_slug}}active{{endif}}" href="{{page_url:m.slug}}">{{m.title}}{{if:m.has_children}} <i class="fas fa-chevron-down" style="font-size:10px;"></i>{{endif}}</a>
+                        {{if:m.has_children}}
+                        <ul class="dropdown-menu-css" style="display:none;position:absolute;top:100%;left:0;background:rgba(10,14,23,0.95);border:1px solid var(--glass-border);border-radius:8px;min-width:180px;padding:6px;z-index:100;list-style:none;margin:0;">
+                        {{foreach:m.children as c}}
+                            <li><a style="display:block;padding:8px 12px;color:#e6f1ff;text-decoration:none;font-size:14px;border-radius:6px;" href="{{page_url:c.slug}}">{{c.title}}</a></li>
+                        {{endforeach}}
+                        </ul>
+                        {{endif}}
+                    </li>
+                    {{endforeach}}
+                    {{module:auth_block}}
+                    <li class="nav-item">
+                        <div class="dropdown">
+                            <button class="nav-link dropdown-toggle" data-bs-toggle="dropdown"><i class="fas fa-globe"></i> {{current_lang_name}}</button>
+                            <ul class="dropdown-menu dropdown-menu-end" style="background:rgba(10,14,23,0.95);">
+                                {{foreach:supported_langs as lang}}
+                                <li><a class="dropdown-item" style="color:#e6f1ff;" href="{{lang_url:lang.code}}">{{lang.name}}</a></li>
+                                {{endforeach}}
+                            </ul>
+                        </div>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </header>
+    <main class="main-content" style="padding-top: 20px;">
+
+    <div class="container" style="margin-top: 100px;">
+        <div class="text-center fade-in-section" style="margin-bottom: 2rem;">
+            <h1 class="hero-title">{{page_title}}</h1>
+            <p style="font-family: 'Open Sans', sans-serif; font-size: 1.2rem; opacity: 0.8;">{{site_description}}</p>
+        </div>
+    </div>
+
+        <div class="container">
+            <div class="glass-panel fade-in-section">
+                <div class="page-content">
+                    {{page_content}}
+                </div>
+            </div>
+        </div>
+    </main>
+    <footer class="footer">
+        <div class="container">
+            <p>&copy; {{current_year}} {{site_title}} | <a href="admin/" style="color:var(--accent);text-decoration:none;">Вход для администратора</a></p>
+        </div>
+    </footer>
+    <script src="assets/js/bootstrap.bundle.local.js?v=20260718"></script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // 3D Galaxy Background — VANTA.NET animation
+        // Same as sity theme: call directly (THREE.js + Vanta loaded in <head>)
+        VANTA.NET({
+            el: "#galaxy-bg",
+            mouseControls: true,
+            touchControls: true,
+            gyroControls: false,
+            minHeight: 200.00,
+            minWidth: 200.00,
+            scale: 1.00,
+            scaleMobile: 1.00,
+            color: 0x6a11cb,
+            backgroundColor: 0x0a0e17,
+            points: 12.00,
+            maxDistance: 22.00,
+            spacing: 18.00
+        });
+        window.addEventListener('scroll', function() {
+            const navbar = document.querySelector('.navbar');
+            if (window.scrollY > 50) { navbar.classList.add('navbar-scrolled'); }
+            else { navbar.classList.remove('navbar-scrolled'); }
+        });
+        function animateOnScroll() {
+            document.querySelectorAll('.fade-in-section').forEach(element => {
+                const elementTop = element.getBoundingClientRect().top;
+                if (elementTop < window.innerHeight * 0.9) { element.classList.add('is-visible'); }
+            });
+        }
+        animateOnScroll();
+        window.addEventListener('scroll', animateOnScroll);
+    });
+    </script>
+    
+    <script src="assets/js/lumina-toggle.js?v=20260715" defer></script>
+    <script src="assets/js/legacy-bs-toggle.js" defer></script>
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        document.addEventListener('click', function(event) {
+            var target = event.target;
+            if (!target.matches || !target.matches('.toggle-news-btn')) return;
+
+            // 1. Lumina toggle button (inside [data-lumina-toggle])
+            var luminaToggle = target.closest('[data-lumina-toggle]');
+            if (luminaToggle) {
+                var content = luminaToggle.querySelector('.lumina-toggle-content');
+                if (!content && luminaToggle.nextElementSibling && luminaToggle.nextElementSibling.classList.contains('lumina-toggle-content')) {
+                    content = luminaToggle.nextElementSibling;
+                }
+                if (content) {
+                    var isHidden = content.style.display === 'none' || getComputedStyle(content).display === 'none';
+                    content.style.display = isHidden ? 'block' : 'none';
+                    var expandedText  = target.getAttribute('data-text-expanded')  || 'Свернуть';
+                    var collapsedText = target.getAttribute('data-text-collapsed') || 'Читать далее';
+                    if (isHidden) {
+                        target.textContent = expandedText;
+                        content.appendChild(wrapper);
+                    } else {
+                        target.textContent = collapsedText;
+                        content.parentNode.insertBefore(wrapper, content);
+                    }
+                }
+                event.preventDefault();
+                event.stopPropagation();
+                return;
+            }
+
+            // 2. Legacy toggle button (from latest_news.php widget)
+            var newsItem = target.closest('.news-item');
+            if (newsItem) {
+                newsItem.classList.toggle('is-expanded');
+                target.textContent = newsItem.classList.contains('is-expanded') ? 'Свернуть' : 'Читать далее';
+                event.preventDefault();
+            }
+        });
+    });
+    </script>
+    <script src="assets/js/lightbox.js?v=20260715b" defer></script>
+</body>
+</html>

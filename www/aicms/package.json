@@ -1,0 +1,32 @@
+{
+  "name": "lumina-editor",
+  "version": "1.0.0",
+  "description": "Powerful WYSIWYG editor with blocks, AI generation, and visual formatting",
+  "main": "lumina/src/standalone/lumina-editor-standalone/dist/lumina.standalone.js",
+  "module": "lumina/src/standalone/lumina-editor-standalone/dist/lumina.standalone.js",
+  "scripts": {
+    "build": "node build.js",
+    "demo": "php -S localhost:8080"
+  },
+  "keywords": [
+    "editor",
+    "wysiwyg",
+    "rich-text",
+    "contenteditable",
+    "blocks",
+    "ai",
+    "cms"
+  ],
+  "author": "AICMS",
+  "license": "MIT",
+  "homepage": "https://aicms.ru",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/aicms/lumina-editor"
+  },
+  "files": [
+    "lumina/src/standalone/lumina-editor-standalone/dist/",
+    "admin/assets/lumina/",
+    "README.md"
+  ]
+}

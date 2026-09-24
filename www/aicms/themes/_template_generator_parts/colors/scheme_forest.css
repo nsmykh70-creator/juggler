@@ -1,0 +1,27 @@
+/* Color Scheme: Forest — Green Nature */
+:root {
+    --gen-bg: #f0f7f0;
+    --gen-card: #ffffff;
+    --gen-text: #1f2d1f;
+    --gen-muted: #5a7a5a;
+    --gen-primary: #2d6a2d;
+    --gen-primary-light: #4a9d4a;
+    --gen-accent: #8bc34a;
+    --gen-border: #d4e8d4;
+    --gen-header-bg: #1b3a1b;
+    --gen-header-text: #e8f5e8;
+    --gen-footer-bg: #1b3a1b;
+    --gen-footer-text: #b0c8b0;
+}
+body { background: var(--gen-bg); color: var(--gen-text); }
+.navbar, .site-header { background: var(--gen-header-bg) !important; color: var(--gen-header-text); }
+.navbar a, .site-header a { color: var(--gen-header-text) !important; }
+.navbar a.active, .site-header a.active { color: var(--gen-accent) !important; font-weight: 600; }
+.card, .main-content { background: var(--gen-card); border-color: var(--gen-border); }
+.btn-primary { background: var(--gen-primary); border-color: var(--gen-primary); }
+.btn-primary:hover { background: var(--gen-primary-light); border-color: var(--gen-primary-light); }
+a { color: var(--gen-primary); }
+a:hover { color: var(--gen-primary-light); }
+.site-footer { background: var(--gen-footer-bg); color: var(--gen-footer-text); }
+.site-footer a { color: var(--gen-accent); }
+h1, h2, h3, h4, h5, h6 { color: var(--gen-primary); }

@@ -1,0 +1,976 @@
+<!DOCTYPE html>
+<html lang="{{lang}}">
+<head>
+    <link rel="stylesheet" href="assets/css/tailwind-utilities.css?v=20260724">
+    <link rel="stylesheet" href="assets/css/tailwind-shim.css?v=20260724">
+    <link rel="stylesheet" href="assets/css/lumina-frontend.css?v=20260801">
+    <script src="assets/js/lumina-anim-observer.js?v=20260719b" defer></script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{site_title}} — {{page_title}}</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Orbitron:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        /* --- Глобальные стили и переменные --- */
+        :root {
+            --primary: #0a0e17;
+            --secondary: #1a2138;
+            --accent: #3a86ff;
+            --accent-light: #5fa5ff;
+            --neon-blue: #00e5ff;
+            --neon-purple: #bd00ff;
+            --text: #e6f1ff;
+            --text-light: #a0b4d9;
+            --success: #00d26a;
+            --border-radius: 12px;
+            --transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            --font-main: 'Inter', sans-serif;
+            --font-heading: 'Orbitron', sans-serif;
+            --shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+            --glow: 0 0 15px rgba(58, 134, 255, 0.5);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: var(--font-main);
+            line-height: 1.7;
+            color: var(--text);
+            background-color: var(--primary);
+            min-height: 100vh;
+            overflow-x: clip;
+            position: relative;
+        }
+
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: radial-gradient(circle at center, var(--secondary) 0%, var(--primary) 70%);
+            z-index: -2;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 20px;
+            width: 100%;
+        }
+
+        /* --- 3D фон с частицами --- */
+        #particles-js {
+            position: fixed;
+            width: 100%;
+            height: 100%;
+            top: 0;
+            left: 0;
+            z-index: -1;
+        }
+
+        /* --- Шапка сайта --- */
+        .site-header {
+            padding: 30px 0;
+            position: sticky;
+            top: 0;
+            background: rgba(10, 14, 23, 0.85);
+            backdrop-filter: blur(10px);
+            z-index: 100;
+            border-bottom: 1px solid rgba(58, 134, 255, 0.1);
+        }
+
+        .header-inner {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .site-title a {
+            font-family: var(--font-heading);
+            font-size: 1.8rem;
+            font-weight: 700;
+            color: var(--text);
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            background: linear-gradient(90deg, var(--neon-blue), var(--accent-light));
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+            letter-spacing: 1px;
+            transition: var(--transition);
+        }
+
+        .site-title a:hover {
+            transform: translateY(-3px);
+            text-shadow: var(--glow);
+        }
+
+        .site-title a i {
+            font-size: 1.6rem;
+        }
+
+        /* --- Навигация --- */
+        .main-navigation ul {
+            display: flex;
+            list-style-type: none;
+            gap: 30px;
+        }
+
+        .main-navigation a {
+            text-decoration: none;
+            color: var(--text-light);
+            font-weight: 500;
+            padding: 8px 0;
+            position: relative;
+            transition: var(--transition);
+        }
+
+        .main-navigation a:after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 0;
+            height: 2px;
+            background: var(--neon-blue);
+            transition: var(--transition);
+        }
+
+        .main-navigation a:hover {
+            color: var(--neon-blue);
+        }
+
+        .main-navigation a:hover:after,
+        .main-navigation a.active:after {
+            width: 100%;
+        }
+
+        .main-navigation a.active {
+            color: var(--neon-blue);
+            font-weight: 600;
+        }
+
+        /* --- Основной контент --- */
+        .main-content {
+            padding: 60px 0 100px;
+        }
+
+        .page-header {
+            text-align: center;
+            max-width: 900px;
+            margin: 0 auto 60px;
+            padding: 0 20px;
+            position: relative;
+        }
+
+        .page-title {
+            font-family: var(--font-heading);
+            font-size: 3.5rem;
+            font-weight: 700;
+            margin-bottom: 20px;
+            line-height: 1.1;
+            position: relative;
+            display: inline-block;
+            background: linear-gradient(90deg, var(--neon-blue), var(--neon-purple));
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+        }
+
+        .page-title:after {
+            content: '';
+            position: absolute;
+            bottom: -15px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 100px;
+            height: 4px;
+            background: linear-gradient(90deg, var(--neon-blue), var(--neon-purple));
+            border-radius: 2px;
+        }
+
+        .page-subtitle {
+            font-size: 1.3rem;
+            color: var(--text-light);
+            max-width: 700px;
+            margin: 35px auto 0;
+            font-weight: 400;
+        }
+
+        .features-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 30px;
+            margin-bottom: 60px;
+        }
+
+        .feature-card {
+            background: rgba(26, 33, 56, 0.6);
+            border-radius: var(--border-radius);
+            padding: 35px 30px;
+            backdrop-filter: blur(5px);
+            border: 1px solid rgba(58, 134, 255, 0.15);
+            transition: var(--transition);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .feature-card:hover {
+            transform: translateY(-10px);
+            box-shadow: var(--shadow);
+            border-color: rgba(58, 134, 255, 0.3);
+        }
+
+        .feature-card:before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 4px;
+            background: linear-gradient(90deg, var(--neon-blue), var(--neon-purple));
+        }
+
+        .feature-icon {
+            font-size: 2.5rem;
+            margin-bottom: 20px;
+            background: linear-gradient(90deg, var(--neon-blue), var(--accent-light));
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+        }
+
+        .feature-title {
+            font-family: var(--font-heading);
+            font-size: 1.5rem;
+            margin-bottom: 15px;
+            font-weight: 600;
+            letter-spacing: 1px;
+        }
+
+        .feature-description {
+            color: var(--text-light);
+            font-size: 1.05rem;
+        }
+
+        .content-area {
+            background: rgba(26, 33, 56, 0.6);
+            border-radius: var(--border-radius);
+            box-shadow: var(--shadow);
+            padding: 50px;
+            position: relative;
+            overflow: hidden;
+            backdrop-filter: blur(5px);
+            border: 1px solid rgba(58, 134, 255, 0.15);
+        }
+
+        .content-area:before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 4px;
+            height: 100%;
+            background: linear-gradient(to bottom, var(--neon-blue), var(--neon-purple));
+        }
+
+        /* Стили для контента из редактора */
+        .content-area p {
+            margin-bottom: 1.8em;
+            font-size: 1.1rem;
+        }
+
+        .content-area h2 {
+            font-family: var(--font-heading);
+            font-size: 2.2rem;
+            margin: 2.5rem 0 1.5rem;
+            background: linear-gradient(90deg, var(--neon-blue), var(--accent-light));
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+            font-weight: 600;
+            letter-spacing: 1px;
+        }
+
+        .content-area h3 {
+            font-size: 1.6rem;
+            margin: 2rem 0 1.2rem;
+            font-weight: 600;
+            color: var(--neon-blue);
+        }
+
+        .content-area a {
+            color: var(--neon-blue);
+            text-decoration: none;
+            transition: var(--transition);
+            font-weight: 500;
+            position: relative;
+        }
+
+        .content-area a:after {
+            content: '';
+            position: absolute;
+            bottom: -2px;
+            left: 0;
+            width: 0;
+            height: 1px;
+            background: var(--neon-blue);
+            transition: var(--transition);
+        }
+
+        .content-area a:hover {
+            color: var(--accent-light);
+        }
+
+        .content-area a:hover:after {
+            width: 100%;
+        }
+
+        .content-area img {
+            max-width: 100%;
+            height: auto;
+            border-radius: 8px;
+            margin: 2rem 0;
+            box-shadow: var(--shadow);
+            border: 1px solid rgba(58, 134, 255, 0.2);
+        }
+
+        .content-area blockquote {
+            border-left: 4px solid var(--neon-blue);
+            padding: 25px 30px;
+            margin: 2.5rem 0;
+            background: rgba(26, 33, 56, 0.5);
+            border-radius: 0 var(--border-radius) var(--border-radius) 0;
+            position: relative;
+            font-style: italic;
+        }
+
+        .content-area blockquote:before {
+            content: '\201C';
+            position: absolute;
+            top: -20px;
+            left: 10px;
+            font-size: 5rem;
+            color: rgba(0, 229, 255, 0.1);
+            font-family: var(--font-heading);
+        }
+
+        .license-badge {
+            display: inline-block;
+            background: rgba(0, 210, 106, 0.15);
+            color: var(--success);
+            padding: 5px 15px;
+            border-radius: 30px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            margin-top: 15px;
+            border: 1px solid rgba(0, 210, 106, 0.3);
+        }
+
+        /* --- Подвал --- */
+        .site-footer {
+            background: rgba(10, 14, 23, 0.9);
+            padding: 50px 0 30px;
+            border-top: 1px solid rgba(58, 134, 255, 0.1);
+        }
+
+        .footer-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 40px;
+            margin-bottom: 40px;
+        }
+
+        .footer-column {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .footer-title {
+            font-family: var(--font-heading);
+            font-size: 1.4rem;
+            margin-bottom: 25px;
+            font-weight: 600;
+            letter-spacing: 1px;
+            background: linear-gradient(90deg, var(--neon-blue), var(--accent-light));
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+        }
+
+        .footer-links {
+            list-style: none;
+        }
+
+        .footer-links li {
+            margin-bottom: 15px;
+        }
+
+        .footer-links a {
+            color: var(--text-light);
+            text-decoration: none;
+            transition: var(--transition);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .footer-links a i {
+            color: var(--neon-blue);
+            font-size: 0.9rem;
+        }
+
+        .footer-links a:hover {
+            color: var(--neon-blue);
+            transform: translateX(5px);
+        }
+
+        .social-links {
+            display: flex;
+            gap: 15px;
+            margin-top: 20px;
+        }
+
+        .social-links a {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 45px;
+            height: 45px;
+            background: rgba(58, 134, 255, 0.1);
+            border-radius: 50%;
+            color: var(--neon-blue);
+            font-size: 1.2rem;
+            transition: var(--transition);
+            border: 1px solid rgba(58, 134, 255, 0.2);
+        }
+
+        .social-links a:hover {
+            background: var(--accent);
+            color: #fff;
+            transform: translateY(-5px);
+            box-shadow: var(--glow);
+        }
+
+        .copyright {
+            text-align: center;
+            padding-top: 30px;
+            border-top: 1px solid rgba(58, 134, 255, 0.1);
+            color: var(--text-light);
+            font-size: 0.95rem;
+        }
+
+        .ai-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            background: rgba(189, 0, 255, 0.1);
+            color: var(--neon-purple);
+            padding: 8px 20px;
+            border-radius: 30px;
+            font-size: 0.95rem;
+            font-weight: 600;
+            margin-top: 15px;
+            border: 1px solid rgba(189, 0, 255, 0.3);
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0% { box-shadow: 0 0 0 0 rgba(189, 0, 255, 0.4); }
+            70% { box-shadow: 0 0 0 10px rgba(189, 0, 255, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(189, 0, 255, 0); }
+        }
+
+        .back-to-top {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            width: 50px;
+            height: 50px;
+            background: var(--accent);
+            color: #fff;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.3rem;
+            cursor: pointer;
+            box-shadow: 0 5px 15px rgba(58, 134, 255, 0.3);
+            transition: var(--transition);
+            opacity: 0;
+            visibility: hidden;
+            z-index: 99;
+            border: none;
+        }
+
+        .back-to-top.visible {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .back-to-top:hover {
+            background: var(--neon-blue);
+            transform: translateY(-5px) scale(1.1);
+            box-shadow: 0 0 20px rgba(0, 229, 255, 0.5);
+        }
+
+        /* --- Адаптивность для мобильных устройств --- */
+        @media (max-width: 900px) {
+            .footer-grid {
+                gap: 30px;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .site-header {
+                padding: 20px 0;
+            }
+            
+            .header-inner {
+                flex-direction: column;
+                gap: 25px;
+            }
+            
+            .main-navigation ul {
+                flex-wrap: wrap;
+                justify-content: center;
+                gap: 20px;
+            }
+            
+            .page-title {
+                font-size: 2.5rem;
+            }
+            
+            .content-area {
+                padding: 35px;
+            }
+            
+            .features-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        @media (max-width: 600px) {
+            .page-title {
+                font-size: 2rem;
+            }
+            
+            .page-subtitle {
+                font-size: 1.15rem;
+            }
+            
+            .content-area {
+                padding: 25px 20px;
+            }
+            
+            .content-area:before {
+                width: 3px;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .page-title {
+                font-size: 1.8rem;
+            }
+            
+            .main-content {
+                padding: 40px 0 70px;
+            }
+        }
+    
+
+        .news-blog-container .news-item { margin-bottom: 2rem; padding-bottom: 1.5rem; border-bottom: 1px solid rgba(128,128,128,0.2); }
+        .news-blog-container .news-item:last-child { border-bottom: 0; padding-bottom: 0; margin-bottom: 0; }
+        .news-title { font-size: 1.6rem; font-weight: 700; margin-bottom: 0.5rem; }
+        .news-date { font-size: 0.85rem; opacity: 0.7; margin-bottom: 1rem; }
+        .news-content-full { line-height: 1.75; }
+        .news-content-full p { margin-bottom: 1rem; }
+        .news-content-full h2, .news-content-full h3 { margin-top: 1.5rem; margin-bottom: 0.75rem; }
+        .news-content-full img { max-width: 100%; height: auto; border-radius: 8px; margin: 1rem 0; }
+        .news-content-full ul, .news-content-full ol { margin: 0 0 1rem 1.5rem; }
+        .news-content-full li { margin-bottom: 0.4rem; }
+        .news-content-full pre { background: rgba(0,0,0,0.06); padding: 1rem; border-radius: 8px; overflow-x: auto; max-width: 100%; }
+        .news-content-full code { font-family: 'Fira Code', monospace; font-size: 0.9em; }
+        .news-content-full blockquote { border-left: 3px solid #2563eb; padding-left: 1rem; margin: 1rem 0; opacity: 0.85; font-style: italic; }
+        .news-content-full table { display: block; overflow-x: auto; max-width: 100%; }
+        .lumina-toggle-block[data-lumina-toggle] { display: block; margin: 1rem 0; }
+        .toggle-news-btn { cursor: pointer; transition: filter 0.15s ease, transform 0.1s ease; }
+        .toggle-news-btn:hover { filter: brightness(1.1); }
+        .toggle-news-btn:active { transform: translateY(1px); }
+        .lumina-toggle-content { margin-top: 1rem; animation: luminaToggleFadeIn 0.25s ease-out; }
+        @keyframes luminaToggleFadeIn { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: translateY(0); } }
+
+        /* News toggle button (from helios — working mechanism) */
+        .news-blog-container .news-item { margin-bottom: 32px; padding-bottom: 24px; border-bottom: 1px solid rgba(128,128,128,0.2); }
+        .news-blog-container .news-item:last-child { border-bottom: 0; padding-bottom: 0; margin-bottom: 0; }
+        .news-title { font-size: 1.6rem; font-weight: 700; margin-bottom: 8px; }
+        .news-date { font-size: 0.85rem; opacity: 0.7; margin-bottom: 1rem; }
+        .news-content-short, .news-content-full { line-height: 1.75; }
+        .news-content-short p, .news-content-full p { margin-bottom: 1rem; }
+        .news-content-short img, .news-content-full img { max-width: 100%; height: auto; border-radius: 8px; margin: 1rem 0; }
+        .news-content-short ul, .news-content-full ul,
+        .news-content-short ol, .news-content-full ol { margin: 0 0 1rem 1.5rem; }
+        .news-content-short pre, .news-content-full pre { background: rgba(0,0,0,0.06); padding: 1rem; border-radius: 8px; overflow-x: auto; max-width: 100%; }
+        .news-content-short code, .news-content-full code { font-family: 'Fira Code', monospace; font-size: 0.9em; }
+        .news-content-short table, .news-content-full table { display: block; overflow-x: auto; max-width: 100%; }
+        .toggle-news-btn {
+            margin-top: 12px; background: #2563eb; color: #fff; border: 0;
+            padding: 8px 18px; border-radius: 8px; cursor: pointer;
+            font-size: 14px; font-weight: 500; transition: background 0.15s;
+        }
+        .toggle-news-btn:hover { background: #1d4ed8; }
+        .news-item.is-expanded .news-content-short { display: none; }
+        .news-item:not(.is-expanded) .news-content-full { display: none; }
+        .news-item.is-expanded .news-content-full { display: block; }
+        .lumina-toggle-block[data-lumina-toggle] { display: block; margin: 1rem 0; }
+        .lumina-toggle-content { margin-top: 1rem; }
+        html, body { max-width: 100%; overflow-x: clip; }
+
+        /* When news has a Lumina toggle button, show .news-content-full
+           regardless of is-expanded state. The Lumina button handles
+           collapse/expand via lumina-toggle.js (wraps content after
+           the button in hidden .lumina-toggle-content). */
+        .news-item.has-lumina-toggle .news-content-full { display: block !important; }
+        .news-item.has-lumina-toggle .news-content-short { display: none !important; }
+        .news-item.has-lumina-toggle .toggle-news-btn:not([data-lumina-toggle] *) { display: none; }
+</style>
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <style>[x-cloak]{display:none!important}</style>
+</head>
+<body>
+    <!-- 3D фон с частицами -->
+    <div id="particles-js"></div>
+    
+    <div class="container">
+        <header class="site-header">
+            <div class="header-inner">
+                <div class="site-title">
+                    <a href="?page=home">
+                        <i class="fas fa-brain"></i>
+                        {{site_title}}
+                    </a>
+                </div>
+                <nav class="main-navigation">
+                    <ul>
+                        {{foreach:pages as p}}
+                            <li>
+                                <a href="?page={{p.slug}}" class="{{if p.slug == page_slug}}active{{endif}}">
+                                    {{p.title}}
+                                </a>
+                            </li>
+                        {{endforeach}}
+                    </ul>
+                </nav>
+            </div>
+        </header>
+
+        <main class="main-content">
+            <div class="page-header">
+                <h1 class="page-title">{{page_title}}</h1>
+                <p class="page-subtitle">Мощная CMS с открытым исходным кодом и встроенным искусственным интеллектом для создания современного контента</p>
+                <div class="license-badge">
+                    <i class="fas fa-balance-scale"></i> MIT License
+                </div>
+                <div class="ai-badge">
+                    <i class="fas fa-robot"></i> AI Assistant Enabled
+                </div>
+            </div>
+            
+            <!-- Сетка возможностей CMS -->
+            <div class="features-grid">
+                <div class="feature-card">
+                    <div class="feature-icon">
+                        <i class="fas fa-code"></i>
+                    </div>
+                    <h3 class="feature-title">Open Source</h3>
+                    <p class="feature-description">Полностью открытый исходный код под лицензией MIT. Свободно используйте, модифицируйте и распространяйте.</p>
+                </div>
+                
+                <div class="feature-card">
+                    <div class="feature-icon">
+                        <i class="fas fa-robot"></i>
+                    </div>
+                    <h3 class="feature-title">AI Assistant</h3>
+                    <p class="feature-description">Встроенный ИИ-ассистент для генерации контента, корректуры текста и создания метаданных.</p>
+                </div>
+                
+                <div class="feature-card">
+                    <div class="feature-icon">
+                        <i class="fas fa-file-code"></i>
+                    </div>
+                    <h3 class="feature-title">JSON Storage</h3>
+                    <p class="feature-description">Все данные хранятся в файлах JSON. Никаких сложных баз данных - просто и эффективно.</p>
+                </div>
+                
+                <div class="feature-card">
+                    <div class="feature-icon">
+                        <i class="fas fa-paint-brush"></i>
+                    </div>
+                    <h3 class="feature-title">Visual Editors</h3>
+                    <p class="feature-description">Интуитивные визуальные редакторы для всех типов контента. Создавайте без знаний программирования.</p>
+                </div>
+                
+                <div class="feature-card">
+                    <div class="feature-icon">
+                        <i class="fas fa-stethoscope"></i>
+                    </div>
+                    <h3 class="feature-title">Self-Diagnostics</h3>
+                    <p class="feature-description">Автоматическая диагностика системы. Предупреждает о проблемах и предлагает решения.</p>
+                </div>
+                
+                <div class="feature-card">
+                    <div class="feature-icon">
+                        <i class="fas fa-database"></i>
+                    </div>
+                    <h3 class="feature-title">Backup System</h3>
+                    <p class="feature-description">Надежная система резервного копирования. Автоматические бэкапы и простое восстановление.</p>
+                </div>
+            </div>
+            
+            <!-- Основной контент -->
+            <div class="content-area">
+                {{page_content}}
+            </div>
+        </main>
+    </div>
+
+    <footer class="site-footer">
+        <div class="container">
+            <div class="footer-grid">
+                <div class="footer-column">
+                    <h3 class="footer-title">AICMS</h3>
+                    <p>Мощная система управления контентом с открытым исходным кодом и встроенным искусственным интеллектом.</p>
+                    <div class="social-links">
+                        <a href="#"><i class="fab fa-github"></i></a>
+                        <a href="#"><i class="fab fa-discord"></i></a>
+                        <a href="#"><i class="fab fa-twitter"></i></a>
+                        <a href="#"><i class="fab fa-telegram"></i></a>
+                    </div>
+                </div>
+                
+                <div class="footer-column">
+                    <h3 class="footer-title">Навигация</h3>
+                    <ul class="footer-links">
+                        {{foreach:pages as p}}
+                            <li>
+                                <a href="?page={{p.slug}}">
+                                    <i class="fas fa-arrow-right"></i>
+                                    {{p.title}}
+                                </a>
+                            </li>
+                        {{endforeach}}
+                    </ul>
+                </div>
+                
+                <div class="footer-column">
+                    <h3 class="footer-title">Ресурсы</h3>
+                    <ul class="footer-links">
+                        <li><a href="#"><i class="fas fa-book"></i> Документация</a></li>
+                        <li><a href="#"><i class="fas fa-download"></i> Загрузки</a></li>
+                        <li><a href="#"><i class="fas fa-code-branch"></i> GitHub</a></li>
+                        <li><a href="#"><i class="fas fa-bug"></i> Сообщить об ошибке</a></li>
+                    </ul>
+                </div>
+            </div>
+            
+            <div class="copyright">
+                <p>&copy; {{current_year}} {{site_title}}. Лицензия MIT. Открытый исходный код.</p>
+            </div>
+        </div>
+    </footer>
+
+    <button class="back-to-top" id="backToTop">
+        <i class="fas fa-arrow-up"></i>
+    </button>
+
+    <!-- Подключаем библиотеку для 3D фона -->
+    <script src="https://cdn.jsdelivr.net/particles.js/2.0.0/particles.min.js"></script>
+    <script>
+        // Инициализация частиц для 3D фона
+        document.addEventListener('DOMContentLoaded', function() {
+            particlesJS("particles-js", {
+                particles: {
+                    number: {
+                        value: 80,
+                        density: {
+                            enable: true,
+                            value_area: 800
+                        }
+                    },
+                    color: {
+                        value: "#3a86ff"
+                    },
+                    shape: {
+                        type: "circle",
+                        stroke: {
+                            width: 0,
+                            color: "#000000"
+                        }
+                    },
+                    opacity: {
+                        value: 0.5,
+                        random: true,
+                        anim: {
+                            enable: true,
+                            speed: 1,
+                            opacity_min: 0.1,
+                            sync: false
+                        }
+                    },
+                    size: {
+                        value: 3,
+                        random: true,
+                        anim: {
+                            enable: true,
+                            speed: 2,
+                            size_min: 0.3,
+                            sync: false
+                        }
+                    },
+                    line_linked: {
+                        enable: true,
+                        distance: 150,
+                        color: "#5fa5ff",
+                        opacity: 0.2,
+                        width: 1
+                    },
+                    move: {
+                        enable: true,
+                        speed: 1,
+                        direction: "none",
+                        random: true,
+                        straight: false,
+                        out_mode: "out",
+                        bounce: false,
+                        attract: {
+                            enable: true,
+                            rotateX: 600,
+                            rotateY: 1200
+                        }
+                    }
+                },
+                interactivity: {
+                    detect_on: "canvas",
+                    events: {
+                        onhover: {
+                            enable: true,
+                            mode: "grab"
+                        },
+                        onclick: {
+                            enable: true,
+                            mode: "push"
+                        },
+                        resize: true
+                    },
+                    modes: {
+                        grab: {
+                            distance: 140,
+                            line_linked: {
+                                opacity: 0.5
+                            }
+                        },
+                        push: {
+                            particles_nb: 4
+                        }
+                    }
+                },
+                retina_detect: true
+            });
+            
+            // Кнопка "Наверх"
+            const backToTop = document.getElementById('backToTop');
+            
+            window.addEventListener('scroll', () => {
+                if (window.scrollY > 300) {
+                    backToTop.classList.add('visible');
+                } else {
+                    backToTop.classList.remove('visible');
+                }
+            });
+            
+            backToTop.addEventListener('click', () => {
+                window.scrollTo({
+                    top: 0,
+                    behavior: 'smooth'
+                });
+            });
+            
+            // Анимация элементов при прокрутке
+            const animateOnScroll = () => {
+                const elements = document.querySelectorAll('.feature-card');
+                elements.forEach(el => {
+                    const position = el.getBoundingClientRect().top;
+                    const screenPosition = window.innerHeight / 1.3;
+                    
+                    if(position < screenPosition) {
+                        el.style.opacity = '1';
+                        el.style.transform = 'translateY(0)';
+                    }
+                });
+            };
+            
+            // Инициализация анимации
+            window.addEventListener('scroll', animateOnScroll);
+            window.addEventListener('load', animateOnScroll);
+            
+            // Установка начального состояния для анимации
+            document.querySelectorAll('.feature-card').forEach(card => {
+                card.style.opacity = '0';
+                card.style.transform = 'translateY(20px)';
+                card.style.transition = 'opacity 0.6s ease, transform 0.6s ease';
+            });
+        });
+    </script>
+    
+    <script src="assets/js/lumina-toggle.js?v=20260715" defer></script>
+    <script src="assets/js/legacy-bs-toggle.js" defer></script>
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        document.addEventListener('click', function(event) {
+            var target = event.target;
+            if (!target.matches || !target.matches('.toggle-news-btn')) return;
+
+            // 1. Lumina toggle button (inside [data-lumina-toggle])
+            var luminaToggle = target.closest('[data-lumina-toggle]');
+            if (luminaToggle) {
+                var content = luminaToggle.querySelector('.lumina-toggle-content');
+                if (!content && luminaToggle.nextElementSibling && luminaToggle.nextElementSibling.classList.contains('lumina-toggle-content')) {
+                    content = luminaToggle.nextElementSibling;
+                }
+                if (content) {
+                    var isHidden = content.style.display === 'none' || getComputedStyle(content).display === 'none';
+                    content.style.display = isHidden ? 'block' : 'none';
+                    var expandedText  = target.getAttribute('data-text-expanded')  || 'Свернуть';
+                    var collapsedText = target.getAttribute('data-text-collapsed') || 'Читать далее';
+                    target.textContent = isHidden ? expandedText : collapsedText;
+                }
+                event.preventDefault();
+                event.stopPropagation();
+                return;
+            }
+
+            // 2. Legacy toggle button (from latest_news.php widget)
+            var newsItem = target.closest('.news-item');
+            if (newsItem) {
+                newsItem.classList.toggle('is-expanded');
+                target.textContent = newsItem.classList.contains('is-expanded') ? 'Свернуть' : 'Читать далее';
+                event.preventDefault();
+            }
+        });
+    });
+    </script>
+    <script src="assets/js/lightbox.js?v=20260715b" defer></script>
+</body>
+</html>

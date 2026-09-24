@@ -1,0 +1,65 @@
+[
+  {
+    "ts": "2026-07-24 00:19:03",
+    "user": "admin",
+    "ip": "::1",
+    "action": "audit_clear",
+    "details": "Журнал очищен администратором"
+  },
+  {
+    "ts": "2026-07-24 02:28:39",
+    "user": "admin",
+    "ip": "::1",
+    "action": "edit_page",
+    "details": "id=1 title='Главная' lang=ru status=published"
+  },
+  {
+    "ts": "2026-07-24 02:29:05",
+    "user": "admin",
+    "ip": "::1",
+    "action": "edit_page",
+    "details": "id=1 title='Главная' lang=ru status=published"
+  },
+  {
+    "ts": "2026-07-24 02:29:07",
+    "user": "admin",
+    "ip": "::1",
+    "action": "edit_page",
+    "details": "id=1 title='Главная' lang=ru status=published"
+  },
+  {
+    "ts": "2026-08-01 11:19:34",
+    "user": "admin",
+    "ip": "::1",
+    "action": "edit_page",
+    "details": "id=1 title='Главная' lang=ru status=published"
+  },
+  {
+    "ts": "2026-08-01 11:21:17",
+    "user": "admin",
+    "ip": "::1",
+    "action": "edit_page",
+    "details": "id=1 title='Главная' lang=ru status=published"
+  },
+  {
+    "ts": "2026-08-01 11:21:49",
+    "user": "admin",
+    "ip": "::1",
+    "action": "edit_page",
+    "details": "id=1 title='Главная' lang=ru status=published"
+  },
+  {
+    "ts": "2026-08-01 11:24:01",
+    "user": "admin",
+    "ip": "::1",
+    "action": "edit_page",
+    "details": "id=1 title='Главная' lang=ru status=published"
+  },
+  {
+    "ts": "2026-08-17 01:20:52",
+    "user": "admin",
+    "ip": "127.0.0.1",
+    "action": "edit_page",
+    "details": "id=1 title='Главная (отредактировано)'"
+  }
+]

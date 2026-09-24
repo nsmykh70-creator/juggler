@@ -1,0 +1,325 @@
+<section class="benefits-section py-5">
+    <div class="container">
+        <h2 class="text-center mb-5">Наши преимущества</h2>
+        <div class="row g-4">
+            <div class="col-md-4 text-center">
+                <div class="p-4 border rounded shadow-sm">
+                    <i class="fas fa-rocket fa-3x text-primary mb-3"></i>
+                    <h4>Быстрая доставка</h4>
+                    <p>Получите заказ в течение 24 часов</p>
+                </div>
+            </div>
+            <div class="col-md-4 text-center">
+                <div class="p-4 border rounded shadow-sm">
+                    <i class="fas fa-headset fa-3x text-primary mb-3"></i>
+                    <h4>Поддержка 24/7</h4>
+                    <p>Наши специалисты всегда готовы помочь</p>
+                </div>
+            </div>
+            <div class="col-md-4 text-center">
+                <div class="p-4 border rounded shadow-sm">
+                    <i class="fas fa-shield-alt fa-3x text-primary mb-3"></i>
+                    <h4>Гарантия качества</h4>
+                    <p>Все продукты проходят строгий контроль</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</section><!DOCTYPE html>
+<html lang="ru">
+<head>
+    <link rel="stylesheet" href="assets/css/tailwind-utilities.css?v=20260724">
+    <link rel="stylesheet" href="assets/css/tailwind-shim.css?v=20260724">
+    <link rel="stylesheet" href="assets/css/lumina-frontend.css?v=20260801">
+    <script src="assets/js/lumina-anim-observer.js?v=20260719b" defer></script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{site_title}} | {{page_title}}</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="{{google_fonts_url}}" rel="stylesheet">
+    <link rel="stylesheet" href="assets/css/bootstrap.local.css?v=20260718">
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+
+    <style>
+        :root {
+            --font-headers: '{{font_headers}}', sans-serif;
+            --font-body: '{{font_body}}', sans-serif;
+            --primary: #2ecc71;
+            --primary-dark: #27ae60;
+            --secondary: #1abc9c;
+            --dark-bg: #0a1929;
+            --light-text: #ecf0f1;
+            --glass-bg: rgba(255, 255, 255, 0.08);
+            --glass-border: rgba(255, 255, 255, 0.15);
+            --glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+            --gradient: linear-gradient(135deg, var(--primary), var(--secondary));
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: var(--font-body);
+            color: var(--light-text);
+            overflow-x: clip;
+            background: var(--dark-bg);
+            background-image: radial-gradient(circle at 10% 20%, rgba(46, 204, 113, 0.1) 0%, transparent 25%), radial-gradient(circle at 90% 80%, rgba(26, 188, 156, 0.1) 0%, transparent 25%);
+            background-attachment: fixed;
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+        }
+        .main-content { flex: 1; }
+        h1, h2, h3, h4, h5, h6 { font-family: var(--font-headers); font-weight: 700; text-transform: uppercase; letter-spacing: 1px; }
+        .animated-bg { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: -2; overflow: hidden; }
+        .leaf { position: absolute; width: 80px; height: 80px; background: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><path d="M50,10 C70,5 90,25 85,45 C80,65 60,70 40,60 C20,50 15,30 30,15 C40,10 45,8 50,10 Z" fill="%232ecc71" opacity="0.4"/></svg>'); animation: float 15s linear infinite; opacity: 0.5; z-index: -1; }
+        @keyframes float { 0% { transform: translateY(100vh) rotate(0deg); } 100% { transform: translateY(-100px) rotate(360deg); } }
+        .glass-panel { background: var(--glass-bg); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border: 1px solid var(--glass-border); border-radius: 16px; box-shadow: var(--glass-shadow); padding: 2rem; }
+        .hero-title { font-size: 3.5rem; line-height: 1.1; background: var(--gradient); -webkit-background-clip: text; -webkit-text-fill-color: transparent; margin-bottom: 1.5rem; text-shadow: 0 0 15px rgba(46, 204, 113, 0.3); }
+        .btn-theme { background: var(--gradient); border: none; color: white; padding: 0.8rem 2rem; border-radius: 50px; font-weight: 600; text-transform: uppercase; letter-spacing: 1px; box-shadow: 0 5px 15px rgba(46, 204, 113, 0.3); transition: all 0.3s ease; }
+        .btn-theme:hover { transform: translateY(-3px); box-shadow: 0 10px 20px rgba(0, 0, 0, 0.2), 0 0 20px rgba(46, 204, 113, 0.4); }
+        .navbar { background: rgba(10, 25, 41, 0.85); backdrop-filter: blur(10px); transition: all 0.4s ease; border-bottom: 1px solid rgba(46, 204, 113, 0.2); }
+        .navbar-brand { font-family: var(--font-headers); font-weight: 700; font-size: 1.8rem; background: var(--gradient); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        .nav-link { font-family: var(--font-headers); position: relative; margin: 0 0.5rem; color: var(--light-text) !important; transition: all 0.3s ease; }
+        .nav-link:after { content: ''; position: absolute; width: 0; height: 3px; bottom: 0; left: 0; background: var(--gradient); transition: width 0.3s ease; }
+        .nav-link:hover:after, .nav-link.active:after { width: 100%; }
+        .hero-section, .home-only-section { display: none; }
+        .page-home .hero-section, .page-home .home-only-section { display: block; }
+        .hero-section { min-height: 100vh; display: flex; align-items: center; position: relative; padding-top: 80px; }
+        .section-title { position: relative; padding-bottom: 1rem; margin-bottom: 2rem; display: inline-block; text-align: center; width: 100%; }
+        .section-title:after { content: ''; position: absolute; bottom: 0; left: 50%; transform: translateX(-50%); width: 60px; height: 4px; background: var(--gradient); border-radius: 2px; }
+        .footer { background: rgba(10, 25, 41, 0.95); padding: 3rem 0; border-top: 1px solid rgba(46, 204, 113, 0.2); text-align: center; }
+        .fade-in-section { opacity: 0; transform: translateY(30px); transition: opacity 0.6s ease, transform 0.6s ease; }
+        .fade-in-section.is-visible { opacity: 1; transform: translateY(0); }
+        .forest-pattern { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200"><path d="M50,150 Q65,120 80,150 Q95,100 110,150 Q125,90 140,150 L140,200 L50,200 Z" fill="%2327ae60" opacity="0.05"/></svg>'); background-size: 300px; opacity: 0.3; z-index: -1; }
+        
+        /* --- Стили для Лайтбокса --- */
+        .page-content img { cursor: zoom-in; transition: transform 0.2s ease; max-width: 100%; height: auto; display: block; }
+        .page-content img:hover { transform: scale(1.02); }
+        .modal-backdrop.show { opacity: 0.85; }
+        #imageLightbox .modal-dialog { max-width: 90vw; margin: 1.75rem auto; }
+        #imageLightbox .modal-content { background: transparent; border: none; }
+        #imageLightbox .modal-body { padding: 0; }
+        #imageLightbox img { max-height: 90vh; width: auto; max-width: 100%; margin: auto; display: block; border-radius: 8px; border: 3px solid rgba(255,255,255,0.2); }
+        #imageLightbox .btn-close { position: absolute; top: -25px; right: -25px; z-index: 10; background-color: rgba(255,255,255,0.8); border-radius: 50%; padding: 0.5em; opacity: 1; }
+        #imageLightbox .btn-close:hover { opacity: 1; transform: scale(1.1); }
+    
+
+        .news-blog-container .news-item { margin-bottom: 2rem; padding-bottom: 1.5rem; border-bottom: 1px solid rgba(128,128,128,0.2); }
+        .news-blog-container .news-item:last-child { border-bottom: 0; padding-bottom: 0; margin-bottom: 0; }
+        .news-title { font-size: 1.6rem; font-weight: 700; margin-bottom: 0.5rem; }
+        .news-date { font-size: 0.85rem; opacity: 0.7; margin-bottom: 1rem; }
+        .news-content-full { line-height: 1.75; }
+        .news-content-full p { margin-bottom: 1rem; }
+        .news-content-full h2, .news-content-full h3 { margin-top: 1.5rem; margin-bottom: 0.75rem; }
+        .news-content-full img { max-width: 100%; height: auto; border-radius: 8px; margin: 1rem 0; }
+        .news-content-full ul, .news-content-full ol { margin: 0 0 1rem 1.5rem; }
+        .news-content-full li { margin-bottom: 0.4rem; }
+        .news-content-full pre { background: rgba(0,0,0,0.06); padding: 1rem; border-radius: 8px; overflow-x: auto; max-width: 100%; }
+        .news-content-full code { font-family: 'Fira Code', monospace; font-size: 0.9em; }
+        .news-content-full blockquote { border-left: 3px solid #2563eb; padding-left: 1rem; margin: 1rem 0; opacity: 0.85; font-style: italic; }
+        .news-content-full table { display: block; overflow-x: auto; max-width: 100%; }
+        .lumina-toggle-block[data-lumina-toggle] { display: block; margin: 1rem 0; }
+        .toggle-news-btn { cursor: pointer; transition: filter 0.15s ease, transform 0.1s ease; }
+        .toggle-news-btn:hover { filter: brightness(1.1); }
+        .toggle-news-btn:active { transform: translateY(1px); }
+        .lumina-toggle-content { margin-top: 1rem; animation: luminaToggleFadeIn 0.25s ease-out; }
+        @keyframes luminaToggleFadeIn { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: translateY(0); } }
+
+        /* News toggle button (from helios — working mechanism) */
+        .news-blog-container .news-item { margin-bottom: 32px; padding-bottom: 24px; border-bottom: 1px solid rgba(128,128,128,0.2); }
+        .news-blog-container .news-item:last-child { border-bottom: 0; padding-bottom: 0; margin-bottom: 0; }
+        .news-title { font-size: 1.6rem; font-weight: 700; margin-bottom: 8px; }
+        .news-date { font-size: 0.85rem; opacity: 0.7; margin-bottom: 1rem; }
+        .news-content-short, .news-content-full { line-height: 1.75; }
+        .news-content-short p, .news-content-full p { margin-bottom: 1rem; }
+        .news-content-short img, .news-content-full img { max-width: 100%; height: auto; border-radius: 8px; margin: 1rem 0; }
+        .news-content-short ul, .news-content-full ul,
+        .news-content-short ol, .news-content-full ol { margin: 0 0 1rem 1.5rem; }
+        .news-content-short pre, .news-content-full pre { background: rgba(0,0,0,0.06); padding: 1rem; border-radius: 8px; overflow-x: auto; max-width: 100%; }
+        .news-content-short code, .news-content-full code { font-family: 'Fira Code', monospace; font-size: 0.9em; }
+        .news-content-short table, .news-content-full table { display: block; overflow-x: auto; max-width: 100%; }
+        .toggle-news-btn {
+            margin-top: 12px; background: #2563eb; color: #fff; border: 0;
+            padding: 8px 18px; border-radius: 8px; cursor: pointer;
+            font-size: 14px; font-weight: 500; transition: background 0.15s;
+        }
+        .toggle-news-btn:hover { background: #1d4ed8; }
+        .news-item.is-expanded .news-content-short { display: none; }
+        .news-item:not(.is-expanded) .news-content-full { display: none; }
+        .news-item.is-expanded .news-content-full { display: block; }
+        .lumina-toggle-block[data-lumina-toggle] { display: block; margin: 1rem 0; }
+        .lumina-toggle-content { margin-top: 1rem; }
+        html, body { max-width: 100%; overflow-x: clip; }
+
+        /* When news has a Lumina toggle button, show .news-content-full
+           regardless of is-expanded state. The Lumina button handles
+           collapse/expand via lumina-toggle.js (wraps content after
+           the button in hidden .lumina-toggle-content). */
+        .news-item.has-lumina-toggle .news-content-full { display: block !important; }
+        .news-item.has-lumina-toggle .news-content-short { display: none !important; }
+        .news-item.has-lumina-toggle .toggle-news-btn:not([data-lumina-toggle] *) { display: none; }
+</style>
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <style>[x-cloak]{display:none!important}</style>
+</head>
+<body class="{{body_class}}">
+    <div class="animated-bg" id="animated-bg"></div>
+    <div class="forest-pattern"></div>
+
+    <header class="navbar navbar-expand-lg fixed-top navbar-dark">
+        <div class="container">
+            <a class="navbar-brand" href="?page=home&lang={{lang}}">{{site_title}}</a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#mainNav"><span class="navbar-toggler-icon"></span></button>
+            <div class="collapse navbar-collapse" id="mainNav">
+                <ul class="navbar-nav ms-auto mb-2 mb-lg-0">
+                    {{foreach:pages as p}}
+                    <li class="nav-item">
+                        <a class="nav-link {{if p.slug == page_slug}}active{{endif}}" href="?page={{p.slug}}&lang={{lang}}">{{p.title}}</a>
+                    </li>
+                    {{endforeach}}
+                </ul>
+            </div>
+        </div>
+    </header>
+
+    <main class="main-content">
+        <section class="hero-section">
+            <div class="container">
+                <div class="row justify-content-center">
+                    <div class="col-lg-8 fade-in-section">
+                        <div class="glass-panel text-center">
+                            <h1 class="hero-title">Документация AICMS</h1>
+                            <p class="lead" style="font-family: var(--font-body);">Полная документация по установке, настройке и работе с AICMS.</p>
+                            <div class="d-flex flex-wrap gap-3 mt-4 justify-content-center">
+                                <a href="?page=services" class="btn-theme">Наши услуги</a>
+                                <a href="?page=contacts" class="btn btn-outline-light">Связаться с нами</a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section class="py-5">
+            <div class="container">
+                <div class="glass-panel">
+                    <div class="page-content">
+                        {{page_content}}
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Декоративные секции, которые показываются только на главной -->
+        <section class="home-only-section">
+             <!-- Здесь можно вставить параллакс, услуги и т.д. -->
+        </section>
+
+    </main>
+
+    <footer class="footer mt-auto">
+        <div class="container">
+            <p>&copy; {{current_year}} {{site_title}} | Создано с любовью к природе</p>
+        </div>
+    </footer>
+
+    <div class="modal fade" id="imageLightbox" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered modal-xl">
+            <div class="modal-content">
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                <div class="modal-body">
+                    <img src="" class="img-fluid" id="lightboxImage" alt="Увеличенное изображение">
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="assets/js/bootstrap.bundle.local.js?v=20260718"></script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const contentArea = document.querySelector('.page-content');
+            if (contentArea) {
+                const images = contentArea.querySelectorAll('img');
+                const lightboxModal = new bootstrap.Modal(document.getElementById('imageLightbox'));
+                const lightboxImage = document.getElementById('lightboxImage');
+                images.forEach(img => {
+                    img.setAttribute('data-bs-toggle', 'modal');
+                    img.setAttribute('data-bs-target', '#imageLightbox');
+                    img.addEventListener('click', function () {
+                        lightboxImage.src = this.src;
+                    });
+                });
+            }
+            createLeaves();
+            animateOnScroll();
+            window.addEventListener('scroll', animateOnScroll);
+        });
+
+        function createLeaves() {
+            const container = document.getElementById('animated-bg');
+            if(!container) return;
+            for (let i = 0; i < 15; i++) {
+                const leaf = document.createElement('div');
+                leaf.className = 'leaf';
+                const size = 30 + Math.random() * 50;
+                leaf.style.width = `${size}px`; leaf.style.height = `${size}px`;
+                leaf.style.left = `${Math.random() * 100}%`;
+                const duration = 15 + Math.random() * 15;
+                const delay = Math.random() * 10;
+                leaf.style.animationDuration = `${duration}s`;
+                leaf.style.animationDelay = `${delay}s`;
+                container.appendChild(leaf);
+            }
+        }
+
+        function animateOnScroll() {
+            const elements = document.querySelectorAll('.fade-in-section');
+            elements.forEach(element => {
+                const elementTop = element.getBoundingClientRect().top;
+                const windowHeight = window.innerHeight;
+                if (elementTop < windowHeight * 0.9) {
+                    element.classList.add('is-visible');
+                }
+            });
+        }
+    </script>
+    
+    <script src="assets/js/lumina-toggle.js?v=20260715" defer></script>
+    <script src="assets/js/legacy-bs-toggle.js" defer></script>
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        document.addEventListener('click', function(event) {
+            var target = event.target;
+            if (!target.matches || !target.matches('.toggle-news-btn')) return;
+
+            // 1. Lumina toggle button (inside [data-lumina-toggle])
+            var luminaToggle = target.closest('[data-lumina-toggle]');
+            if (luminaToggle) {
+                var content = luminaToggle.querySelector('.lumina-toggle-content');
+                if (!content && luminaToggle.nextElementSibling && luminaToggle.nextElementSibling.classList.contains('lumina-toggle-content')) {
+                    content = luminaToggle.nextElementSibling;
+                }
+                if (content) {
+                    var isHidden = content.style.display === 'none' || getComputedStyle(content).display === 'none';
+                    content.style.display = isHidden ? 'block' : 'none';
+                    var expandedText  = target.getAttribute('data-text-expanded')  || 'Свернуть';
+                    var collapsedText = target.getAttribute('data-text-collapsed') || 'Читать далее';
+                    target.textContent = isHidden ? expandedText : collapsedText;
+                }
+                event.preventDefault();
+                event.stopPropagation();
+                return;
+            }
+
+            // 2. Legacy toggle button (from latest_news.php widget)
+            var newsItem = target.closest('.news-item');
+            if (newsItem) {
+                newsItem.classList.toggle('is-expanded');
+                target.textContent = newsItem.classList.contains('is-expanded') ? 'Свернуть' : 'Читать далее';
+                event.preventDefault();
+            }
+        });
+    });
+    </script>
+    <script src="assets/js/lightbox.js?v=20260715b" defer></script>
+</body>
+</html>

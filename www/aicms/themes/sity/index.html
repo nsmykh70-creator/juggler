@@ -1,0 +1,836 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <link rel="stylesheet" href="assets/css/tailwind-utilities.css?v=20260724">
+    <link rel="stylesheet" href="assets/css/tailwind-shim.css?v=20260724">
+    <link rel="stylesheet" href="assets/css/lumina-frontend.css?v=20260801">
+    <script src="assets/js/lumina-anim-observer.js?v=20260719b" defer></script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{site_title}} | Цифровая Галактика</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;600;700&family=Raleway:wght@300;400;600;700&family=Open+Sans:wght@300;400;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="assets/css/bootstrap.local.css?v=20260718">
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script src="assets/js/three.min.js?v=20260724"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="assets/js/vanta.net.min.js?v=20260724"></script>
+<script src="https://cdn.jsdelivr.net/npm/vanta@0.5.21/dist/vanta.net.min.js"></script>
+    <style>
+        :root {
+            --primary: #6a11cb;
+            --primary-light: #8a2be2;
+            --secondary: #2575fc;
+            --accent: #00f2fe;
+            --dark-bg: #0a0e17;
+            --light-text: #e6f1ff;
+            --glass-bg: rgba(20, 25, 45, 0.6);
+            --glass-border: rgba(100, 150, 255, 0.2);
+            --glass-shadow: 0 8px 32px rgba(0, 10, 30, 0.5);
+            --gradient: linear-gradient(135deg, var(--primary), var(--secondary));
+            --neon-glow: 0 0 15px rgba(106, 17, 203, 0.7);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Raleway', sans-serif;
+            color: var(--light-text);
+            overflow-x: clip;
+            min-height: 100vh;
+            background: var(--dark-bg);
+            display: flex;
+            flex-direction: column;
+        }
+
+        #galaxy-bg {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -1;
+        }
+
+        .main-content {
+            flex: 1;
+            position: relative;
+            z-index: 1;
+        }
+
+        .glass-panel {
+            background: var(--glass-bg);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid var(--glass-border);
+            border-radius: 16px;
+            box-shadow: var(--glass-shadow), var(--neon-glow);
+            padding: 2rem;
+            margin-bottom: 2rem;
+            transition: all 0.5s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .glass-panel::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: radial-gradient(circle, rgba(106, 17, 203, 0.1) 0%, transparent 70%);
+            z-index: -1;
+        }
+
+        h1, h2, h3, h4, h5, h6 {
+            font-family: 'Oswald', sans-serif;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .hero-title {
+            font-size: 4rem;
+            line-height: 1.1;
+            background: linear-gradient(135deg, var(--accent), var(--secondary));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 1.5rem;
+            text-shadow: var(--neon-glow);
+            position: relative;
+            animation: titleGlow 3s infinite alternate;
+        }
+
+        @keyframes titleGlow {
+            0% { text-shadow: 0 0 10px rgba(0, 242, 254, 0.5); }
+            100% { text-shadow: 0 0 30px rgba(0, 242, 254, 0.8), 0 0 50px rgba(37, 117, 252, 0.6); }
+        }
+
+        .btn-theme {
+            background: var(--gradient);
+            border: none;
+            color: white;
+            padding: 0.8rem 2rem;
+            border-radius: 50px;
+            font-weight: 600;
+            position: relative;
+            overflow: hidden;
+            transition: all 0.3s ease;
+            font-family: 'Oswald', sans-serif;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            box-shadow: var(--neon-glow);
+            z-index: 1;
+        }
+
+        .btn-theme::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+            transition: 0.5s;
+            z-index: -1;
+        }
+
+        .btn-theme:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.2), 0 0 30px rgba(106, 17, 203, 0.8);
+        }
+
+        .btn-theme:hover::before {
+            left: 100%;
+        }
+
+        .navbar {
+            background: rgba(10, 14, 23, 0.85);
+            backdrop-filter: blur(10px);
+            transition: all 0.4s ease;
+            border-bottom: 1px solid rgba(100, 150, 255, 0.2);
+            z-index: 1000;
+        }
+
+        .navbar-scrolled {
+            background: rgba(10, 14, 23, 0.95);
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+        }
+
+        .navbar-brand {
+            font-family: 'Oswald', sans-serif;
+            font-weight: 700;
+            font-size: 1.8rem;
+            background: var(--gradient);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            position: relative;
+        }
+
+        .navbar-brand::after {
+            content: '';
+            position: absolute;
+            bottom: -5px;
+            left: 0;
+            width: 100%;
+            height: 3px;
+            background: var(--gradient);
+            border-radius: 2px;
+            transform: scaleX(0);
+            transition: transform 0.3s ease;
+        }
+
+        .navbar-brand:hover::after {
+            transform: scaleX(1);
+        }
+
+        .nav-link {
+            font-family: 'Oswald', sans-serif;
+            font-weight: 500;
+            position: relative;
+            margin: 0 0.5rem;
+            padding: 0.5rem 0;
+            color: var(--light-text) !important;
+            transition: all 0.3s ease;
+        }
+
+        .nav-link::after {
+            content: '';
+            position: absolute;
+            width: 0;
+            height: 3px;
+            bottom: 0;
+            left: 0;
+            background: var(--gradient);
+            transition: width 0.3s ease;
+        }
+
+        .nav-link:hover::after,
+        .nav-link.active::after {
+            width: 100%;
+        }
+
+        .hero-section {
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            position: relative;
+            padding-top: 80px;
+        }
+
+        .section-title {
+            position: relative;
+            padding-bottom: 1rem;
+            margin-bottom: 2rem;
+            display: inline-block;
+            text-align: center;
+            width: 100%;
+        }
+
+        .section-title::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 60px;
+            height: 4px;
+            background: var(--gradient);
+            border-radius: 2px;
+            box-shadow: var(--neon-glow);
+        }
+
+        .tech-card {
+            background: rgba(30, 35, 60, 0.4);
+            border-radius: 16px;
+            overflow: hidden;
+            transition: all 0.3s ease;
+            border: 1px solid var(--glass-border);
+            height: 100%;
+            backdrop-filter: blur(5px);
+            padding: 1.5rem;
+            position: relative;
+            text-align: center;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+        }
+
+        .tech-card:hover {
+            transform: translateY(-10px) scale(1.02);
+            box-shadow: 0 15px 30px rgba(0, 0, 0, 0.4), var(--neon-glow);
+            border: 1px solid var(--accent);
+        }
+
+        .card-icon {
+            font-size: 3rem;
+            margin-bottom: 1.5rem;
+            background: linear-gradient(135deg, var(--accent), var(--secondary));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            display: block;
+            text-align: center;
+            animation: iconPulse 2s infinite alternate;
+        }
+
+        @keyframes iconPulse {
+            0% { transform: scale(1); }
+            100% { transform: scale(1.1); }
+        }
+
+        .hologram {
+            position: relative;
+            border-radius: 16px;
+            overflow: hidden;
+            box-shadow: 0 0 30px rgba(0, 242, 254, 0.3);
+            border: 1px solid rgba(0, 242, 254, 0.3);
+            background: rgba(0, 0, 0, 0.3);
+        }
+
+        .hologram::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: linear-gradient(45deg, transparent, rgba(0, 242, 254, 0.1), transparent);
+            animation: hologramEffect 4s linear infinite;
+        }
+
+        @keyframes hologramEffect {
+            0% { transform: rotate(0deg) translate(0, 0); }
+            100% { transform: rotate(360deg) translate(20px, 20px); }
+        }
+
+        .parallax-section {
+            padding: 8rem 0;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .footer {
+            background: rgba(10, 14, 23, 0.95);
+            padding: 3rem 0;
+            position: relative;
+            border-top: 1px solid rgba(100, 150, 255, 0.2);
+            text-align: center;
+            z-index: 1;
+        }
+
+        .fade-in-section {
+            opacity: 0;
+            transform: translateY(30px);
+            transition: opacity 0.6s ease, transform 0.6s ease;
+        }
+
+        .fade-in-section.is-visible {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        .text-center {
+            text-align: center;
+        }
+
+        .d-flex-center {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .matrix-text {
+            font-family: 'Courier New', monospace;
+            color: var(--accent);
+            text-shadow: 0 0 10px var(--accent);
+            animation: matrixGlow 1.5s infinite alternate;
+        }
+
+        @keyframes matrixGlow {
+            0% { text-shadow: 0 0 5px var(--accent); }
+            100% { text-shadow: 0 0 15px var(--accent), 0 0 30px var(--secondary); }
+        }
+
+        .particles {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -1;
+            pointer-events: none;
+        }
+
+        .particle {
+            position: absolute;
+            width: 2px;
+            height: 20px;
+            background: linear-gradient(transparent, var(--accent), transparent);
+            opacity: 0;
+            animation: particleFall 10s linear infinite;
+        }
+
+        @keyframes particleFall {
+            0% { 
+                transform: translateY(-20px) rotate(0deg);
+                opacity: 0;
+            }
+            10% { 
+                opacity: 1;
+            }
+            90% { 
+                opacity: 1;
+            }
+            100% { 
+                transform: translateY(100vh) rotate(360deg);
+                opacity: 0;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .hero-title { 
+                font-size: 2.5rem;
+                text-align: center;
+            }
+            .section-title { 
+                font-size: 2rem; 
+                text-align: center;
+            }
+            .navbar-collapse {
+                background: rgba(10, 14, 23, 0.95);
+                padding: 1rem;
+                border-radius: 8px;
+                margin-top: 10px;
+                backdrop-filter: blur(10px);
+            }
+            .hero-content {
+                text-align: center;
+            }
+            .btn-container {
+                justify-content: center;
+            }
+        }
+
+    
+
+        .news-blog-container .news-item { margin-bottom: 2rem; padding-bottom: 1.5rem; border-bottom: 1px solid rgba(128,128,128,0.2); }
+        .news-blog-container .news-item:last-child { border-bottom: 0; padding-bottom: 0; margin-bottom: 0; }
+        .news-title { font-size: 1.6rem; font-weight: 700; margin-bottom: 0.5rem; }
+        .news-date { font-size: 0.85rem; opacity: 0.7; margin-bottom: 1rem; }
+        .news-content-full { line-height: 1.75; }
+        .news-content-full p { margin-bottom: 1rem; }
+        .news-content-full h2, .news-content-full h3 { margin-top: 1.5rem; margin-bottom: 0.75rem; }
+        .news-content-full img { max-width: 100%; height: auto; border-radius: 8px; margin: 1rem 0; }
+        .news-content-full ul, .news-content-full ol { margin: 0 0 1rem 1.5rem; }
+        .news-content-full li { margin-bottom: 0.4rem; }
+        .news-content-full pre { background: rgba(0,0,0,0.06); padding: 1rem; border-radius: 8px; overflow-x: auto; max-width: 100%; }
+        .news-content-full code { font-family: 'Fira Code', monospace; font-size: 0.9em; }
+        .news-content-full blockquote { border-left: 3px solid #2563eb; padding-left: 1rem; margin: 1rem 0; opacity: 0.85; font-style: italic; }
+        .news-content-full table { display: block; overflow-x: auto; max-width: 100%; }
+        .lumina-toggle-block[data-lumina-toggle] { display: block; margin: 1rem 0; }
+        .toggle-news-btn { cursor: pointer; transition: filter 0.15s ease, transform 0.1s ease; }
+        .toggle-news-btn:hover { filter: brightness(1.1); }
+        .toggle-news-btn:active { transform: translateY(1px); }
+        .lumina-toggle-content { margin-top: 1rem; animation: luminaToggleFadeIn 0.25s ease-out; }
+        @keyframes luminaToggleFadeIn { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: translateY(0); } }
+
+        /* News toggle button (from helios — working mechanism) */
+        .news-blog-container .news-item { margin-bottom: 32px; padding-bottom: 24px; border-bottom: 1px solid rgba(128,128,128,0.2); }
+        .news-blog-container .news-item:last-child { border-bottom: 0; padding-bottom: 0; margin-bottom: 0; }
+        .news-title { font-size: 1.6rem; font-weight: 700; margin-bottom: 8px; }
+        .news-date { font-size: 0.85rem; opacity: 0.7; margin-bottom: 1rem; }
+        .news-content-short, .news-content-full { line-height: 1.75; }
+        .news-content-short p, .news-content-full p { margin-bottom: 1rem; }
+        .news-content-short img, .news-content-full img { max-width: 100%; height: auto; border-radius: 8px; margin: 1rem 0; }
+        .news-content-short ul, .news-content-full ul,
+        .news-content-short ol, .news-content-full ol { margin: 0 0 1rem 1.5rem; }
+        .news-content-short pre, .news-content-full pre { background: rgba(0,0,0,0.06); padding: 1rem; border-radius: 8px; overflow-x: auto; max-width: 100%; }
+        .news-content-short code, .news-content-full code { font-family: 'Fira Code', monospace; font-size: 0.9em; }
+        .news-content-short table, .news-content-full table { display: block; overflow-x: auto; max-width: 100%; }
+        .toggle-news-btn {
+            margin-top: 12px; background: #2563eb; color: #fff; border: 0;
+            padding: 8px 18px; border-radius: 8px; cursor: pointer;
+            font-size: 14px; font-weight: 500; transition: background 0.15s;
+        }
+        .toggle-news-btn:hover { background: #1d4ed8; }
+        .news-item.is-expanded .news-content-short { display: none; }
+        .news-item:not(.is-expanded) .news-content-full { display: none; }
+        .news-item.is-expanded .news-content-full { display: block; }
+        .lumina-toggle-block[data-lumina-toggle] { display: block; margin: 1rem 0; }
+        .lumina-toggle-content { margin-top: 1rem; }
+        html, body { max-width: 100%; overflow-x: clip; }
+
+        /* When news has a Lumina toggle button, show .news-content-full
+           regardless of is-expanded state. The Lumina button handles
+           collapse/expand via lumina-toggle.js (wraps content after
+           the button in hidden .lumina-toggle-content). */
+        .news-item.has-lumina-toggle .news-content-full { display: block !important; }
+        .news-item.has-lumina-toggle .news-content-short { display: none !important; }
+        .news-item.has-lumina-toggle .toggle-news-btn:not([data-lumina-toggle] *) { display: none; }
+
+.dropdown:hover > .dropdown-menu-css,
+.dropdown:hover > ul[style*="display:none"] { display: block !important; }
+</style>
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <style>[x-cloak]{display:none!important}</style>
+</head>
+<body>
+    <!-- 3D Galaxy Background -->
+    <div id="galaxy-bg"></div>
+    
+    <!-- Matrix particles -->
+    <div class="particles" id="particles"></div>
+
+    <!-- Навигация -->
+    <header class="navbar navbar-expand-lg fixed-top navbar-dark">
+        <div class="container">
+            <a class="navbar-brand" href="?page=home&lang={{current_lang}}">
+                <i class="fas fa-infinity"></i> {{site_title}}
+            </a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#mainNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="mainNav">
+                <ul class="navbar-nav ms-auto mb-2 mb-lg-0">
+                    {{foreach:menu_tree as m}}
+                    <li class="nav-item dropdown" style="position:relative;">
+                        <a class="nav-link {{if:m.slug == current_slug}}active{{endif}}" href="{{page_url:m.slug}}">{{m.title}}{{if:m.has_children}} <i class="fas fa-chevron-down" style="font-size:10px;"></i>{{endif}}</a>
+                        {{if:m.has_children}}
+                        <ul class="dropdown-menu-css" style="display:none;position:absolute;top:100%;left:0;background:rgba(10,14,23,0.95);border:1px solid var(--glass-border);border-radius:8px;min-width:180px;padding:6px;z-index:100;list-style:none;margin:0;">
+                        {{foreach:m.children as c}}
+                            <li><a style="display:block;padding:8px 12px;color:#e6f1ff;text-decoration:none;font-size:14px;border-radius:6px;" href="{{page_url:c.slug}}">{{c.title}}</a></li>
+                        {{endforeach}}
+                        </ul>
+                        {{endif}}
+                    </li>
+                    {{endforeach}}
+                </ul>
+
+             
+            </div>
+        </div>
+    </header>
+
+    <main class="main-content">
+        <!-- Герой секция -->
+        <section class="hero-section">
+            <div class="container">
+                <div class="row justify-content-center">
+                    <div class="col-lg-8 fade-in-section">
+                        <div class="glass-panel text-center">
+                            <h1 class="hero-title">AICMS - Погрузитесь в цифровую галактику</h1>
+                            <p class="lead" style="font-family: 'Open Sans', sans-serif;">
+                                Где технологии и воображение создают новую реальность
+                            </p>
+                            <div class="d-flex flex-wrap gap-3 mt-4 justify-content-center">
+                                <a href="?page=services&lang={{current_lang}}" class="btn-theme">Исследовать</a>
+                                <a href="?page=contacts&lang={{current_lang}}" class="btn btn-outline-light">Присоединиться</a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Технологии -->
+        <section class="py-7">
+            <div class="container">
+                <div class="row mb-5 fade-in-section">
+                    <div class="col-12 text-center">
+                        <h2 class="section-title">Наши технологии</h2>
+                    </div>
+                </div>
+                <div class="row g-4 justify-content-center">
+                    <div class="col-md-4 fade-in-section">
+                        <div class="tech-card">
+                            <div class="card-icon d-flex-center">
+                                <i class="fas fa-atom"></i>
+                            </div>
+                            <h3>Нейросети</h3>
+                            <p style="font-family: 'Open Sans', sans-serif;">
+                                Решаем сложнейшие задачи с помощью нейросетей
+                            </p>
+                        </div>
+                    </div>
+                    <div class="col-md-4 fade-in-section">
+                        <div class="tech-card">
+                            <div class="card-icon d-flex-center">
+                                <i class="fas fa-brain"></i>
+                            </div>
+                            <h3>Искусственный интеллект</h3>
+                            <p style="font-family: 'Open Sans', sans-serif;">
+                                ИИ, который учится и эволюционирует вместе с вами, помогая наполнять контентом сайт
+                            </p>
+                        </div>
+                    </div>
+                    <div class="col-md-4 fade-in-section">
+                        <div class="tech-card">
+                            <div class="card-icon d-flex-center">
+                                <i class="fas fa-vr-cardboard"></i>
+                            </div>
+                            <h3>Невероятная гибкость</h3>
+                            <p style="font-family: 'Open Sans', sans-serif;">
+                                Преобразуем цифровое пространство вокруг вас
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+   <section class="py-5">
+            <div class="container">
+                <div class="glass-panel">
+                    <div class="page-content">
+                        {{page_content}}
+                    </div>
+                </div>
+            </div>
+        </section>
+        <!-- Голограмма -->
+        <section class="py-7">
+            <div class="container">
+                <div class="glass-panel fade-in-section">
+                    <div class="row align-items-center">
+                        <div class="col-lg-6 text-center text-lg-start">
+                            <h2 class="section-title">Голографические интерфейсы</h2>
+                            <p style="font-family: 'Open Sans', sans-serif;">
+                                Наши разработки позволяют взаимодействовать с цифровым миром как никогда прежде. 
+                                Используя передовые технологии, мы создаем интерфейсы, которые парит в воздухе.
+                            </p>
+                            <p class="matrix-text" style="font-family: 'Courier New', monospace; font-weight: bold;">
+                                > Система активирована
+                                > Голографический интерфейс готов
+                                > Добро пожаловать в будущее
+                            </p>
+                            <div class="d-flex-center">
+                                <a href="?page=tech&lang={{current_lang}}" class="btn-theme mt-3">Демо-доступ</a>
+                            </div>
+                        </div>
+                        <div class="col-lg-6 mt-4 mt-lg-0 text-center">
+                            <div class="hologram">
+                                <img src="https://images.unsplash.com/photo-1635070041078-e363dbe005cb?q=80&w=1470" 
+                                     alt="Голографический интерфейс" 
+                                     class="img-fluid">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Параллакс секция -->
+        <section class="parallax-section py-7">
+            <div class="container">
+                <div class="row justify-content-center">
+                    <div class="col-lg-8 text-center fade-in-section">
+                        <div class="glass-panel">
+                            <h2 class="section-title">Будущее начинается сегодня</h2>
+                            <p class="lead mb-4" style="font-family: 'Open Sans', sans-serif;">
+                                Присоединяйтесь к нам в путешествии по цифровой галактике, где каждый проект - 
+                                это новая звезда в созвездии технологий
+                            </p>
+                            <a href="?page=contact&lang={{current_lang}}" class="btn-theme">Запустить проект</a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <footer class="footer">
+        <div class="container">
+            <div class="row justify-content-center">
+                <div class="col-md-4 mb-4 mb-md-0 text-center">
+                    <h4 class="mb-4"><i class="fas fa-infinity me-2"></i> {{site_title}}</h4>
+                    <p style="font-family: 'Open Sans', sans-serif;">
+                        Исследуем границы цифровой реальности
+                    </p>
+                </div>
+                <div class="col-md-4 mb-4 mb-md-0 text-center">
+                    <h4 class="mb-4">Контакты</h4>
+                    <p style="font-family: 'Open Sans', sans-serif;">
+                        <i class="fas fa-map-marker-alt me-2"></i> Москва, ул. Кибернетическая, 42
+                    </p>
+                    <p style="font-family: 'Open Sans', sans-serif;">
+                        <i class="fas fa-phone me-2"></i> +7 (495) 001-10-01
+                    </p>
+                    <p style="font-family: 'Open Sans', sans-serif;">
+                        <i class="fas fa-envelope me-2"></i> contact@{{site_title|lower}}.space
+                    </p>
+                </div>
+                <div class="col-md-4 text-center">
+                    <h4 class="mb-4">Галактическая сеть</h4>
+                    <div class="d-flex justify-content-center gap-3">
+                        <a href="#" class="btn btn-outline-light"><i class="fab fa-galactic-republic"></i></a>
+                        <a href="#" class="btn btn-outline-light"><i class="fab fa-jedi-order"></i></a>
+                        <a href="#" class="btn btn-outline-light"><i class="fab fa-space-awesome"></i></a>
+                        <a href="#" class="btn btn-outline-light"><i class="fab fa-github"></i></a>
+                    </div>
+                </div>
+            </div>
+            <div class="row mt-5">
+                <div class="col-12 text-center">
+                    <p>&copy; {{current_year}} {{site_title}} | Создано в цифровой галактике</p>
+                    <p class="matrix-text">01000111 01100001 01101100 01100001 01111000 01111001</p>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <script src="assets/js/bootstrap.bundle.local.js?v=20260718"></script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <script>
+    // Инициализация 3D галактики
+    document.addEventListener('DOMContentLoaded', function() {
+        // 3D Galaxy Background
+        VANTA.NET({
+            el: "#galaxy-bg",
+            mouseControls: true,
+            touchControls: true,
+            gyroControls: false,
+            minHeight: 200.00,
+            minWidth: 200.00,
+            scale: 1.00,
+            scaleMobile: 1.00,
+            color: 0x6a11cb,
+            backgroundColor: 0x0a0e17,
+            points: 12.00,
+            maxDistance: 22.00,
+            spacing: 18.00
+        });
+        
+        // Matrix particles
+        function createMatrixParticles() {
+            const container = document.getElementById('particles');
+            const particleCount = 100;
+            
+            for (let i = 0; i < particleCount; i++) {
+                const particle = document.createElement('div');
+                particle.className = 'particle';
+                
+                // Позиция
+                const left = Math.random() * 100;
+                particle.style.left = `${left}%`;
+                
+                // Размер
+                const height = 10 + Math.random() * 30;
+                particle.style.height = `${height}px`;
+                
+                // Анимация
+                const duration = 2 + Math.random() * 8;
+                const delay = Math.random() * 10;
+                particle.style.animationDuration = `${duration}s`;
+                particle.style.animationDelay = `${delay}s`;
+                
+                container.appendChild(particle);
+            }
+        }
+        
+        // Эффект для навбара
+        window.addEventListener('scroll', function() {
+            const navbar = document.querySelector('.navbar');
+            if (window.scrollY > 50) {
+                navbar.classList.add('navbar-scrolled');
+            } else {
+                navbar.classList.remove('navbar-scrolled');
+            }
+        });
+        
+        // Анимация при прокрутке
+        function animateOnScroll() {
+            const elements = document.querySelectorAll('.fade-in-section');
+            
+            elements.forEach(element => {
+                const elementTop = element.getBoundingClientRect().top;
+                const windowHeight = window.innerHeight;
+                
+                if (elementTop < windowHeight * 0.9) {
+                    element.classList.add('is-visible');
+                }
+            });
+        }
+        
+        // Интерактивные частицы
+        document.addEventListener('mousemove', function(e) {
+            const particles = document.querySelectorAll('.particle');
+            const mouseX = e.clientX / window.innerWidth;
+            const mouseY = e.clientY / window.innerHeight;
+            
+            particles.forEach((particle, index) => {
+                // Эффект движения от мыши
+                const moveX = (mouseX - 0.5) * 20;
+                const moveY = (mouseY - 0.5) * 20;
+                particle.style.transform = `translate(${moveX}px, ${moveY}px)`;
+                
+                // Изменение цвета при наведении
+                const rect = particle.getBoundingClientRect();
+                if (
+                    e.clientX > rect.left && 
+                    e.clientX < rect.right && 
+                    e.clientY > rect.top && 
+                    e.clientY < rect.bottom
+                ) {
+                    particle.style.background = 'linear-gradient(transparent, #00f2fe, transparent)';
+                } else {
+                    particle.style.background = 'linear-gradient(transparent, #6a11cb, transparent)';
+                }
+            });
+        });
+        
+        // Инициализация
+        createMatrixParticles();
+        animateOnScroll();
+        window.addEventListener('scroll', animateOnScroll);
+    });
+    </script>
+    
+    <script src="assets/js/lumina-toggle.js?v=20260715" defer></script>
+    <script src="assets/js/legacy-bs-toggle.js" defer></script>
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        document.addEventListener('click', function(event) {
+            var target = event.target;
+            if (!target.matches || !target.matches('.toggle-news-btn')) return;
+
+            // 1. Lumina toggle button (inside [data-lumina-toggle])
+            var luminaToggle = target.closest('[data-lumina-toggle]');
+            if (luminaToggle) {
+                var content = luminaToggle.querySelector('.lumina-toggle-content');
+                if (!content && luminaToggle.nextElementSibling && luminaToggle.nextElementSibling.classList.contains('lumina-toggle-content')) {
+                    content = luminaToggle.nextElementSibling;
+                }
+                if (content) {
+                    var isHidden = content.style.display === 'none' || getComputedStyle(content).display === 'none';
+                    content.style.display = isHidden ? 'block' : 'none';
+                    var expandedText  = target.getAttribute('data-text-expanded')  || 'Свернуть';
+                    var collapsedText = target.getAttribute('data-text-collapsed') || 'Читать далее';
+                    if (isHidden) {
+                        target.textContent = expandedText;
+                        content.appendChild(wrapper);
+                    } else {
+                        target.textContent = collapsedText;
+                        content.parentNode.insertBefore(wrapper, content);
+                    }
+                }
+                event.preventDefault();
+                event.stopPropagation();
+                return;
+            }
+
+            // 2. Legacy toggle button (from latest_news.php widget)
+            var newsItem = target.closest('.news-item');
+            if (newsItem) {
+                newsItem.classList.toggle('is-expanded');
+                target.textContent = newsItem.classList.contains('is-expanded') ? 'Свернуть' : 'Читать далее';
+                event.preventDefault();
+            }
+        });
+    });
+    </script>
+    <script src="assets/js/lightbox.js?v=20260715b" defer></script>
+</body>
+</html>

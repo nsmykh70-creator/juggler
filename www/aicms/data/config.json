@@ -1,0 +1,111 @@
+{
+  "site_title": "AICMS",
+  "site_description": "Простая и быстрая CMS",
+  "site_keywords": "",
+  "favicon": "uploads/favicon.ico",
+  "theme": "sity1",
+  "languages": [
+    {
+      "code": "ru",
+      "name": "Русский"
+    },
+    {
+      "code": "en",
+      "name": "English"
+    },
+    {
+      "code": "de",
+      "name": "Deutsch"
+    },
+    {
+      "code": "es",
+      "name": "Español"
+    },
+    {
+      "code": "fr",
+      "name": "Français"
+    },
+    {
+      "code": "zh",
+      "name": "中文"
+    }
+  ],
+  "default_lang": "ru",
+  "show_news": true,
+  "clean_urls": false,
+  "features": {
+    "2fa": false,
+    "csp_headers": false,
+    "webp_conversion": false,
+    "ai_translation": true,
+    "telegram_bot": false,
+    "webhooks": true,
+    "rest_api": false
+  },
+  "extensions": {
+    "shop": {
+      "enabled": true,
+      "title": "Магазин",
+      "icon": "fa-shopping-bag",
+      "desc": "Каталог товаров, корзина, заказы. Требует БД."
+    },
+    "comments": {
+      "enabled": true,
+      "title": "Комментарии",
+      "icon": "fa-comments",
+      "desc": "Комментарии и оценки к новостям. Требует БД."
+    },
+    "forum": {
+      "enabled": true,
+      "title": "Форум",
+      "icon": "fa-users",
+      "desc": "Минифорум с темами и ответами. Требует БД."
+    },
+    "booking": {
+      "enabled": true,
+      "title": "Отель",
+      "icon": "fa-hotel",
+      "desc": "Бронирование номеров: категории, фото, цены, удобства."
+    },
+    "cafe": {
+      "enabled": true,
+      "title": "Кафе",
+      "icon": "fa-utensils",
+      "desc": "Бронирование столиков: дата, время, гости. Заявки в админку."
+    }
+  },
+  "storage": {
+    "driver": "mysql",
+    "host": "",
+    "port": "",
+    "database": "",
+    "username": "",
+    "password": "",
+    "prefix": "",
+    "path": "data/aicms.db"
+  },
+  "ai": {
+    "text": {
+      "provider": "openrouter",
+      "model": "mistralai/mistral-7b-instruct:free",
+      "api_key": ""
+    },
+    "image": {
+      "provider": "pollinations",
+      "model": "flux",
+      "api_key": ""
+    },
+    "video": {
+      "provider": "disabled",
+      "model": "",
+      "api_key": ""
+    }
+  },
+  "site_url": "http://127.0.0.1:8080/aicms",
+  "cache_enabled": true,
+  "_secrets_moved_to": "data/.env.php",
+  "ui": {
+    "stretch_speed": 2000
+  },
+  "openrouter_api_key": ""
+}

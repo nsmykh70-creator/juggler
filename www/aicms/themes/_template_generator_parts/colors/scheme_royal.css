@@ -1,0 +1,27 @@
+/* Color Scheme: Royal — Deep Purple/Gold */
+:root {
+    --gen-bg: #faf8fc;
+    --gen-card: #ffffff;
+    --gen-text: #2a1b3d;
+    --gen-muted: #6b5b7a;
+    --gen-primary: #6b21a8;
+    --gen-primary-light: #9333ea;
+    --gen-accent: #ca8a04;
+    --gen-border: #e9d5ff;
+    --gen-header-bg: #2a1b3d;
+    --gen-header-text: #e9d5ff;
+    --gen-footer-bg: #2a1b3d;
+    --gen-footer-text: #c4a8e0;
+}
+body { background: var(--gen-bg); color: var(--gen-text); }
+.navbar, .site-header { background: var(--gen-header-bg) !important; color: var(--gen-header-text); }
+.navbar a, .site-header a { color: var(--gen-header-text) !important; }
+.navbar a.active, .site-header a.active { color: var(--gen-accent) !important; }
+.card, .main-content { background: var(--gen-card); border-color: var(--gen-border); }
+.btn-primary { background: var(--gen-primary); border-color: var(--gen-primary); }
+.btn-primary:hover { background: var(--gen-primary-light); border-color: var(--gen-primary-light); }
+a { color: var(--gen-primary); }
+a:hover { color: var(--gen-primary-light); }
+.site-footer { background: var(--gen-footer-bg); color: var(--gen-footer-text); }
+.site-footer a { color: var(--gen-accent); }
+h1, h2, h3, h4, h5, h6 { color: var(--gen-primary); }
