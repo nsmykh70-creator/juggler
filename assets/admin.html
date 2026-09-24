@@ -172,6 +172,7 @@ input[type=text]:focus{outline:none;border-color:var(--blue)}
 footer.pagefoot{margin-top:22px;display:flex;justify-content:space-between;color:var(--dim);font-size:12.5px;flex-wrap:wrap;gap:8px}
 .empty{color:var(--dim);font-size:13px;padding:14px 4px}
 .mono{font:12px ui-monospace,Consolas,monospace}
+#lang{border:1px solid var(--brd);border-radius:8px;padding:4px 6px;background:#fff;font-size:12.5px;color:var(--text)}
 </style></head>
 <body>
 
@@ -180,52 +181,60 @@ footer.pagefoot{margin-top:22px;display:flex;justify-content:space-between;color
   <div class="login-card">
     <div class="logo">🤹</div>
     <h1>Juggler Admin</h1>
-    <p>Web Server &amp; Proxy — вход в панель управления</p>
+    <p data-i18n="login_sub">Web Server &amp; Proxy — вход в панель управления</p>
     <div class="login-err" id="login-err"></div>
-    <input type="password" id="login-token" placeholder="Токен администратора (JUGGLER_ADMIN_TOKEN)" autocomplete="current-password">
-    <button id="login-btn">Войти</button>
-    <div class="login-note">Если на сервере токен не задан, панель работает в режиме только чтение — кнопка входа не обязательна.</div>
+    <input type="password" id="login-token" data-i18n-ph="login_ph" placeholder="Токен администратора (JUGGLER_ADMIN_TOKEN)" autocomplete="current-password">
+    <button id="login-btn" data-i18n="login_btn">Войти</button>
+    <div class="login-note" data-i18n="login_note">Если на сервере токен не задан, панель работает в режиме только чтение — кнопка входа не обязательна.</div>
   </div>
 </div>
 
 <!-- ============ APP ============ -->
 <div class="app" id="app">
   <aside class="side">
-    <div class="brand"><div class="logo">🤹</div><div><b>Juggler</b><span class="brand-sub">Web Server &amp; Proxy</span></div></div>
+    <div class="brand"><div class="logo">🤹</div><div><b>Juggler</b><span class="brand-sub" data-i18n="footer_prod">Web Server &amp; Proxy</span></div></div>
     <nav class="nav" id="nav">
-      <button data-page="overview" class="on"><span class="ic">⌂</span><span class="lbl">Обзор</span></button>
-      <button data-page="stats"><span class="ic">📈</span><span class="lbl">Статистика</span></button>
-      <button data-page="logs"><span class="ic">📜</span><span class="lbl">Логи</span></button>
-      <button data-page="routes"><span class="ic">🔀</span><span class="lbl">Маршруты</span></button>
-      <button data-page="settings"><span class="ic">⚙️</span><span class="lbl">Настройки</span></button>
-      <button data-page="security"><span class="ic">🛡️</span><span class="lbl">Безопасность</span></button>
-      <button data-page="system"><span class="ic">🖥️</span><span class="lbl">Система</span></button>
+      <button data-page="overview" class="on"><span class="ic">⌂</span><span class="lbl" data-i18n="nav_overview">Обзор</span></button>
+      <button data-page="stats"><span class="ic">📈</span><span class="lbl" data-i18n="nav_stats">Статистика</span></button>
+      <button data-page="logs"><span class="ic">📜</span><span class="lbl" data-i18n="nav_logs">Логи</span></button>
+      <button data-page="routes"><span class="ic">🔀</span><span class="lbl" data-i18n="nav_routes">Маршруты</span></button>
+      <button data-page="settings"><span class="ic">⚙️</span><span class="lbl" data-i18n="nav_settings">Настройки</span></button>
+      <button data-page="security"><span class="ic">🛡️</span><span class="lbl" data-i18n="nav_security">Безопасность</span></button>
+      <button data-page="system"><span class="ic">🖥️</span><span class="lbl" data-i18n="nav_system">Система</span></button>
     </nav>
-    <div class="side-foot"><span class="ok">●</span> <span id="foot-status">Сервер работает</span><br><span id="foot-ver">v—</span></div>
+    <div class="side-foot"><span class="ok">●</span> <span id="foot-status" data-i18n="foot_running">Сервер работает</span><br><span id="foot-ver">v—</span></div>
   </aside>
 
   <div class="main">
     <header class="topbar">
-      <div class="status" id="top-status"><span class="dot" id="top-dot"></span><span id="top-label">Онлайн</span></div>
+      <div class="status" id="top-status"><span class="dot" id="top-dot"></span><span id="top-label" data-i18n="top_online">Онлайн</span></div>
+      <select id="lang" title="Language">
+        <option value="ru">RU · Русский</option>
+        <option value="en">EN · English</option>
+        <option value="de">DE · Deutsch</option>
+        <option value="fr">FR · Français</option>
+        <option value="es">ES · Español</option>
+        <option value="zh">ZH · 中文</option>
+      </select>
       <div class="clock" id="clock">—</div>
       <div class="user"><span class="av">👤</span> admin</div>
     </header>
-    <div class="ro-banner" id="ro-banner" style="display:none">🔒 Режим «только чтение»: JUGGLER_ADMIN_TOKEN не задан — изменения отклоняются сервером (403). Задайте токен и перезапустите сервер, чтобы включить управление.</div>
+    <div class="ro-banner" id="ro-banner" style="display:none" data-i18n="ro_banner">🔒 Режим «только чтение»: JUGGLER_ADMIN_TOKEN не задан — изменения отклоняются сервером (403). Задайте токен и перезапустите сервер, чтобы включить управление.</div>
 
     <div class="content">
       <!-- ================= ОБЗОР ================= -->
       <section class="page" id="page-overview">
-        <div class="page-head"><h1>Панель мониторинга</h1><p>Текущие метрики и состояние сервера — реальные данные Juggler</p></div>
+        <div class="page-head"><h1 data-i18n="ov_h1">Панель мониторинга</h1><p data-i18n="ov_p">Текущие метрики и состояние сервера — реальные данные Juggler</p></div>
         <div class="grid g-main">
           <div style="min-width:0;display:flex;flex-direction:column;gap:14px">
             <div class="grid g-kpi">
-              <div class="card kpi"><div class="ic blue">📊</div><div><b id="k-rps">–</b><span class="cap">запросов/сек</span> <span class="delta" id="k-rps-d"></span></div></div>
-              <div class="card kpi"><div class="ic green">✅</div><div><b id="k-ok">–</b><span class="cap">успешные (2xx+3xx)</span> <span class="delta" id="k-ok-d"></span></div></div>
-              <div class="card kpi"><div class="ic red">⚡</div><div><b id="k-err">–</b><span class="cap">ошибки (4xx+5xx)</span> <span class="delta" id="k-err-d"></span></div></div>
-              <div class="card kpi"><div class="ic violet">⏱️</div><div><b id="k-p99">–</b><span class="cap">p99 ответа</span></div></div>
+              <div class="card kpi"><div class="ic blue">📊</div><div><b id="k-rps">–</b><span class="cap" data-i18n="kpi_rps">запросов/сек</span> <span class="delta" id="k-rps-d"></span></div></div>
+              <div class="card kpi"><div class="ic green">✅</div><div><b id="k-ok">–</b><span class="cap" data-i18n="kpi_ok">успешные (2xx+3xx)</span> <span class="delta" id="k-ok-d"></span></div></div>
+              <div class="card kpi"><div class="ic red">⚡</div><div><b id="k-err">–</b><span class="cap" data-i18n="kpi_err">ошибки (4xx+5xx)</span> <span class="delta" id="k-err-d"></span></div></div>
+              <div class="card kpi"><div class="ic violet">⏱️</div><div><b id="k-p99">–</b><span class="cap" data-i18n="kpi_p99">p99 ответа</span></div></div>
             </div>
             <div class="card">
-              <h2>График и коды ответов <span class="hint" id="hist-hint"></span></h2>
+              <h2><span data-i18n="card_chart">График и коды ответов</span> <span class="hint" id="hist-hint"></span></h2>
               <div class="chart-wrap"><canvas id="chart-rps" height="220"></canvas></div>
               <div class="legend">
                 <span><i style="background:#2563eb"></i>RPS</span>
@@ -236,36 +245,36 @@ footer.pagefoot{margin-top:22px;display:flex;justify-content:space-between;color
             </div>
             <div class="grid g-half">
               <div class="card">
-                <h2>Сетевые соединения</h2>
-                <div class="res-row"><span>Активные</span><div class="bar"><i id="bar-conns" style="width:0%"></i></div><b class="num" id="v-conns">–</b></div>
-                <div class="res-row"><span>Принято всего</span><div class="bar"><i style="width:100%;background:#dbeafe"></i></div><b class="num" id="v-accepted">–</b></div>
-                <div class="res-row"><span>Backpressure</span><span class="chip dim" id="v-bp">–</span><b class="num" id="v-pending">–</b></div>
-                <div class="res-row"><span>Режим accept</span><span class="chip blue" id="v-accept">–</span><b class="num" id="v-shards">–</b></div>
+                <h2 data-i18n="card_conns">Сетевые соединения</h2>
+                <div class="res-row"><span data-i18n="row_active">Активные</span><div class="bar"><i id="bar-conns" style="width:0%"></i></div><b class="num" id="v-conns">–</b></div>
+                <div class="res-row"><span data-i18n="row_accepted">Принято всего</span><div class="bar"><i style="width:100%;background:#dbeafe"></i></div><b class="num" id="v-accepted">–</b></div>
+                <div class="res-row"><span data-i18n="row_bp">Backpressure</span><span class="chip dim" id="v-bp">–</span><b class="num" id="v-pending">–</b></div>
+                <div class="res-row"><span data-i18n="row_accept">Режим accept</span><span class="chip blue" id="v-accept">–</span><b class="num" id="v-shards">–</b></div>
               </div>
               <div class="card">
-                <h2>Ресурсы сервера</h2>
-                <div class="res-row"><span>CPU процесса</span><div class="bar"><i id="bar-cpu" style="width:0%"></i></div><b class="num" id="v-cpu">–</b></div>
-                <div class="res-row"><span>Память RSS</span><div class="bar"><i id="bar-rss" style="width:0%;background:#7c3aed"></i></div><b class="num" id="v-rss">–</b></div>
-                <div class="res-row"><span>Пул upstream</span><div class="bar"><i id="bar-pool" style="width:0%;background:#16a34a"></i></div><b class="num" id="v-pool">–</b></div>
-                <div class="res-row"><span>DNS-кэш</span><div class="bar"><i id="bar-dns" style="width:0%;background:#d97706"></i></div><b class="num" id="v-dns">–</b></div>
+                <h2 data-i18n="card_res">Ресурсы сервера</h2>
+                <div class="res-row"><span data-i18n="row_cpu">CPU процесса</span><div class="bar"><i id="bar-cpu" style="width:0%"></i></div><b class="num" id="v-cpu">–</b></div>
+                <div class="res-row"><span data-i18n="row_rss">Память RSS</span><div class="bar"><i id="bar-rss" style="width:0%;background:#7c3aed"></i></div><b class="num" id="v-rss">–</b></div>
+                <div class="res-row"><span data-i18n="row_pool">Пул upstream</span><div class="bar"><i id="bar-pool" style="width:0%;background:#16a34a"></i></div><b class="num" id="v-pool">–</b></div>
+                <div class="res-row"><span data-i18n="row_dns">DNS-кэш</span><div class="bar"><i id="bar-dns" style="width:0%;background:#d97706"></i></div><b class="num" id="v-dns">–</b></div>
               </div>
             </div>
           </div>
           <div style="min-width:0;display:flex;flex-direction:column;gap:14px">
             <div class="card">
-              <h2>Быстрые действия</h2>
-              <button class="qa" data-nav="settings"><span class="ic">⚙️</span> Перейти к настройкам <span class="arr">›</span></button>
-              <button class="qa" data-nav="logs"><span class="ic">📜</span> Просмотр логов <span class="arr">›</span></button>
-              <button class="qa" id="qa-reload"><span class="ic">🔄</span> Перезагрузить конфигурацию <span class="arr">›</span></button>
-              <button class="qa" id="qa-pool"><span class="ic">🧹</span> Сбросить пул upstream <span class="arr">›</span></button>
-              <button class="qa" id="qa-dns"><span class="ic">🌐</span> Сбросить DNS-кэш <span class="arr">›</span></button>
+              <h2 data-i18n="card_qa">Быстрые действия</h2>
+              <button class="qa" data-nav="settings"><span class="ic">⚙️</span> <span data-i18n="qa_settings">Перейти к настройкам</span> <span class="arr">›</span></button>
+              <button class="qa" data-nav="logs"><span class="ic">📜</span> <span data-i18n="qa_logs">Просмотр логов</span> <span class="arr">›</span></button>
+              <button class="qa" id="qa-reload"><span class="ic">🔄</span> <span data-i18n="qa_reload">Перезагрузить конфигурацию</span> <span class="arr">›</span></button>
+              <button class="qa" id="qa-pool"><span class="ic">🧹</span> <span data-i18n="qa_pool">Сбросить пул upstream</span> <span class="arr">›</span></button>
+              <button class="qa" id="qa-dns"><span class="ic">🌐</span> <span data-i18n="qa_dns">Сбросить DNS-кэш</span> <span class="arr">›</span></button>
             </div>
             <div class="card">
-              <h2>Состояние компонентов</h2>
-              <div id="comp-list"><div class="empty">загрузка…</div></div>
+              <h2 data-i18n="card_comp">Состояние компонентов</h2>
+              <div id="comp-list"><div class="empty" data-i18n="loading">загрузка…</div></div>
             </div>
             <div class="card">
-              <h2>Распределение ответов</h2>
+              <h2 data-i18n="card_dist">Распределение ответов</h2>
               <div class="donut-box">
                 <svg id="donut" width="130" height="130" viewBox="0 0 130 130"></svg>
                 <div class="donut-rows" id="donut-rows"></div>
@@ -277,21 +286,21 @@ footer.pagefoot{margin-top:22px;display:flex;justify-content:space-between;color
 
       <!-- ================= СТАТИСТИКА ================= -->
       <section class="page hidden" id="page-stats">
-        <div class="page-head"><h1>Статистика</h1><p>Шарды, прогноз Pythia и конвейер обработки запросов</p></div>
+        <div class="page-head"><h1 data-i18n="nav_stats">Статистика</h1><p data-i18n="st_p">Шарды, прогноз Pythia и конвейер обработки запросов</p></div>
         <div class="grid g-half">
           <div class="card">
-            <h2>Шарды — нагрузка и прогноз <span class="hint" id="spark-hint"></span></h2>
-            <table><thead><tr><th>#</th><th>active</th><th>accepted</th><th>level</th><th>trend</th><th>forecast</th><th>история</th></tr></thead>
-            <tbody id="shard-rows"><tr><td colspan="7" class="empty">загрузка…</td></tr></tbody></table>
-            <div class="legend"><i style="background:#2563eb"></i>level (сглаженная нагрузка)&nbsp;&nbsp;<i style="background:#16a34a"></i>прогноз Хольта</div>
+            <h2><span data-i18n="card_shards">Шарды — нагрузка и прогноз</span> <span class="hint" id="spark-hint"></span></h2>
+            <table><thead><tr><th>#</th><th>active</th><th>accepted</th><th>level</th><th>trend</th><th>forecast</th><th data-i18n="th_history">история</th></tr></thead>
+            <tbody id="shard-rows"><tr><td colspan="7" class="empty" data-i18n="loading">загрузка…</td></tr></tbody></table>
+            <div class="legend"><i style="background:#2563eb"></i><span data-i18n="legend_level">level (сглаженная нагрузка)</span>&nbsp;&nbsp;<i style="background:#16a34a"></i><span data-i18n="legend_holt">прогноз Хольта</span></div>
           </div>
           <div class="card">
-            <h2>Конвейер обработки <span class="hint">с последнего сэмпла · 2 с</span></h2>
-            <div id="stage-box"><div class="empty">ожидание первого сэмпла…</div></div>
+            <h2><span data-i18n="card_pipe">Конвейер обработки</span> <span class="hint" data-i18n="pipe_hint">с последнего сэмпла · 2 с</span></h2>
+            <div id="stage-box"><div class="empty" data-i18n="pipe_wait">ожидание первого сэмпла…</div></div>
           </div>
         </div>
         <div class="card" style="margin-top:14px">
-          <h2>Активные соединения по шардам — история</h2>
+          <h2 data-i18n="card_shardhist">Активные соединения по шардам — история</h2>
           <div class="chart-wrap"><canvas id="chart-shards" height="200"></canvas></div>
           <div class="legend" id="shard-legend"></div>
         </div>
@@ -299,40 +308,40 @@ footer.pagefoot{margin-top:22px;display:flex;justify-content:space-between;color
 
       <!-- ================= ЛОГИ ================= -->
       <section class="page hidden" id="page-logs">
-        <div class="page-head"><h1>Логи</h1><p>Структурированный журнал событий (кольцевой буфер, последние 512 записей)</p></div>
+        <div class="page-head"><h1 data-i18n="nav_logs">Логи</h1><p data-i18n="lg_p">Структурированный журнал событий (кольцевой буфер, последние 512 записей)</p></div>
         <div class="card">
           <div class="filters">
-            <select id="log-level"><option value="">Все уровни</option><option value="info">info</option><option value="warn">warn</option><option value="error">error</option></select>
-            <select id="log-scope"><option value="">Все источники</option><option value="dataplane">dataplane</option><option value="upstream">upstream</option><option value="control">control</option><option value="admin">admin</option><option value="system">system</option></select>
-            <label style="display:flex;align-items:center;gap:6px;font-size:13px;color:var(--muted)"><input type="checkbox" id="log-auto" checked> авто-обновление</label>
-            <button class="btn ghost" id="log-refresh" style="margin-left:auto;padding:6px 14px">Обновить</button>
+            <select id="log-level"><option value="" data-i18n="all_levels">Все уровни</option><option value="info">info</option><option value="warn">warn</option><option value="error">error</option></select>
+            <select id="log-scope"><option value="" data-i18n="all_scopes">Все источники</option><option value="dataplane">dataplane</option><option value="upstream">upstream</option><option value="control">control</option><option value="admin">admin</option><option value="system">system</option></select>
+            <label style="display:flex;align-items:center;gap:6px;font-size:13px;color:var(--muted)"><input type="checkbox" id="log-auto" checked> <span data-i18n="auto_refresh">авто-обновление</span></label>
+            <button class="btn ghost" id="log-refresh" style="margin-left:auto;padding:6px 14px" data-i18n="btn_refresh">Обновить</button>
           </div>
-          <div id="log-box"><div class="empty">загрузка…</div></div>
+          <div id="log-box"><div class="empty" data-i18n="loading">загрузка…</div></div>
         </div>
       </section>
 
       <!-- ================= МАРШРУТЫ ================= -->
       <section class="page hidden" id="page-routes">
-        <div class="page-head"><h1>Маршруты</h1><p>Проксирование и стatica; изменения применяются атомарно (ArcSwap) и переживают рестарт</p></div>
+        <div class="page-head"><h1 data-i18n="nav_routes">Маршруты</h1><p data-i18n="rt_p">Проксирование и статика; изменения применяются атомарно (ArcSwap) и переживают рестарт</p></div>
         <div class="grid g-main">
           <div class="card">
-            <h2>Активные маршруты <span class="hint" id="routes-hint"></span></h2>
-            <table><thead><tr><th>Путь</th><th>Цели (upstream)</th><th>Режим</th><th>Статус</th><th></th></tr></thead>
-            <tbody id="route-rows"><tr><td colspan="5" class="empty">загрузка…</td></tr></tbody></table>
+            <h2><span data-i18n="card_active_routes">Активные маршруты</span> <span class="hint" id="routes-hint"></span></h2>
+            <table><thead><tr><th data-i18n="th_path">Путь</th><th data-i18n="th_targets">Цели (upstream)</th><th data-i18n="th_mode">Режим</th><th data-i18n="th_status">Статус</th><th></th></tr></thead>
+            <tbody id="route-rows"><tr><td colspan="5" class="empty" data-i18n="loading">загрузка…</td></tr></tbody></table>
             <div style="margin-top:14px;display:flex;gap:10px;flex-wrap:wrap">
-              <input type="text" id="new-path" placeholder="/path" style="max-width:180px">
-              <input type="text" id="new-up" placeholder="host:port (можно несколько через запятую)" style="flex:1;min-width:220px">
-              <button class="btn" id="route-add">Добавить</button>
+              <input type="text" id="new-path" data-i18n-ph="ph_path" placeholder="/path" style="max-width:180px">
+              <input type="text" id="new-up" data-i18n-ph="ph_up" placeholder="host:port (можно несколько через запятую)" style="flex:1;min-width:220px">
+              <button class="btn" id="route-add" data-i18n="btn_add">Добавить</button>
             </div>
             <div style="margin-top:10px"><span id="route-status" class="dirty-note"></span></div>
           </div>
           <div class="card">
-            <h2>JSON-конфигурация <span class="hint">тот же формат, что routes.json и gRPC UpdateConfig</span></h2>
+            <h2><span data-i18n="card_json">JSON-конфигурация</span> <span class="hint" data-i18n="json_hint">тот же формат, что routes.json и gRPC UpdateConfig</span></h2>
             <textarea id="routes-json" class="mono" spellcheck="false"
               style="width:100%;min-height:300px;border:1px solid var(--brd);border-radius:10px;padding:10px;background:#f8fafc"></textarea>
             <div style="margin-top:10px;display:flex;gap:10px">
-              <button class="btn" id="routes-apply">Применить</button>
-              <button class="btn ghost" id="routes-reload-json">Перечитать</button>
+              <button class="btn" id="routes-apply" data-i18n="btn_apply">Применить</button>
+              <button class="btn ghost" id="routes-reload-json" data-i18n="btn_reread">Перечитать</button>
             </div>
           </div>
         </div>
@@ -340,38 +349,38 @@ footer.pagefoot{margin-top:22px;display:flex;justify-content:space-between;color
 
       <!-- ================= НАСТРОЙКИ ================= -->
       <section class="page hidden" id="page-settings">
-        <div class="page-head"><h1>Настройки</h1><p>Runtime-параметры; применяются на лету без рестарта и сохраняются в settings.json</p></div>
+        <div class="page-head"><h1 data-i18n="nav_settings">Настройки</h1><p data-i18n="se_p">Runtime-параметры; применяются на лету без рестарта и сохраняются в settings.json</p></div>
         <div class="set-grid">
           <div class="card">
-            <h2>Балансировка и prewarm</h2>
-            <div id="set-core"><div class="empty">загрузка…</div></div>
+            <h2 data-i18n="card_bal">Балансировка и prewarm</h2>
+            <div id="set-core"><div class="empty" data-i18n="loading">загрузка…</div></div>
           </div>
           <div class="card">
-            <h2>Лимиты и защита</h2>
-            <div id="set-limits"><div class="empty">загрузка…</div></div>
-            <div class="ro" style="margin-top:10px">Brute-force latch (admin): 20 неудач / 60 с → 429. Verный токен сбрасывает счётчик.</div>
+            <h2 data-i18n="card_lim">Лимиты и защита</h2>
+            <div id="set-limits"><div class="empty" data-i18n="loading">загрузка…</div></div>
+            <div class="ro" style="margin-top:10px" data-i18n="bf_note">Brute-force latch (admin): 20 неудач / 60 с → 429. Верный токен сбрасывает счётчик.</div>
           </div>
           <div class="card">
-            <h2>Параметры прокси и пулов</h2>
-            <div id="set-proxy"><div class="empty">загрузка…</div></div>
+            <h2 data-i18n="card_proxy">Параметры прокси и пулов</h2>
+            <div id="set-proxy"><div class="empty" data-i18n="loading">загрузка…</div></div>
           </div>
           <div class="card">
-            <h2>Порты и интерфейсы <span class="hint">env-слушатели — только чтение; HTTP/HTTPS-порты добавляются ниже</span></h2>
-            <div id="set-ports"><div class="empty">загрузка…</div></div>
+            <h2><span data-i18n="card_ports">Порты и интерфейсы</span> <span class="hint" data-i18n="ports_hint">env-слушатели — только чтение; HTTP/HTTPS-порты добавляются ниже</span></h2>
+            <div id="set-ports"><div class="empty" data-i18n="loading">загрузка…</div></div>
             <div id="dyn-ports" style="margin-top:14px">
-              <div class="set-name" style="margin-bottom:8px"><b>Динамические порты</b><small>слушатели добавляются/меняются на ходу и переживают рестарт сервера</small></div>
-              <div id="dyn-ports-rows"><div class="empty">загрузка…</div></div>
+              <div class="set-name" style="margin-bottom:8px"><b data-i18n="dyn_ports">Динамические порты</b><small data-i18n="dyn_ports_hint">слушатели добавляются/меняются на ходу и переживают рестарт сервера</small></div>
+              <div id="dyn-ports-rows"><div class="empty" data-i18n="loading">загрузка…</div></div>
               <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;align-items:center">
-                <input id="lp-addr" placeholder="порт, напр. 8000" style="width:130px" inputmode="numeric">
+                <input id="lp-addr" data-i18n-ph="ph_port" placeholder="порт, напр. 8000" style="width:130px" inputmode="numeric">
                 <select id="lp-kind" style="width:110px"><option value="http">HTTP</option><option value="https">HTTPS</option></select>
-                <button class="btn" id="lp-add">+ Добавить порт</button>
-                <span class="hint">0.0.0.0 слушает на всех интерфейсах; 127.0.0.1 — только локально</span>
+                <button class="btn" id="lp-add" data-i18n="btn_add_port">+ Добавить порт</button>
+                <span class="hint" data-i18n="ports_bind_hint">0.0.0.0 слушает на всех интерфейсах; 127.0.0.1 — только локально</span>
               </div>
             </div>
           </div>
         </div>
         <div style="margin-top:16px;display:flex;align-items:center;gap:14px;flex-wrap:wrap">
-          <button class="btn" id="settings-save" disabled>💾 Сохранить изменения</button>
+          <button class="btn" id="settings-save" disabled data-i18n="save_btn">💾 Сохранить изменения</button>
           <span class="dirty-note" id="settings-dirty"></span>
           <span id="settings-status"></span>
         </div>
@@ -379,42 +388,42 @@ footer.pagefoot{margin-top:22px;display:flex;justify-content:space-between;color
 
       <!-- ================= БЕЗОПАСНОСТЬ ================= -->
       <section class="page hidden" id="page-security">
-        <div class="page-head"><h1>Безопасность</h1><p>Текущее состояние контуров защиты (результаты security-пасса v1.0)</p></div>
+        <div class="page-head"><h1 data-i18n="nav_security">Безопасность</h1><p data-i18n="sc_p">Текущее состояние контуров защиты (результаты security-пасса v1.0)</p></div>
         <div class="grid g-half">
           <div class="card">
-            <h2>Control plane</h2>
-            <div id="sec-control"><div class="empty">загрузка…</div></div>
+            <h2 data-i18n="card_cp">Control plane</h2>
+            <div id="sec-control"><div class="empty" data-i18n="loading">загрузка…</div></div>
           </div>
           <div class="card">
-            <h2>Egress и DNS</h2>
-            <div id="sec-egress"><div class="empty">загрузка…</div></div>
+            <h2 data-i18n="card_egress">Egress и DNS</h2>
+            <div id="sec-egress"><div class="empty" data-i18n="loading">загрузка…</div></div>
           </div>
         </div>
         <div class="card" style="margin-top:14px">
-          <h2>Политики маршрутов (deny-подстроки, заголовки, WASM)</h2>
-          <table><thead><tr><th>Маршрут</th><th>deny-подстроки</th><th>Свои заголовки</th><th>CMS fallback</th><th>WASM</th></tr></thead>
-          <tbody id="sec-routes"><tr><td colspan="5" class="empty">загрузка…</td></tr></tbody></table>
+          <h2 data-i18n="card_pol">Политики маршрутов (deny-подстроки, заголовки, WASM)</h2>
+          <table><thead><tr><th data-i18n="th_route">Маршрут</th><th data-i18n="th_deny">deny-подстроки</th><th data-i18n="th_headers">Свои заголовки</th><th data-i18n="th_cms">CMS fallback</th><th data-i18n="th_wasm">WASM</th></tr></thead>
+          <tbody id="sec-routes"><tr><td colspan="5" class="empty" data-i18n="loading">загрузка…</td></tr></tbody></table>
         </div>
       </section>
 
       <!-- ================= СИСТЕМА ================= -->
       <section class="page hidden" id="page-system">
-        <div class="page-head"><h1>Система</h1><p>Версия, ресурсы процесса, режимы работы и точки интеграции</p></div>
+        <div class="page-head"><h1 data-i18n="nav_system">Система</h1><p data-i18n="sy_p">Версия, ресурсы процесса, режимы работы и точки интеграции</p></div>
         <div class="grid g-half">
           <div class="card">
-            <h2>Процесс</h2>
-            <div id="sys-info"><div class="empty">загрузка…</div></div>
+            <h2 data-i18n="card_proc">Процесс</h2>
+            <div id="sys-info"><div class="empty" data-i18n="loading">загрузка…</div></div>
           </div>
           <div class="card">
-            <h2>Интеграции</h2>
-            <div id="sys-int"><div class="empty">загрузка…</div></div>
+            <h2 data-i18n="card_int">Интеграции</h2>
+            <div id="sys-int"><div class="empty" data-i18n="loading">загрузка…</div></div>
           </div>
         </div>
       </section>
 
       <footer class="pagefoot">
-        <span>Juggler <span id="foot-ver2">v—</span> · Web Server &amp; Proxy</span>
-        <span>Панель администратора · <span id="foot-date"></span></span>
+        <span>Juggler <span id="foot-ver2">v—</span> · <span data-i18n="footer_prod">Web Server &amp; Proxy</span></span>
+        <span><span data-i18n="footer_admin">Панель администратора</span> · <span id="foot-date"></span></span>
       </footer>
     </div>
   </div>
@@ -424,10 +433,497 @@ footer.pagefoot{margin-top:22px;display:flex;justify-content:space-between;color
 
 <script>
 "use strict";
+/* ================================================================
+   I18N — six UI languages. Data stays real; only labels translate.
+   LANG is resolved once at boot (localStorage → navigator → ru).
+   ================================================================ */
+const LOCALE_OF = {ru:"ru-RU",en:"en-US",de:"de-DE",fr:"fr-FR",es:"es-ES",zh:"zh-CN"};
+const I18N = {
+en: {
+  login_sub:"Web Server & Proxy — sign in to the control panel",
+  login_ph:"Admin token (JUGGLER_ADMIN_TOKEN)", login_btn:"Sign in",
+  login_note:"If no token is set on the server, the panel runs in read-only mode — signing in is optional.",
+  login_err_auth:"Authorization required", login_err_rate:"Too many failed attempts — retry in {s} s",
+  login_err_bad:"Invalid token", login_err_net:"No connection to server",
+  nav_overview:"Overview", nav_stats:"Statistics", nav_logs:"Logs", nav_routes:"Routes",
+  nav_settings:"Settings", nav_security:"Security", nav_system:"System",
+  footer_prod:"Web Server & Proxy", footer_admin:"Admin panel", foot_running:"Server is running",
+  top_online:"Online", top_offline:"No connection",
+  ro_banner:"🔒 Read-only mode: JUGGLER_ADMIN_TOKEN is not set — the server rejects changes (403). Set the token and restart the server to enable management.",
+  read_only_toast:"Read-only mode: set JUGGLER_ADMIN_TOKEN to change settings",
+  ov_h1:"Monitoring dashboard", ov_p:"Live metrics and server state — real Juggler data",
+  kpi_rps:"requests/sec", kpi_ok:"success (2xx+3xx)", kpi_err:"errors (4xx+5xx)", kpi_p99:"p99 response",
+  card_chart:"Chart & response codes", card_conns:"Network connections", card_res:"Server resources",
+  card_qa:"Quick actions", card_comp:"Component status", card_dist:"Response distribution",
+  row_active:"Active", row_accepted:"Accepted total", row_bp:"Backpressure", row_accept:"Accept mode",
+  row_cpu:"Process CPU", row_rss:"Memory RSS", row_pool:"Upstream pool", row_dns:"DNS cache",
+  qa_settings:"Go to settings", qa_logs:"View logs", qa_reload:"Reload configuration",
+  qa_pool:"Reset upstream pool", qa_dns:"Flush DNS cache",
+  st_up:"Running", st_down:"Unavailable", st_healthy:"Available", st_probe:"Probing",
+  st_active_ok:"active", st_nodata:"no data", st_no_routes:"no routes", pool_prefix:"pool: ",
+  egr_env:"private allowed via env", egr_denied:"private denied", egr_weak:"Relaxed", egr_active:"Active",
+  waiting_data:"waiting for data…", loading:"loading…", donut_reqs:"requests",
+  st_p:"Shards, Pythia forecast and request pipeline",
+  card_shards:"Shards — load & forecast", card_pipe:"Request pipeline", pipe_hint:"since last sample · 2 s",
+  pipe_wait:"waiting for first sample…", card_shardhist:"Active connections per shard — history",
+  th_history:"history", legend_level:"level (smoothed load)", legend_holt:"Holt forecast",
+  hist_window:"window {m} min · {n} points", no_shards:"no shards", shard_i:"shard {i}",
+  lg_p:"Structured event log (ring buffer, last 512 entries)",
+  all_levels:"All levels", all_scopes:"All sources", auto_refresh:"auto-refresh", btn_refresh:"Refresh",
+  logs_empty:"no entries yet — the journal fills with server events",
+  rt_p:"Proxying and static files; changes apply atomically (ArcSwap) and survive restarts",
+  card_active_routes:"Active routes", th_path:"Path", th_targets:"Targets (upstream)", th_mode:"Mode", th_status:"Status",
+  ph_path:"/path", ph_up:"host:port (comma-separated for several)", btn_add:"Add",
+  card_json:"JSON configuration", json_hint:"same format as routes.json and gRPC UpdateConfig",
+  btn_apply:"Apply", btn_reread:"Re-read", btn_open:"Open", btn_delete:"Delete",
+  err_path:"Path must start with /", err_ups:"Specify at least one upstream host:port",
+  err_json:"Invalid JSON: {m}", ok_routes:"Routes applied (atomic swap)", rejected:"Rejected: {t}",
+  routes_empty:"no routes yet — add the first one above", static_prefix:"static: ", routes_count:"{n} total",
+  se_p:"Runtime parameters; applied on the fly without restart and saved to settings.json",
+  card_bal:"Balancing & prewarm", card_lim:"Limits & protection", card_proxy:"Proxy & pool parameters",
+  card_ports:"Ports & interfaces", ports_hint:"env listeners are read-only; add HTTP/HTTPS ports below",
+  bf_note:"Brute-force latch (admin): 20 failures / 60 s → 429. A valid token resets the counter.",
+  dyn_ports:"Dynamic ports", dyn_ports_hint:"listeners are added/changed on the fly and survive a server restart",
+  ph_port:"port, e.g. 8000", btn_add_port:"+ Add port",
+  ports_bind_hint:"0.0.0.0 listens on all interfaces; 127.0.0.1 — local only", no_ports:"no ports added",
+  save_btn:"💾 Save changes", dirty:"unapplied changes: {n}", applied:"Applied settings: {n}",
+  done:"done", fail:"error", err_prefix:"Error: ", port_range_err:"Specify a port 1–65535",
+  h_adaptive:"keep pools warm at the high-water mark", h_balancer:"distribution algorithm",
+  h_rate_limit_tokens:"burst per IP (token bucket)", h_rate_limit_refill:"tokens per second per IP",
+  h_pool_cap_per_upstream:"keep-alive sockets per upstream", h_max_keepalive_requests:"requests per client connection",
+  h_pool_idle_timeout_secs:"idle socket lifetime", h_prewarm_floor:"minimum warmed sockets",
+  h_health_max_failures:"failures before UNHEALTHY", h_health_cooldown_secs:"pause before half-open probe",
+  sc_p:"Current state of protection layers (v1.0 security pass results)",
+  card_cp:"Control plane", card_egress:"Egress & DNS", card_pol:"Route policies (deny substrings, headers, WASM)",
+  th_route:"Route", th_deny:"deny substrings", th_headers:"Custom headers", th_cms:"CMS fallback", th_wasm:"WASM",
+  adm_ok:"Bearer token: mutations allowed", adm_ro:"NO token: read-only (fail-closed)",
+  grpc_ok:"Bearer token on mutations", grpc_fc:"Fail-closed: mutations denied (no token / external bind)",
+  bf_latch:"Brute-force latch", bf_desc:"20 failures in 60 s → 429 + Retry-After; a valid token resets",
+  egr_target:"upstream targets", egr_weak_full:"RELAXED by env override (private allowed)",
+  egr_denied_full:"loopback / link-local / metadata denied by default",
+  rebind:"DNS-rebinding guard", rebind_desc:"every (re)resolution is checked against the same policy — evil.example → 169.254.169.254 is blocked",
+  dns_cache:"DNS cache", rate_limiter:"Rate limiter", limiter_desc:"token bucket: {a} burst / {b} rps",
+  routes_empty2:"no routes", n_items:"{n} items", attention:"attention",
+  sy_p:"Version, process resources, operating modes and integration points",
+  card_proc:"Process", card_int:"Integrations",
+  k_version:"Version", k_uptime:"Uptime", k_cores:"Cores / shards", k_accept:"Accept mode",
+  k_cpu:"Process CPU", k_rss:"Memory RSS", k_tls:"TLS (PFX)",
+  tls_on:"configured", tls_off:"not configured", rss_na:"unavailable on this platform",
+  uptime_fmt:"{d} d {h} h {m} min",
+  i_prom:"Prometheus metrics", i_health:"Health check", i_json:"JSON API", i_cfg:"Config management",
+  i_ops:"Operations", i_grpc:"gRPC Control Plane",
+  entries_n:"{n} entries", sockets_n:"{n} sockets", shards_n:"{n} shards", in_handoff:"{n} in hand-off",
+  points_step:"{n} points · step {s} s",
+},
+de: {
+  login_sub:"Web Server & Proxy — Anmeldung am Control Panel",
+  login_ph:"Admin-Token (JUGGLER_ADMIN_TOKEN)", login_btn:"Anmelden",
+  login_note:"Wenn kein Token gesetzt ist, läuft das Panel im Nur-Lese-Modus — die Anmeldung ist optional.",
+  login_err_auth:"Autorisierung erforderlich", login_err_rate:"Zu viele fehlgeschlagene Versuche — bitte in {s} s erneut versuchen",
+  login_err_bad:"Ungültiger Token", login_err_net:"Keine Verbindung zum Server",
+  nav_overview:"Übersicht", nav_stats:"Statistik", nav_logs:"Protokolle", nav_routes:"Routen",
+  nav_settings:"Einstellungen", nav_security:"Sicherheit", nav_system:"System",
+  footer_prod:"Web Server & Proxy", footer_admin:"Admin-Panel", foot_running:"Server läuft",
+  top_online:"Online", top_offline:"Keine Verbindung",
+  ro_banner:"🔒 Nur-Lese-Modus: JUGGLER_ADMIN_TOKEN ist nicht gesetzt — der Server lehnt Änderungen ab (403). Token setzen und Server neu starten, um die Verwaltung zu aktivieren.",
+  read_only_toast:"Nur-Lese-Modus: JUGGLER_ADMIN_TOKEN setzen, um Einstellungen zu ändern",
+  ov_h1:"Überwachungs-Dashboard", ov_p:"Aktuelle Metriken und Serverstatus — echte Juggler-Daten",
+  kpi_rps:"Anfragen/s", kpi_ok:"erfolgreich (2xx+3xx)", kpi_err:"Fehler (4xx+5xx)", kpi_p99:"p99-Antwort",
+  card_chart:"Diagramm & Antwortcodes", card_conns:"Netzwerkverbindungen", card_res:"Serverressourcen",
+  card_qa:"Schnellaktionen", card_comp:"Komponentenstatus", card_dist:"Antwortverteilung",
+  row_active:"Aktiv", row_accepted:"Akzeptiert gesamt", row_bp:"Backpressure", row_accept:"Accept-Modus",
+  row_cpu:"Prozess-CPU", row_rss:"RAM (RSS)", row_pool:"Upstream-Pool", row_dns:"DNS-Cache",
+  qa_settings:"Zu den Einstellungen", qa_logs:"Protokolle ansehen", qa_reload:"Konfiguration neu laden",
+  qa_pool:"Upstream-Pool zurücksetzen", qa_dns:"DNS-Cache leeren",
+  st_up:"Aktiv", st_down:"Nicht verfügbar", st_healthy:"Verfügbar", st_probe:"Prüfung",
+  st_active_ok:"aktiv", st_nodata:"keine Daten", st_no_routes:"keine Routen", pool_prefix:"Pool: ",
+  egr_env:"private via env erlaubt", egr_denied:"private verboten", egr_weak:"Gelockert", egr_active:"Aktiv",
+  waiting_data:"warte auf Daten…", loading:"lädt…", donut_reqs:"Anfragen",
+  st_p:"Shards, Pythia-Prognose und Request-Pipeline",
+  card_shards:"Shards — Last & Prognose", card_pipe:"Request-Pipeline", pipe_hint:"seit letzter Probe · 2 s",
+  pipe_wait:"warte auf erste Probe…", card_shardhist:"Aktive Verbindungen pro Shard — Verlauf",
+  th_history:"Verlauf", legend_level:"Level (geglättete Last)", legend_holt:"Holt-Prognose",
+  hist_window:"Fenster {m} Min · {n} Punkte", no_shards:"keine Shards", shard_i:"Shard {i}",
+  lg_p:"Strukturiertes Ereignisprotokoll (Ringpuffer, letzte 512 Einträge)",
+  all_levels:"Alle Stufen", all_scopes:"Alle Quellen", auto_refresh:"Auto-Aktualisierung", btn_refresh:"Aktualisieren",
+  logs_empty:"noch keine Einträge — das Journal füllt sich mit Serverereignissen",
+  rt_p:"Proxy und statische Dateien; Änderungen werden atomar angewendet (ArcSwap) und überleben Neustarts",
+  card_active_routes:"Aktive Routen", th_path:"Pfad", th_targets:"Ziele (Upstream)", th_mode:"Modus", th_status:"Status",
+  ph_path:"/pfad", ph_up:"host:port (mehrere per Komma)", btn_add:"Hinzufügen",
+  card_json:"JSON-Konfiguration", json_hint:"gleiches Format wie routes.json und gRPC UpdateConfig",
+  btn_apply:"Anwenden", btn_reread:"Neu lesen", btn_open:"Öffnen", btn_delete:"Löschen",
+  err_path:"Pfad muss mit / beginnen", err_ups:"Mindestens einen Upstream host:port angeben",
+  err_json:"Ungültiges JSON: {m}", ok_routes:"Routen angewendet (atomarer Swap)", rejected:"Abgelehnt: {t}",
+  routes_empty:"noch keine Routen — oben die erste hinzufügen", static_prefix:"statisch: ", routes_count:"{n} gesamt",
+  se_p:"Laufzeitparameter; werden ohne Neustart angewendet und in settings.json gespeichert",
+  card_bal:"Lastverteilung & Prewarm", card_lim:"Limits & Schutz", card_proxy:"Proxy- & Pool-Parameter",
+  card_ports:"Ports & Schnittstellen", ports_hint:"Env-Listener sind schreibgeschützt; HTTP/HTTPS-Ports unten hinzufügen",
+  bf_note:"Brute-Force-Latch (Admin): 20 Fehlversuche / 60 s → 429. Ein gültiger Token setzt den Zähler zurück.",
+  dyn_ports:"Dynamische Ports", dyn_ports_hint:"Listener werden on-the-fly hinzugefügt/geändert und überleben einen Serverneustart",
+  ph_port:"Port, z. B. 8000", btn_add_port:"+ Port hinzufügen",
+  ports_bind_hint:"0.0.0.0 lauscht auf allen Schnittstellen; 127.0.0.1 — nur lokal", no_ports:"keine Ports hinzugefügt",
+  save_btn:"💾 Änderungen speichern", dirty:"nicht angewendete Änderungen: {n}", applied:"Angewendete Einstellungen: {n}",
+  done:"fertig", fail:"Fehler", err_prefix:"Fehler: ", port_range_err:"Port 1–65535 angeben",
+  h_adaptive:"Pools am High-Water-Mark warm halten", h_balancer:"Verteilungsalgorithmus",
+  h_rate_limit_tokens:"Burst pro IP (Token Bucket)", h_rate_limit_refill:"Token pro Sekunde pro IP",
+  h_pool_cap_per_upstream:"Keep-Alive-Sockets pro Upstream", h_max_keepalive_requests:"Anfragen pro Client-Verbindung",
+  h_pool_idle_timeout_secs:"Lebensdauer inaktiver Sockets", h_prewarm_floor:"Minimum vorgewärmter Sockets",
+  h_health_max_failures:"Fehler bis UNHEALTHY", h_health_cooldown_secs:"Pause vor Half-Open-Prüfung",
+  sc_p:"Aktueller Zustand der Schutzebenen (Ergebnisse des Security-Pass v1.0)",
+  card_cp:"Control Plane", card_egress:"Egress & DNS", card_pol:"Routenrichtlinien (Deny-Teilstrings, Header, WASM)",
+  th_route:"Route", th_deny:"Deny-Teilstrings", th_headers:"Eigene Header", th_cms:"CMS-Fallback", th_wasm:"WASM",
+  adm_ok:"Bearer-Token: Mutationen erlaubt", adm_ro:"OHNE Token: Nur-Lese (fail-closed)",
+  grpc_ok:"Bearer-Token bei Mutationen", grpc_fc:"Fail-closed: Mutationen verweigert (kein Token / externer Bind)",
+  bf_latch:"Brute-Force-Latch", bf_desc:"20 Fehler in 60 s → 429 + Retry-After; gültiger Token setzt zurück",
+  egr_target:"Upstream-Ziele", egr_weak_full:"DURCH env-Override GELOCKERT (private erlaubt)",
+  egr_denied_full:"loopback / link-local / metadata standardmäßig verboten",
+  rebind:"DNS-Rebinding-Schutz", rebind_desc:"jede (Erst-)Auflösung wird an dieselbe Politik gehalten — evil.example → 169.254.169.254 wird blockiert",
+  dns_cache:"DNS-Cache", rate_limiter:"Rate Limiter", limiter_desc:"Token Bucket: {a} Burst / {b} rps",
+  routes_empty2:"keine Routen", n_items:"{n} Stk.", attention:"Hinweis",
+  sy_p:"Version, Prozessressourcen, Betriebsmodi und Integrationspunkte",
+  card_proc:"Prozess", card_int:"Integrationen",
+  k_version:"Version", k_uptime:"Laufzeit", k_cores:"Kerne / Shards", k_accept:"Accept-Modus",
+  k_cpu:"Prozess-CPU", k_rss:"RAM (RSS)", k_tls:"TLS (PFX)",
+  tls_on:"konfiguriert", tls_off:"nicht konfiguriert", rss_na:"auf dieser Plattform nicht verfügbar",
+  uptime_fmt:"{d} T {h} Std {m} Min",
+  i_prom:"Prometheus-Metriken", i_health:"Health Check", i_json:"JSON-API", i_cfg:"Konfigurationsverwaltung",
+  i_ops:"Operationen", i_grpc:"gRPC Control Plane",
+  entries_n:"{n} Einträge", sockets_n:"{n} Sockets", shards_n:"{n} Shards", in_handoff:"{n} in Hand-off",
+  points_step:"{n} Punkte · Schritt {s} s",
+},
+fr: {
+  login_sub:"Web Server & Proxy — connexion au panneau de gestion",
+  login_ph:"Jeton admin (JUGGLER_ADMIN_TOKEN)", login_btn:"Se connecter",
+  login_note:"Si aucun jeton n'est défini sur le serveur, le panneau fonctionne en lecture seule — la connexion est facultative.",
+  login_err_auth:"Autorisation requise", login_err_rate:"Trop de tentatives échouées — réessayez dans {s} s",
+  login_err_bad:"Jeton invalide", login_err_net:"Pas de connexion au serveur",
+  nav_overview:"Tableau de bord", nav_stats:"Statistiques", nav_logs:"Journaux", nav_routes:"Routes",
+  nav_settings:"Paramètres", nav_security:"Sécurité", nav_system:"Système",
+  footer_prod:"Web Server & Proxy", footer_admin:"Panneau d'administration", foot_running:"Le serveur fonctionne",
+  top_online:"En ligne", top_offline:"Pas de connexion",
+  ro_banner:"🔒 Mode lecture seule : JUGGLER_ADMIN_TOKEN n'est pas défini — le serveur refuse les modifications (403). Définissez le jeton et redémarrez le serveur pour activer la gestion.",
+  read_only_toast:"Mode lecture seule : définissez JUGGLER_ADMIN_TOKEN pour modifier les paramètres",
+  ov_h1:"Tableau de bord", ov_p:"Métriques en direct et état du serveur — données réelles de Juggler",
+  kpi_rps:"requêtes/s", kpi_ok:"succès (2xx+3xx)", kpi_err:"erreurs (4xx+5xx)", kpi_p99:"p99 de réponse",
+  card_chart:"Graphique & codes de réponse", card_conns:"Connexions réseau", card_res:"Ressources du serveur",
+  card_qa:"Actions rapides", card_comp:"État des composants", card_dist:"Répartition des réponses",
+  row_active:"Actives", row_accepted:"Acceptées (total)", row_bp:"Backpressure", row_accept:"Mode accept",
+  row_cpu:"CPU du processus", row_rss:"Mémoire RSS", row_pool:"Pool upstream", row_dns:"Cache DNS",
+  qa_settings:"Aller aux paramètres", qa_logs:"Voir les journaux", qa_reload:"Recharger la configuration",
+  qa_pool:"Réinitialiser le pool upstream", qa_dns:"Vider le cache DNS",
+  st_up:"En fonctionnement", st_down:"Indisponible", st_healthy:"Disponible", st_probe:"Sondage",
+  st_active_ok:"actif", st_nodata:"aucune donnée", st_no_routes:"aucune route", pool_prefix:"pool : ",
+  egr_env:"privé autorisé via env", egr_denied:"privé interdit", egr_weak:"Assouplie", egr_active:"Active",
+  waiting_data:"en attente de données…", loading:"chargement…", donut_reqs:"requêtes",
+  st_p:"Shards, prévision Pythia et pipeline de requêtes",
+  card_shards:"Shards — charge & prévision", card_pipe:"Pipeline de requêtes", pipe_hint:"depuis le dernier échantillon · 2 s",
+  pipe_wait:"en attente du premier échantillon…", card_shardhist:"Connexions actives par shard — historique",
+  th_history:"historique", legend_level:"niveau (charge lissée)", legend_holt:"prévision de Holt",
+  hist_window:"fenêtre {m} min · {n} points", no_shards:"aucun shard", shard_i:"shard {i}",
+  lg_p:"Journal d'événements structuré (buffer circulaire, 512 dernières entrées)",
+  all_levels:"Tous les niveaux", all_scopes:"Toutes les sources", auto_refresh:"actualisation auto", btn_refresh:"Actualiser",
+  logs_empty:"aucune entrée — le journal se remplit avec les événements du serveur",
+  rt_p:"Proxy et fichiers statiques ; les modifications s'appliquent de manière atomique (ArcSwap) et survivent aux redémarrages",
+  card_active_routes:"Routes actives", th_path:"Chemin", th_targets:"Cibles (upstream)", th_mode:"Mode", th_status:"Statut",
+  ph_path:"/chemin", ph_up:"host:port (plusieurs séparés par des virgules)", btn_add:"Ajouter",
+  card_json:"Configuration JSON", json_hint:"même format que routes.json et gRPC UpdateConfig",
+  btn_apply:"Appliquer", btn_reread:"Relire", btn_open:"Ouvrir", btn_delete:"Supprimer",
+  err_path:"Le chemin doit commencer par /", err_ups:"Indiquez au moins un upstream host:port",
+  err_json:"JSON invalide : {m}", ok_routes:"Routes appliquées (swap atomique)", rejected:"Refusé : {t}",
+  routes_empty:"aucune route — ajoutez la première ci-dessus", static_prefix:"statique : ", routes_count:"{n} au total",
+  se_p:"Paramètres d'exécution ; appliqués à chaud sans redémarrage et enregistrés dans settings.json",
+  card_bal:"Équilibrage & prewarm", card_lim:"Limites & protection", card_proxy:"Paramètres proxy & pools",
+  card_ports:"Ports & interfaces", ports_hint:"les listeners env sont en lecture seule ; ajoutez les ports HTTP/HTTPS ci-dessous",
+  bf_note:"Verrou anti-force-brute (admin) : 20 échecs / 60 s → 429. Un jeton valide réinitialise le compteur.",
+  dyn_ports:"Ports dynamiques", dyn_ports_hint:"les listeners sont ajoutés/modifiés à chaud et survivent au redémarrage du serveur",
+  ph_port:"port, ex. 8000", btn_add_port:"+ Ajouter un port",
+  ports_bind_hint:"0.0.0.0 écoute sur toutes les interfaces ; 127.0.0.1 — local uniquement", no_ports:"aucun port ajouté",
+  save_btn:"💾 Enregistrer les modifications", dirty:"modifications non appliquées : {n}", applied:"Paramètres appliqués : {n}",
+  done:"prêt", fail:"erreur", err_prefix:"Erreur : ", port_range_err:"Indiquez un port entre 1 et 65535",
+  h_adaptive:"garder les pools chauds au high-water mark", h_balancer:"algorithme de répartition",
+  h_rate_limit_tokens:"burst par IP (token bucket)", h_rate_limit_refill:"jetons par seconde par IP",
+  h_pool_cap_per_upstream:"sockets keep-alive par upstream", h_max_keepalive_requests:"requêtes par connexion client",
+  h_pool_idle_timeout_secs:"durée de vie des sockets inactifs", h_prewarm_floor:"minimum de sockets préchauffés",
+  h_health_max_failures:"échecs avant UNHEALTHY", h_health_cooldown_secs:"pause avant sonde half-open",
+  sc_p:"État actuel des couches de protection (résultats du passage sécurité v1.0)",
+  card_cp:"Plan de contrôle", card_egress:"Egress & DNS", card_pol:"Politiques de routes (sous-chaînes deny, en-têtes, WASM)",
+  th_route:"Route", th_deny:"sous-chaînes deny", th_headers:"En-têtes personnalisés", th_cms:"CMS fallback", th_wasm:"WASM",
+  adm_ok:"Jeton Bearer : mutations autorisées", adm_ro:"SANS jeton : lecture seule (fail-closed)",
+  grpc_ok:"Jeton Bearer sur les mutations", grpc_fc:"Fail-closed : mutations refusées (pas de jeton / bind externe)",
+  bf_latch:"Verrou anti-force-brute", bf_desc:"20 échecs en 60 s → 429 + Retry-After ; un jeton valide réinitialise",
+  egr_target:"cibles upstream", egr_weak_full:"ASSOUPLIE par override env (privé autorisé)",
+  egr_denied_full:"loopback / link-local / metadata interdits par défaut",
+  rebind:"Garde anti-DNS-rebinding", rebind_desc:"chaque (re)résolution est vérifiée par la même politique — evil.example → 169.254.169.254 est bloqué",
+  dns_cache:"Cache DNS", rate_limiter:"Limiteur de débit", limiter_desc:"token bucket : {a} burst / {b} rps",
+  routes_empty2:"aucune route", n_items:"{n} élém.", attention:"attention",
+  sy_p:"Version, ressources du processus, modes de fonctionnement et points d'intégration",
+  card_proc:"Processus", card_int:"Intégrations",
+  k_version:"Version", k_uptime:"Disponibilité", k_cores:"Cœurs / shards", k_accept:"Mode accept",
+  k_cpu:"CPU du processus", k_rss:"Mémoire RSS", k_tls:"TLS (PFX)",
+  tls_on:"configuré", tls_off:"non configuré", rss_na:"indisponible sur cette plateforme",
+  uptime_fmt:"{d} j {h} h {m} min",
+  i_prom:"Métriques Prometheus", i_health:"Health check", i_json:"API JSON", i_cfg:"Gestion de la configuration",
+  i_ops:"Opérations", i_grpc:"Plan de contrôle gRPC",
+  entries_n:"{n} entrées", sockets_n:"{n} sockets", shards_n:"{n} shards", in_handoff:"{n} en hand-off",
+  points_step:"{n} points · pas {s} s",
+},
+es: {
+  login_sub:"Web Server & Proxy — acceso al panel de control",
+  login_ph:"Token de administrador (JUGGLER_ADMIN_TOKEN)", login_btn:"Entrar",
+  login_note:"Si no hay token en el servidor, el panel funciona en modo de solo lectura — iniciar sesión es opcional.",
+  login_err_auth:"Se requiere autorización", login_err_rate:"Demasiados intentos fallidos — reintenta en {s} s",
+  login_err_bad:"Token no válido", login_err_net:"Sin conexión con el servidor",
+  nav_overview:"Resumen", nav_stats:"Estadísticas", nav_logs:"Registros", nav_routes:"Rutas",
+  nav_settings:"Ajustes", nav_security:"Seguridad", nav_system:"Sistema",
+  footer_prod:"Web Server & Proxy", footer_admin:"Panel de administración", foot_running:"El servidor funciona",
+  top_online:"En línea", top_offline:"Sin conexión",
+  ro_banner:"🔒 Modo de solo lectura: JUGGLER_ADMIN_TOKEN no está definido — el servidor rechaza los cambios (403). Define el token y reinicia el servidor para activar la gestión.",
+  read_only_toast:"Modo de solo lectura: define JUGGLER_ADMIN_TOKEN para cambiar ajustes",
+  ov_h1:"Panel de monitorización", ov_p:"Métricas actuales y estado del servidor — datos reales de Juggler",
+  kpi_rps:"peticiones/s", kpi_ok:"exitosas (2xx+3xx)", kpi_err:"errores (4xx+5xx)", kpi_p99:"p99 de respuesta",
+  card_chart:"Gráfico y códigos de respuesta", card_conns:"Conexiones de red", card_res:"Recursos del servidor",
+  card_qa:"Acciones rápidas", card_comp:"Estado de componentes", card_dist:"Distribución de respuestas",
+  row_active:"Activas", row_accepted:"Aceptadas (total)", row_bp:"Backpressure", row_accept:"Modo accept",
+  row_cpu:"CPU del proceso", row_rss:"Memoria RSS", row_pool:"Pool de upstream", row_dns:"Caché DNS",
+  qa_settings:"Ir a los ajustes", qa_logs:"Ver registros", qa_reload:"Recargar configuración",
+  qa_pool:"Reiniciar pool de upstream", qa_dns:"Vaciar caché DNS",
+  st_up:"En funcionamiento", st_down:"No disponible", st_healthy:"Disponible", st_probe:"Sondeando",
+  st_active_ok:"activa", st_nodata:"sin datos", st_no_routes:"sin rutas", pool_prefix:"pool: ",
+  egr_env:"privado permitido por env", egr_denied:"privado denegado", egr_weak:"Relajada", egr_active:"Activa",
+  waiting_data:"esperando datos…", loading:"cargando…", donut_reqs:"peticiones",
+  st_p:"Shards, predicción de Pythia y pipeline de peticiones",
+  card_shards:"Shards — carga y predicción", card_pipe:"Pipeline de peticiones", pipe_hint:"desde la última muestra · 2 s",
+  pipe_wait:"esperando la primera muestra…", card_shardhist:"Conexiones activas por shard — historial",
+  th_history:"historial", legend_level:"nivel (carga suavizada)", legend_holt:"predicción de Holt",
+  hist_window:"ventana {m} min · {n} puntos", no_shards:"sin shards", shard_i:"shard {i}",
+  lg_p:"Registro estructurado de eventos (buffer circular, últimas 512 entradas)",
+  all_levels:"Todos los niveles", all_scopes:"Todas las fuentes", auto_refresh:"auto-actualización", btn_refresh:"Actualizar",
+  logs_empty:"sin entradas — el diario se llena con los eventos del servidor",
+  rt_p:"Proxy y archivos estáticos; los cambios se aplican de forma atómica (ArcSwap) y sobreviven a los reinicios",
+  card_active_routes:"Rutas activas", th_path:"Ruta", th_targets:"Destinos (upstream)", th_mode:"Modo", th_status:"Estado",
+  ph_path:"/ruta", ph_up:"host:port (varios separados por comas)", btn_add:"Añadir",
+  card_json:"Configuración JSON", json_hint:"mismo formato que routes.json y gRPC UpdateConfig",
+  btn_apply:"Aplicar", btn_reread:"Releer", btn_open:"Abrir", btn_delete:"Eliminar",
+  err_path:"La ruta debe empezar por /", err_ups:"Indica al menos un upstream host:port",
+  err_json:"JSON no válido: {m}", ok_routes:"Rutas aplicadas (swap atómico)", rejected:"Rechazado: {t}",
+  routes_empty:"sin rutas — añade la primera arriba", static_prefix:"estático: ", routes_count:"{n} en total",
+  se_p:"Parámetros de ejecución; se aplican al vuelo sin reinicio y se guardan en settings.json",
+  card_bal:"Balanceo y prewarm", card_lim:"Límites y protección", card_proxy:"Parámetros de proxy y pools",
+  card_ports:"Puertos e interfaces", ports_hint:"los listeners de env son de solo lectura; añade los puertos HTTP/HTTPS abajo",
+  bf_note:"Cerradura anti-fuerza bruta (admin): 20 fallos / 60 s → 429. Un token válido reinicia el contador.",
+  dyn_ports:"Puertos dinámicos", dyn_ports_hint:"los listeners se añaden/cambian al vuelo y sobreviven al reinicio del servidor",
+  ph_port:"puerto, p. ej. 8000", btn_add_port:"+ Añadir puerto",
+  ports_bind_hint:"0.0.0.0 escucha en todas las interfaces; 127.0.0.1 — solo local", no_ports:"sin puertos añadidos",
+  save_btn:"💾 Guardar cambios", dirty:"cambios sin aplicar: {n}", applied:"Ajustes aplicados: {n}",
+  done:"listo", fail:"error", err_prefix:"Error: ", port_range_err:"Indica un puerto 1–65535",
+  h_adaptive:"mantener los pools calientes según la high-water mark", h_balancer:"algoritmo de distribución",
+  h_rate_limit_tokens:"ráfaga por IP (token bucket)", h_rate_limit_refill:"tokens por segundo por IP",
+  h_pool_cap_per_upstream:"sockets keep-alive por upstream", h_max_keepalive_requests:"peticiones por conexión de cliente",
+  h_pool_idle_timeout_secs:"vida de un socket inactivo", h_prewarm_floor:"mínimo de sockets precalentados",
+  h_health_max_failures:"fallos antes de UNHEALTHY", h_health_cooldown_secs:"pausa antes de la prueba half-open",
+  sc_p:"Estado actual de las capas de protección (resultados del pase de seguridad v1.0)",
+  card_cp:"Plano de control", card_egress:"Egress y DNS", card_pol:"Políticas de rutas (subcadenas deny, cabeceras, WASM)",
+  th_route:"Ruta", th_deny:"subcadenas deny", th_headers:"Cabeceras propias", th_cms:"CMS fallback", th_wasm:"WASM",
+  adm_ok:"Token Bearer: mutaciones permitidas", adm_ro:"SIN token: solo lectura (fail-closed)",
+  grpc_ok:"Token Bearer en mutaciones", grpc_fc:"Fail-closed: mutaciones denegadas (sin token / bind externo)",
+  bf_latch:"Cerradura anti-fuerza bruta", bf_desc:"20 fallos en 60 s → 429 + Retry-After; un token válido lo reinicia",
+  egr_target:"destinos upstream", egr_weak_full:"RELAJADA por override de env (privado permitido)",
+  egr_denied_full:"loopback / link-local / metadata denegados por defecto",
+  rebind:"Guardia anti-DNS-rebinding", rebind_desc:"cada (re)resolución se comprueba con la misma política — evil.example → 169.254.169.254 se bloquea",
+  dns_cache:"Caché DNS", rate_limiter:"Limitador de tasa", limiter_desc:"token bucket: {a} de ráfaga / {b} rps",
+  routes_empty2:"sin rutas", n_items:"{n} elem.", attention:"atención",
+  sy_p:"Versión, recursos del proceso, modos de funcionamiento y puntos de integración",
+  card_proc:"Proceso", card_int:"Integraciones",
+  k_version:"Versión", k_uptime:"Tiempo activo", k_cores:"Núcleos / shards", k_accept:"Modo accept",
+  k_cpu:"CPU del proceso", k_rss:"Memoria RSS", k_tls:"TLS (PFX)",
+  tls_on:"configurado", tls_off:"no configurado", rss_na:"no disponible en esta plataforma",
+  uptime_fmt:"{d} d {h} h {m} min",
+  i_prom:"Métricas Prometheus", i_health:"Health check", i_json:"API JSON", i_cfg:"Gestión de configuración",
+  i_ops:"Operaciones", i_grpc:"Plano de control gRPC",
+  entries_n:"{n} entradas", sockets_n:"{n} sockets", shards_n:"{n} shards", in_handoff:"{n} en hand-off",
+  points_step:"{n} puntos · paso {s} s",
+},
+zh: {
+  login_sub:"Web Server & Proxy — 登录管理面板",
+  login_ph:"管理员令牌（JUGGLER_ADMIN_TOKEN）", login_btn:"登录",
+  login_note:"若服务器未设置令牌，面板将以只读模式运行 — 无需登录。",
+  login_err_auth:"需要授权", login_err_rate:"失败次数过多 — 请在 {s} 秒后重试",
+  login_err_bad:"令牌无效", login_err_net:"无法连接服务器",
+  nav_overview:"总览", nav_stats:"统计", nav_logs:"日志", nav_routes:"路由",
+  nav_settings:"设置", nav_security:"安全", nav_system:"系统",
+  footer_prod:"Web Server & Proxy", footer_admin:"管理面板", foot_running:"服务器运行中",
+  top_online:"在线", top_offline:"连接中断",
+  ro_banner:"🔒 只读模式：未设置 JUGGLER_ADMIN_TOKEN — 服务器拒绝更改（403）。请设置令牌并重启服务器以启用管理。",
+  read_only_toast:"只读模式：设置 JUGGLER_ADMIN_TOKEN 后才能更改设置",
+  ov_h1:"监控面板", ov_p:"实时指标与服务器状态 — Juggler 真实数据",
+  kpi_rps:"请求/秒", kpi_ok:"成功 (2xx+3xx)", kpi_err:"错误 (4xx+5xx)", kpi_p99:"p99 响应",
+  card_chart:"图表与响应码", card_conns:"网络连接", card_res:"服务器资源",
+  card_qa:"快捷操作", card_comp:"组件状态", card_dist:"响应分布",
+  row_active:"活跃", row_accepted:"累计接受", row_bp:"Backpressure", row_accept:"Accept 模式",
+  row_cpu:"进程 CPU", row_rss:"内存 RSS", row_pool:"上游连接池", row_dns:"DNS 缓存",
+  qa_settings:"前往设置", qa_logs:"查看日志", qa_reload:"重载配置",
+  qa_pool:"重置上游连接池", qa_dns:"清空 DNS 缓存",
+  st_up:"运行中", st_down:"不可用", st_healthy:"可用", st_probe:"探测中",
+  st_active_ok:"活跃", st_nodata:"暂无数据", st_no_routes:"无路由", pool_prefix:"池: ",
+  egr_env:"private 已由 env 放行", egr_denied:"private 已禁止", egr_weak:"已放宽", egr_active:"生效中",
+  waiting_data:"等待数据…", loading:"加载中…", donut_reqs:"个请求",
+  st_p:"分片、Pythia 预测与请求管线",
+  card_shards:"分片 — 负载与预测", card_pipe:"请求管线", pipe_hint:"自上次采样 · 2 秒",
+  pipe_wait:"等待首个采样…", card_shardhist:"各分片活跃连接 — 历史",
+  th_history:"历史", legend_level:"level（平滑负载）", legend_holt:"Holt 预测",
+  hist_window:"窗口 {m} 分钟 · {n} 个点", no_shards:"无分片", shard_i:"分片 {i}",
+  lg_p:"结构化事件日志（环形缓冲区，最近 512 条）",
+  all_levels:"全部级别", all_scopes:"全部来源", auto_refresh:"自动刷新", btn_refresh:"刷新",
+  logs_empty:"暂无条目 — 日志将随服务器事件不断填充",
+  rt_p:"代理与静态文件；更改以原子方式生效（ArcSwap）并在重启后保留",
+  card_active_routes:"生效路由", th_path:"路径", th_targets:"目标（upstream）", th_mode:"模式", th_status:"状态",
+  ph_path:"/路径", ph_up:"host:port（多个用逗号分隔）", btn_add:"添加",
+  card_json:"JSON 配置", json_hint:"与 routes.json 及 gRPC UpdateConfig 相同格式",
+  btn_apply:"应用", btn_reread:"重新读取", btn_open:"打开", btn_delete:"删除",
+  err_path:"路径必须以 / 开头", err_ups:"至少指定一个 upstream host:port",
+  err_json:"JSON 无效：{m}", ok_routes:"路由已应用（原子交换）", rejected:"已拒绝：{t}",
+  routes_empty:"暂无路由 — 在上方添加第一条", static_prefix:"静态： ", routes_count:"共 {n} 条",
+  se_p:"运行时参数；即时生效、无需重启，并保存到 settings.json",
+  card_bal:"负载均衡与预热", card_lim:"限制与防护", card_proxy:"代理与连接池参数",
+  card_ports:"端口与接口", ports_hint:"env 监听器为只读；HTTP/HTTPS 端口可在下方添加",
+  bf_note:"暴力破解锁（管理端）：20 次失败 / 60 秒 → 429。有效令牌会重置计数。",
+  dyn_ports:"动态端口", dyn_ports_hint:"监听器可即时增改，并在服务器重启后保留",
+  ph_port:"端口，如 8000", btn_add_port:"+ 添加端口",
+  ports_bind_hint:"0.0.0.0 监听所有接口；127.0.0.1 — 仅本机", no_ports:"尚未添加端口",
+  save_btn:"💾 保存更改", dirty:"未应用的更改：{n}", applied:"已应用设置：{n}",
+  done:"完成", fail:"错误", err_prefix:"错误：", port_range_err:"请输入 1–65535 的端口",
+  h_adaptive:"按高水位标记保持连接池热度", h_balancer:"分配算法",
+  h_rate_limit_tokens:"每 IP 突发容量（令牌桶）", h_rate_limit_refill:"每 IP 每秒令牌数",
+  h_pool_cap_per_upstream:"每 upstream 的 keep-alive 套接字数", h_max_keepalive_requests:"每个客户端连接的请求数",
+  h_pool_idle_timeout_secs:"空闲套接字存活时间", h_prewarm_floor:"最少预热套接字数",
+  h_health_max_failures:"标记 UNHEALTHY 前的失败次数", h_health_cooldown_secs:"half-open 探测前的暂停",
+  sc_p:"各防护层当前状态（v1.0 安全测试结果）",
+  card_cp:"控制面", card_egress:"Egress 与 DNS", card_pol:"路由策略（deny 子串、响应头、WASM）",
+  th_route:"路由", th_deny:"deny 子串", th_headers:"自定义响应头", th_cms:"CMS 回退", th_wasm:"WASM",
+  adm_ok:"Bearer 令牌：允许变更", adm_ro:"无令牌：只读（fail-closed）",
+  grpc_ok:"变更操作需 Bearer 令牌", grpc_fc:"Fail-closed：拒绝变更（无令牌 / 外部绑定）",
+  bf_latch:"暴力破解锁", bf_desc:"60 秒内 20 次失败 → 429 + Retry-After；有效令牌可重置",
+  egr_target:"上游目标", egr_weak_full:"已被 env 覆盖放宽（允许 private）",
+  egr_denied_full:"默认禁止 loopback / link-local / metadata",
+  rebind:"DNS 重绑定防护", rebind_desc:"每次（重新）解析都按同一策略检查 — evil.example → 169.254.169.254 会被拦截",
+  dns_cache:"DNS 缓存", rate_limiter:"限流器", limiter_desc:"令牌桶：{a} 突发 / {b} rps",
+  routes_empty2:"无路由", n_items:"{n} 项", attention:"注意",
+  sy_p:"版本、进程资源、运行模式与集成点",
+  card_proc:"进程", card_int:"集成",
+  k_version:"版本", k_uptime:"运行时长", k_cores:"核心 / 分片", k_accept:"Accept 模式",
+  k_cpu:"进程 CPU", k_rss:"内存 RSS", k_tls:"TLS (PFX)",
+  tls_on:"已配置", tls_off:"未配置", rss_na:"此平台不可用",
+  uptime_fmt:"{d} 天 {h} 时 {m} 分",
+  i_prom:"Prometheus 指标", i_health:"健康检查", i_json:"JSON API", i_cfg:"配置管理",
+  i_ops:"运维操作", i_grpc:"gRPC 控制面",
+  entries_n:"{n} 条", sockets_n:"{n} 个套接字", shards_n:"{n} 个分片", in_handoff:"{n} 个在 hand-off",
+  points_step:"{n} 个点 · 步长 {s} 秒",
+},
+ru: {
+  login_sub:"Web Server & Proxy — вход в панель управления",
+  login_ph:"Токен администратора (JUGGLER_ADMIN_TOKEN)", login_btn:"Войти",
+  login_note:"Если на сервере токен не задан, панель работает в режиме только чтение — кнопка входа не обязательна.",
+  login_err_auth:"Требуется авторизация", login_err_rate:"Слишком много неудачных попыток — повторите через {s} с",
+  login_err_bad:"Неверный токен", login_err_net:"Нет связи с сервером",
+  nav_overview:"Обзор", nav_stats:"Статистика", nav_logs:"Логи", nav_routes:"Маршруты",
+  nav_settings:"Настройки", nav_security:"Безопасность", nav_system:"Система",
+  footer_prod:"Web Server & Proxy", footer_admin:"Панель администратора", foot_running:"Сервер работает",
+  top_online:"Онлайн", top_offline:"Нет связи",
+  ro_banner:"🔒 Режим «только чтение»: JUGGLER_ADMIN_TOKEN не задан — изменения отклоняются сервером (403). Задайте токен и перезапустите сервер, чтобы включить управление.",
+  read_only_toast:"Режим «только чтение»: задайте JUGGLER_ADMIN_TOKEN, чтобы менять настройки",
+  ov_h1:"Панель мониторинга", ov_p:"Текущие метрики и состояние сервера — реальные данные Juggler",
+  kpi_rps:"запросов/сек", kpi_ok:"успешные (2xx+3xx)", kpi_err:"ошибки (4xx+5xx)", kpi_p99:"p99 ответа",
+  card_chart:"График и коды ответов", card_conns:"Сетевые соединения", card_res:"Ресурсы сервера",
+  card_qa:"Быстрые действия", card_comp:"Состояние компонентов", card_dist:"Распределение ответов",
+  row_active:"Активные", row_accepted:"Принято всего", row_bp:"Backpressure", row_accept:"Режим accept",
+  row_cpu:"CPU процесса", row_rss:"Память RSS", row_pool:"Пул upstream", row_dns:"DNS-кэш",
+  qa_settings:"Перейти к настройкам", qa_logs:"Просмотр логов", qa_reload:"Перезагрузить конфигурацию",
+  qa_pool:"Сбросить пул upstream", qa_dns:"Сбросить DNS-кэш",
+  st_up:"Работает", st_down:"Недоступен", st_healthy:"Доступен", st_probe:"Проверка",
+  st_active_ok:"активен", st_nodata:"нет данных", st_no_routes:"нет маршрутов", pool_prefix:"пул: ",
+  egr_env:"private разрешён env", egr_denied:"private запрещён", egr_weak:"Ослаблена", egr_active:"Активна",
+  waiting_data:"ожидание данных…", loading:"загрузка…", donut_reqs:"запросов",
+  st_p:"Шарды, прогноз Pythia и конвейер обработки запросов",
+  card_shards:"Шарды — нагрузка и прогноз", card_pipe:"Конвейер обработки", pipe_hint:"с последнего сэмпла · 2 с",
+  pipe_wait:"ожидание первого сэмпла…", card_shardhist:"Активные соединения по шардам — история",
+  th_history:"история", legend_level:"level (сглаженная нагрузка)", legend_holt:"прогноз Хольта",
+  hist_window:"окно {m} мин · {n} точек", no_shards:"нет шардов", shard_i:"шард {i}",
+  lg_p:"Структурированный журнал событий (кольцевой буфер, последние 512 записей)",
+  all_levels:"Все уровни", all_scopes:"Все источники", auto_refresh:"авто-обновление", btn_refresh:"Обновить",
+  logs_empty:"записей нет — журнал наполняется событиями работы сервера",
+  rt_p:"Проксирование и статика; изменения применяются атомарно (ArcSwap) и переживают рестарт",
+  card_active_routes:"Активные маршруты", th_path:"Путь", th_targets:"Цели (upstream)", th_mode:"Режим", th_status:"Статус",
+  ph_path:"/path", ph_up:"host:port (можно несколько через запятую)", btn_add:"Добавить",
+  card_json:"JSON-конфигурация", json_hint:"тот же формат, что routes.json и gRPC UpdateConfig",
+  btn_apply:"Применить", btn_reread:"Перечитать", btn_open:"Открыть", btn_delete:"Удалить",
+  err_path:"Путь должен начинаться с /", err_ups:"Укажите хотя бы один upstream host:port",
+  err_json:"Некорректный JSON: {m}", ok_routes:"Маршруты применены (атомарный swap)", rejected:"Отклонено: {t}",
+  routes_empty:"маршрутов нет — добавьте первый выше", static_prefix:"static: ", routes_count:"{n} шт.",
+  se_p:"Runtime-параметры; применяются на лету без рестарта и сохраняются в settings.json",
+  card_bal:"Балансировка и prewarm", card_lim:"Лимиты и защита", card_proxy:"Параметры прокси и пулов",
+  card_ports:"Порты и интерфейсы", ports_hint:"env-слушатели — только чтение; HTTP/HTTPS-порты добавляются ниже",
+  bf_note:"Brute-force latch (admin): 20 неудач / 60 с → 429. Верный токен сбрасывает счётчик.",
+  dyn_ports:"Динамические порты", dyn_ports_hint:"слушатели добавляются/меняются на ходу и переживают рестарт сервера",
+  ph_port:"порт, напр. 8000", btn_add_port:"+ Добавить порт",
+  ports_bind_hint:"0.0.0.0 слушает на всех интерфейсах; 127.0.0.1 — только локально", no_ports:"порты не добавлены",
+  save_btn:"💾 Сохранить изменения", dirty:"неприменённых изменений: {n}", applied:"Применено параметров: {n}",
+  done:"готово", fail:"ошибка", err_prefix:"Ошибка: ", port_range_err:"Укажите порт 1–65535",
+  h_adaptive:"держать пулы прогретыми по high-water mark", h_balancer:"алгоритм распределения",
+  h_rate_limit_tokens:"burst на IP (token bucket)", h_rate_limit_refill:"токенов в секунду на IP",
+  h_pool_cap_per_upstream:"keep-alive сокетов на upstream", h_max_keepalive_requests:"запросов на одно клиентское соединение",
+  h_pool_idle_timeout_secs:"время жизни idle-сокета", h_prewarm_floor:"минимум прогретых сокетов",
+  h_health_max_failures:"отказов до пометки UNHEALTHY", h_health_cooldown_secs:"пауза перед half-open пробой",
+  sc_p:"Текущее состояние контуров защиты (результаты security-пасса v1.0)",
+  card_cp:"Control plane", card_egress:"Egress и DNS", card_pol:"Политики маршрутов (deny-подстроки, заголовки, WASM)",
+  th_route:"Маршрут", th_deny:"deny-подстроки", th_headers:"Свои заголовки", th_cms:"CMS fallback", th_wasm:"WASM",
+  adm_ok:"Bearer-токен: мутации разрешены", adm_ro:"БЕЗ токена: read-only (fail-closed)",
+  grpc_ok:"Bearer-токен на мутациях", grpc_fc:"Fail-closed: мутации запрещены (нет токена / внешний bind)",
+  bf_latch:"Brute-force latch", bf_desc:"20 неудач за 60 с → 429 + Retry-After; верный токен сбрасывает",
+  egr_target:"upstream-цели", egr_weak_full:"ОСЛАБЛЕНА env-оверрайдом (private разрешён)",
+  egr_denied_full:"loopback / link-local / metadata запрещены по умолчанию",
+  rebind:"DNS-rebinding guard", rebind_desc:"каждый (ре)резолв проверяется по той же политике — evil.example → 169.254.169.254 блокируется",
+  dns_cache:"DNS-кэш", rate_limiter:"Rate limiter", limiter_desc:"token bucket: {a} burst / {b} rps",
+  routes_empty2:"маршрутов нет", n_items:"{n} шт.", attention:"внимание",
+  sy_p:"Версия, ресурсы процесса, режимы работы и точки интеграции",
+  card_proc:"Процесс", card_int:"Интеграции",
+  k_version:"Версия", k_uptime:"Uptime", k_cores:"Ядер / шардов", k_accept:"Accept mode",
+  k_cpu:"CPU процесса", k_rss:"Память RSS", k_tls:"TLS (PFX)",
+  tls_on:"настроен", tls_off:"не настроен", rss_na:"недоступно на этой платформе",
+  uptime_fmt:"{d} д {h} ч {m} мин",
+  i_prom:"Prometheus metrics", i_health:"Health check", i_json:"JSON API", i_cfg:"Управление конфигом",
+  i_ops:"Операции", i_grpc:"gRPC Control Plane",
+  entries_n:"{n} записей", sockets_n:"{n} сокетов", shards_n:"{n} шардов", in_handoff:"{n} в hand-off",
+  points_step:"{n} точек · шаг {s} с",
+},
+};
+
+let LANG = localStorage.getItem('juggler_lang')
+  || ((navigator.language||'ru').slice(0,2));
+if (!I18N[LANG]) LANG = 'ru';
+const LOC = () => LOCALE_OF[LANG] || 'ru-RU';
+function t(k){ return (I18N[LANG]&&I18N[LANG][k]) || I18N.en[k] || I18N.ru[k] || k; }
+function tf(k, vars){ let s = t(k); for (const key in (vars||{})) s = s.split('{'+key+'}').join(vars[key]); return s; }
+function applyLang(){
+  document.documentElement.lang = LANG;
+  document.querySelectorAll('[data-i18n]').forEach(el => el.innerHTML = t(el.dataset.i18n));
+  document.querySelectorAll('[data-i18n-ph]').forEach(el => el.placeholder = t(el.dataset.i18nPh));
+  const sel = $('lang'); if (sel) sel.value = LANG;
+}
+function setLang(l){
+  if (!I18N[l] || l === LANG) return;
+  LANG = l;
+  localStorage.setItem('juggler_lang', l);
+  applyLang();
+  loadSettings();          // re-render settings incl. localized hints + ports
+  pollCurrent(true);       // re-render the visible page's dynamic cards
+}
+
 const $ = id => document.getElementById(id);
-const fmt = n => (n??0).toLocaleString('ru-RU');
-const fmtMs = v => v>=1000 ? (v/1000).toFixed(v>=10000?0:1)+' s' : (v==null?'–':Math.round(v)+' ms');
-const fmtKib = k => k>=1048576 ? (k/1048576).toFixed(2)+' GiB' : (k/1024).toFixed(1)+' MiB';
+const fmt = n => (n??0).toLocaleString(LOC());
+const nf = (v,d=1) => (v??0).toLocaleString(LOC(),{minimumFractionDigits:d,maximumFractionDigits:d});
+const pct1 = v => nf(v,1)+' %';
+const fmtMs = v => v>=1000 ? nf(v/1000, v>=10000?0:1)+' s' : (v==null?'–':Math.round(v)+' ms');
+const fmtKib = k => k>=1048576 ? nf(k/1048576,2)+' GiB' : nf(k/1024,1)+' MiB';
 let TOK = sessionStorage.getItem('juggler_token') || '';
 
 /* ---------- API wrapper ---------- */
@@ -436,14 +932,14 @@ async function api(path, opts={}){
   if (TOK) h['Authorization'] = 'Bearer ' + TOK;
   if (opts.body && !h['Content-Type']) h['Content-Type'] = 'application/json';
   const r = await fetch(path, {...opts, headers:h});
-  if (r.status === 401){ showLogin('Требуется авторизация'); throw new Error('unauthorized'); }
+  if (r.status === 401){ showLogin(t('login_err_auth')); throw new Error('unauthorized'); }
   return r;
 }
 async function apiJson(path, opts){
   const r = await api(path, opts);
   if (!r.ok){
-    const t = await r.text();
-    const e = new Error(t || ('HTTP '+r.status)); e.status = r.status; throw e;
+    const txt = await r.text();
+    const e = new Error(txt || ('HTTP '+r.status)); e.status = r.status; throw e;
   }
   const d = await r.json();
   // Single choke point for auth-mode: components arrives on every section,
@@ -472,10 +968,10 @@ async function tryAuth(tok){
   const r = await fetch('/api/overview', {headers:h});
   if (r.status === 429){
     const ra = r.headers.get('Retry-After') || '?';
-    $('login-err').textContent = 'Слишком много неудачных попыток — повторите через '+ra+' с';
+    $('login-err').textContent = tf('login_err_rate',{s:ra});
     return false;
   }
-  if (r.status === 401){ $('login-err').textContent = 'Неверный токен'; return false; }
+  if (r.status === 401){ $('login-err').textContent = t('login_err_bad'); return false; }
   TOK = tok; sessionStorage.setItem('juggler_token', tok);
   hideLogin(); loadSettings(); pollCurrent(true);
   return true;
@@ -498,6 +994,7 @@ function nav(page){
 }
 document.querySelectorAll('#nav button').forEach(b => b.onclick = () => nav(b.dataset.page));
 document.querySelectorAll('.qa[data-nav]').forEach(b => b.onclick = () => nav(b.dataset.nav));
+$('lang').onchange = e => setLang(e.target.value);
 
 /* ---------- polling ---------- */
 let pollTimer = null;
@@ -522,13 +1019,13 @@ setInterval(()=>{
   const p = n => String(n).padStart(2,'0');
   $('clock').textContent = d.getUTCFullYear()+'-'+p(d.getUTCMonth()+1)+'-'+p(d.getUTCDate())
     +' '+p(d.getUTCHours())+':'+p(d.getUTCMinutes())+':'+p(d.getUTCSeconds())+' (UTC)';
-  $('foot-date').textContent = d.toLocaleDateString('ru-RU')+' '+p(d.getHours())+':'+p(d.getMinutes());
+  $('foot-date').textContent = d.toLocaleDateString(LOC())+' '+p(d.getHours())+':'+p(d.getMinutes());
 }, 1000);
 
 /* ---------- connection status ---------- */
 let failStreak = 0;
-function markAlive(){ failStreak=0; $('top-dot').className='dot'; $('top-label').textContent='Онлайн'; }
-function markDead(){ failStreak++; if (failStreak>=2){ $('top-dot').className='dot bad'; $('top-label').textContent='Нет связи'; } }
+function markAlive(){ failStreak=0; $('top-dot').className='dot'; $('top-label').textContent=t('top_online'); }
+function markDead(){ failStreak++; if (failStreak>=2){ $('top-dot').className='dot bad'; $('top-label').textContent=t('top_offline'); } }
 window.addEventListener('online', ()=>pollCurrent(true));
 window.addEventListener('offline', ()=>markDead());
 
@@ -548,15 +1045,15 @@ async function pollOverview(){
     markAlive();
     $('foot-ver').textContent = 'v'+ov.version; $('foot-ver2').textContent = 'v'+ov.version;
     $('k-p99').textContent = fmtMs(ov.p99_ms);
-    $('k-ok').textContent = ov.totals.success_pct.toFixed(1).replace('.',',')+' %';
-    $('k-err').textContent = ov.totals.err_pct.toFixed(1).replace('.',',')+' %';
+    $('k-ok').textContent = pct1(ov.totals.success_pct);
+    $('k-err').textContent = pct1(ov.totals.err_pct);
     $('v-conns').textContent = fmt(ov.active_conns);
     $('v-accepted').textContent = fmt(ov.accepted_total);
     $('v-bp').textContent = ov.backpressure ? 'ON' : 'off';
     $('v-bp').className = 'chip ' + (ov.backpressure?'bad':'ok');
-    $('v-pending').textContent = fmt(comp.dataplane.pending_handoff)+' в hand-off';
+    $('v-pending').textContent = tf('in_handoff',{n:fmt(comp.dataplane.pending_handoff)});
     $('v-accept').textContent = ov.accept_mode.includes('handoff') ? 'handoff (Pythia)' : 'reuseport';
-    $('v-shards').textContent = fmt(ov.shards)+' шардов';
+    $('v-shards').textContent = tf('shards_n',{n:fmt(ov.shards)});
     // Sum every history row newer than the one seen on the previous poll.
     // Keyed by at_ms (not array length): the ring is capped at 180, so its
     // length stops growing and stalls if the tab was throttled mid-poll.
@@ -578,23 +1075,23 @@ async function pollOverview(){
     // resources
     const lastS = last;
     const cpuPct = lastS ? lastS.cpu_permille/10 : 0;
-    $('v-cpu').textContent = cpuPct.toFixed(cpuPct<10?1:0).replace('.',',')+' %';
+    $('v-cpu').textContent = nf(cpuPct, cpuPct<10?1:0)+' %';
     $('bar-cpu').style.width = Math.min(100,cpuPct)+'%';
     if (lastS && lastS.rss_kib>0){
       $('v-rss').textContent = fmtKib(lastS.rss_kib);
       $('bar-rss').style.width = Math.min(100, lastS.rss_kib/1024/1024*100)+'%';
     } else { $('v-rss').textContent='—'; }
     const pool = comp.pool_sockets_total||0;
-    $('v-pool').textContent = fmt(pool)+' сокетов';
+    $('v-pool').textContent = tf('sockets_n',{n:fmt(pool)});
     $('bar-pool').style.width = Math.min(100, pool/Math.max(1,settings_hint_pool_cap)*100)+'%';
-    $('v-dns').textContent = fmt(comp.dns.cache_entries)+' записей';
+    $('v-dns').textContent = tf('entries_n',{n:fmt(comp.dns.cache_entries)});
     $('bar-dns').style.width = Math.min(100, comp.dns.cache_entries/256*100)+'%';
     $('bar-conns').style.width = Math.min(100, ov.active_conns/Math.max(1,ov.shards*4096)*100)+'%';
     // charts
     drawRpsChart(hist);
     drawDonut(ov.totals);
     renderComponents(comp);
-    $('hist-hint').textContent = hist.samples.length+' точек · шаг '+hist.step_secs+' с';
+    $('hist-hint').textContent = tf('points_step',{n:hist.samples.length,s:hist.step_secs});
   }catch(e){ if (e.status!==401) markDead(); }
 }
 let settings_hint_pool_cap = 512;
@@ -602,8 +1099,7 @@ function setDelta(id, d, total){
   const el = $(id);
   if (!el) return;
   if (total<=0){ el.textContent=''; return; }
-  const pct = d/total*100;
-  el.textContent = (d>=0?'↑ ':'↓ ') + Math.abs(d).toFixed(0);
+  el.textContent = (d>=0?'↑ ':'↓ ') + Math.abs(d).toLocaleString(LOC());
   el.className = 'delta ' + (id==='k-err-d' ? (d>0?'down':'up') : (d>=0?'up':'down'));
 }
 // Read-only mode: server-side token unset → all POSTs get 403. Toggle the
@@ -617,35 +1113,35 @@ function setReadOnly(on){
   for (const id of MUTATION_IDS){ const b=$(id); if (b) b.classList.toggle('disabled', on); }
 }
 function roBlocked(){
-  if (RO){ toast('Режим «только чтение»: задайте JUGGLER_ADMIN_TOKEN, чтобы менять настройки', true); return true; }
+  if (RO){ toast(t('read_only_toast'), true); return true; }
   return false;
 }
 let componentsCache = null;
 function renderComponents(comp){
   const rows = [];
   const L = comp.listeners;
-  rows.push(['🌐','HTTP (TLS)', L.tls.addr, L.tls.up?'Работает':'Недоступен', L.tls.up?'ok':'bad']);
-  if (L.plain) rows.push(['🔌','HTTP (plain)', L.plain.addr, L.plain.up?'Работает':'—', 'ok']);
-  rows.push(['⚙️','gRPC Control', L.grpc.addr, L.grpc.up ? L.grpc.auth : 'Недоступен', L.grpc.up?(String(L.grpc.auth).includes('bearer')?'ok':'warn'):'bad']);
+  rows.push(['🌐','HTTP (TLS)', L.tls.addr, L.tls.up?t('st_up'):t('st_down'), L.tls.up?'ok':'bad']);
+  if (L.plain) rows.push(['🔌','HTTP (plain)', L.plain.addr, L.plain.up?t('st_up'):'—', 'ok']);
+  rows.push(['⚙️','gRPC Control', L.grpc.addr, L.grpc.up ? L.grpc.auth : t('st_down'), L.grpc.up?(String(L.grpc.auth).includes('bearer')?'ok':'warn'):'bad']);
   rows.push(['🖥️','Admin API', L.admin.addr, L.admin.up ? (L.admin.auth?'Bearer':'read-only') : '—', L.admin.auth?'ok':'warn']);
-  if (!comp.upstreams.length) rows.push(['📦','Upstream', '—', 'нет маршрутов', 'dim']);
+  if (!comp.upstreams.length) rows.push(['📦','Upstream', '—', t('st_no_routes'), 'dim']);
   for (const u of comp.upstreams){
-    const st = u.state==='healthy'?'Доступен':(u.state==='half-open'?'Проверка':'Недоступен');
+    const st = u.state==='healthy'?t('st_healthy'):(u.state==='half-open'?t('st_probe'):t('st_down'));
     const cls = u.state==='healthy'?'ok':(u.state==='half-open'?'warn':'bad');
-    rows.push(['📦','Upstream '+u.addr, 'пул: '+u.idle_pool, st, cls]);
+    rows.push(['📦','Upstream '+u.addr, t('pool_prefix')+u.idle_pool, st, cls]);
   }
-  rows.push(['🧭','DNS / Resolver', 'TTL '+comp.dns.ttl_secs+' с', 'OK', 'ok']);
-  rows.push(['🔒','Egress Policy', comp.egress.allow_private_upstreams?'private разрешён env':'private запрещён', comp.egress.allow_private_upstreams?'Ослаблена':'Активна', comp.egress.allow_private_upstreams?'warn':'ok']);
+  rows.push(['🧭','DNS / Resolver', 'TTL '+comp.dns.ttl_secs+' s', 'OK', 'ok']);
+  rows.push(['🔒','Egress Policy', comp.egress.allow_private_upstreams?t('egr_env'):t('egr_denied'), comp.egress.allow_private_upstreams?t('egr_weak'):t('egr_active'), comp.egress.allow_private_upstreams?'warn':'ok']);
   $('comp-list').innerHTML = rows.map(([ic,name,sub,st,cls])=>
     '<div class="comp"><span class="ic">'+ic+'</span><div><div>'+name+'</div><div class="ro mono">'+(sub||'')+'</div></div>'
     +'<span class="st chip '+cls+'">● '+st+'</span></div>').join('');
 }
-function drawDonut(t){
+function drawDonut(tot){
   const segs = [
-    ['2xx', t['2xx'], '#16a34a'],
-    ['3xx', t['3xx'], '#2563eb'],
-    ['4xx', t['4xx'], '#d97706'],
-    ['5xx', t['5xx'], '#dc2626'],
+    ['2xx', tot['2xx'], '#16a34a'],
+    ['3xx', tot['3xx'], '#2563eb'],
+    ['4xx', tot['4xx'], '#d97706'],
+    ['5xx', tot['5xx'], '#dc2626'],
   ];
   const total = segs.reduce((a,s)=>a+s[1],0);
   const C = 2*Math.PI*50;
@@ -659,11 +1155,11 @@ function drawDonut(t){
     off += frac*C;
   }
   svg += '<text x="65" y="62" text-anchor="middle" font-size="20" font-weight="700" fill="#1c2434">'+fmt(total)+'</text>';
-  svg += '<text x="65" y="80" text-anchor="middle" font-size="10.5" fill="#64748b">запросов</text>';
+  svg += '<text x="65" y="80" text-anchor="middle" font-size="10.5" fill="#64748b">'+t('donut_reqs')+'</text>';
   $('donut').innerHTML = svg;
   $('donut-rows').innerHTML = segs.map(([n,v,c])=>
     '<div class="donut-row"><span class="sw" style="background:'+c+'"></span>'+n
-    +'<span style="color:var(--dim)">'+(total?(v/total*100).toFixed(1):0).toString().replace('.',',')+'%</span>'
+    +'<span style="color:var(--dim)">'+nf(total?(v/total*100):0,1)+'%</span>'
     +'<span class="v">'+fmt(v)+'</span></div>').join('');
 }
 function drawRpsChart(hist){
@@ -671,7 +1167,7 @@ function drawRpsChart(hist){
   const W = cv.clientWidth||600, H = 220;
   cv.width = W*dpr; cv.height = H*dpr;
   const ctx = cv.getContext('2d'); ctx.scale(dpr,dpr); ctx.clearRect(0,0,W,H);
-  const s = hist.samples; if (s.length<2) { ctx.fillStyle='#94a3b8'; ctx.fillText('ожидание данных…', 20, H/2); return; }
+  const s = hist.samples; if (s.length<2) { ctx.fillStyle='#94a3b8'; ctx.fillText(t('waiting_data'), 20, H/2); return; }
   const padL=46,padR=10,padT=12,padB=22;
   const iw = W-padL-padR, ih = H-padT-padB;
   const maxY = Math.max(1, ...s.map(x=>Math.max(x.reqs, x['2xx'], x['4xx']+x.r429, x['5xx'])));
@@ -687,9 +1183,9 @@ function drawRpsChart(hist){
   const t0 = s[0].at_ms, t1 = s[s.length-1].at_ms;
   for (let i=0;i<=4;i++){
     const x = padL + iw*i/4;
-    const t = new Date(t0 + (t1-t0)*i/4);
+    const tm = new Date(t0 + (t1-t0)*i/4);
     const p = n=>String(n).padStart(2,'0');
-    ctx.fillText(p(t.getUTCHours())+':'+p(t.getUTCMinutes())+':'+p(t.getUTCSeconds()), x, H-6);
+    ctx.fillText(p(tm.getUTCHours())+':'+p(tm.getUTCMinutes())+':'+p(tm.getUTCSeconds()), x, H-6);
   }
   const line = (get,col,w)=>{
     ctx.strokeStyle=col; ctx.lineWidth=w; ctx.beginPath();
@@ -718,23 +1214,23 @@ $('qa-reload').onclick = async () => {
   try{
     const cfg = await apiJson('/api/routes');
     const r = await api('/api/routes', {method:'POST', body:JSON.stringify(cfg)});
-    if (r.ok){ toast('Конфигурация перезагружена (hot reload)'); pollCurrent(true); }
-    else toast('Ошибка: '+(await r.text()), true);
-  }catch(e){ toast('Ошибка: '+e.message, true); }
+    if (r.ok){ toast(t('ok_routes')); pollCurrent(true); }
+    else toast(t('err_prefix')+(await r.text()), true);
+  }catch(e){ toast(t('err_prefix')+e.message, true); }
 };
 $('qa-pool').onclick = async () => {
   if (roBlocked()) return;
   try{
     const r = await api('/api/pool/clear', {method:'POST', body:'{}'});
-    r.ok ? toast('Пул upstream-соединений сброшен') : toast('Ошибка: '+(await r.text()), true);
-  }catch(e){ toast('Ошибка: '+e.message, true); }
+    r.ok ? toast(t('qa_pool')+' — '+t('done')) : toast(t('err_prefix')+(await r.text()), true);
+  }catch(e){ toast(t('err_prefix')+e.message, true); }
 };
 $('qa-dns').onclick = async () => {
   if (roBlocked()) return;
   try{
     const r = await api('/api/dns/clear', {method:'POST', body:'{}'});
-    r.ok ? toast('DNS-кэш очищен') : toast('Ошибка: '+(await r.text()), true);
-  }catch(e){ toast('Ошибка: '+e.message, true); }
+    r.ok ? toast(t('qa_dns')+' — '+t('done')) : toast(t('err_prefix')+(await r.text()), true);
+  }catch(e){ toast(t('err_prefix')+e.message, true); }
 };
 
 /* ================================================================
@@ -753,23 +1249,23 @@ async function pollStats(){
   try{
     const d = await apiJson('/api/stats');
     markAlive();
-    $('spark-hint').textContent = 'окно '+Math.round(d.history_cap*d.history_step_secs/60)+' мин · '+d.history_cap+' точек';
+    $('spark-hint').textContent = tf('hist_window',{m:Math.round(d.history_cap*d.history_step_secs/60),n:d.history_cap});
     $('shard-rows').innerHTML = d.shards.map((sh,i)=>{
       const h = (d.history||[])[i]||{level:[],forecast:[]};
       const cls = sh.trend>0.5?'warn':'ok';
-      const tr = (sh.trend>0?'+':'')+sh.trend.toFixed(2);
+      const tr = (sh.trend>0?'+':'')+nf(sh.trend,2);
       return '<tr><td class="num">'+sh.shard+'</td><td class="num">'+fmt(sh.active_conns)+'</td>'
-        +'<td class="num">'+fmt(sh.accepted_total)+'</td><td class="num">'+sh.level.toFixed(1)+'</td>'
-        +'<td><span class="chip '+cls+'">'+tr+'</span></td><td class="num">'+sh.forecast.toFixed(1)+'</td>'
+        +'<td class="num">'+fmt(sh.accepted_total)+'</td><td class="num">'+nf(sh.level,1)+'</td>'
+        +'<td><span class="chip '+cls+'">'+tr+'</span></td><td class="num">'+nf(sh.forecast,1)+'</td>'
         +'<td>'+spark(h.level,h.forecast)+'</td></tr>';
-    }).join('') || '<tr><td colspan="7" class="empty">нет шардов</td></tr>';
+    }).join('') || '<tr><td colspan="7" class="empty">'+t('no_shards')+'</td></tr>';
     if (d.stages && d.stages.length){
       const mx = Math.max(1e-9, ...d.stages.map(s=>s.avg_us));
       $('stage-box').innerHTML = d.stages.map(s=>{
         const w = Math.max(2, s.avg_us/mx*100).toFixed(1);
         return '<div class="res-row" style="grid-template-columns:120px 1fr 170px"><span>'+s.stage+'</span>'
           +'<div class="bar"><i style="width:'+w+'%"></i></div>'
-          +'<b class="num" style="font-weight:600;font-size:12.5px">avg '+s.avg_us.toFixed(1)+' µs · p99 '+s.p99_ms.toFixed(2)+' ms</b></div>';
+          +'<b class="num" style="font-weight:600;font-size:12.5px">avg '+nf(s.avg_us,1)+' µs · p99 '+nf(s.p99_ms,2)+' ms</b></div>';
       }).join('');
     }
     drawShardHistory(d);
@@ -788,7 +1284,7 @@ function drawShardHistory(d){
   ctx.strokeStyle='#eef2f7'; ctx.fillStyle='#94a3b8'; ctx.font='11px system-ui'; ctx.textAlign='right';
   for (let i=0;i<=4;i++){ const y=padT+ih*i/4; ctx.beginPath(); ctx.moveTo(padL,y); ctx.lineTo(W-padR,y); ctx.stroke();
     ctx.fillText(String(Math.round(maxY*(4-i)/4)), padL-6, y+4); }
-  $('shard-legend').innerHTML = hist.map((h,i)=>'<span><i style="background:'+cols[i%cols.length]+'"></i>шард '+i+'</span>').join('');
+  $('shard-legend').innerHTML = hist.map((h,i)=>'<span><i style="background:'+cols[i%cols.length]+'"></i>'+tf('shard_i',{i:i})+'</span>').join('');
   hist.forEach((h,si)=>{
     ctx.strokeStyle=cols[si%cols.length]; ctx.lineWidth=1.6; ctx.beginPath();
     h.level.forEach((v,i)=>{
@@ -808,11 +1304,11 @@ async function pollLogs(){
     const q = new URLSearchParams(); if (lv) q.set('level',lv); if (sc) q.set('scope',sc); q.set('limit','200');
     const d = await apiJson('/api/logs?'+q.toString());
     markAlive();
-    if (!d.entries.length){ $('log-box').innerHTML='<div class="empty">записей нет — журнал наполняется событиями работы сервера</div>'; return; }
+    if (!d.entries.length){ $('log-box').innerHTML='<div class="empty">'+t('logs_empty')+'</div>'; return; }
     const p = n=>String(n).padStart(2,'0');
     $('log-box').innerHTML = d.entries.map(e=>{
-      const t = new Date(e.at_ms);
-      return '<div class="log-line"><span class="t">'+p(t.getUTCHours())+':'+p(t.getUTCMinutes())+':'+p(t.getUTCSeconds())+'</span>'
+      const tm = new Date(e.at_ms);
+      return '<div class="log-line"><span class="t">'+p(tm.getUTCHours())+':'+p(tm.getUTCMinutes())+':'+p(tm.getUTCSeconds())+'</span>'
         +'<span class="lv '+e.level+'">'+e.level+'</span><span class="scope">'+e.scope+'</span>'
         +'<span class="msg">'+esc(e.message)+'</span></div>';
     }).join('');
@@ -832,23 +1328,23 @@ async function pollRoutes(){
     const cfg = await apiJson('/api/routes');
     markAlive();
     routesCfg = cfg;
-    $('routes-hint').textContent = Object.keys(cfg.routes).length+' шт.';
+    $('routes-hint').textContent = tf('routes_count',{n:Object.keys(cfg.routes).length});
     $('route-rows').innerHTML = Object.entries(cfg.routes).map(([path,r])=>{
       const pool = (st.routes.find(x=>x.path===path)||{}).pool_idle||[];
       const ups = r.upstream_addrs.map(a=>{
         const idle = pool.find(p=>p.addr===a);
         return esc(a)+' <span class="ro">('+((idle&&idle.idle)||0)+' idle)</span>';
-      }).join('<br>') || (r.static_dir?('<span class="ro">static: '+esc(r.static_dir)+'</span>'):'—');
+      }).join('<br>') || (r.static_dir?('<span class="ro">'+t('static_prefix')+esc(r.static_dir)+'</span>'):'—');
       // "Открыть" идёт через собственный data plane сервера (origin:
       // window.location), а не на raw hostname upstream — docker-internal
       // DNS типа "aicms:8080" из браузера оператора не резолвится.
-      const openBtn = '<button class="btn" style="padding:4px 10px;font-size:12px" data-open="'+esc(path)+'">Открыть</button>';
+      const openBtn = '<button class="btn" style="padding:4px 10px;font-size:12px" data-open="'+esc(path)+'">'+t('btn_open')+'</button>';
       const mode = r.static_dir ? '<span class="chip blue">static</span>' : (r.wasm_plugin?'<span class="chip violet2" style="background:#ede9fe;color:#7c3aed">wasm</span>':'<span class="chip dim">proxy</span>');
       const ok = r.upstream_addrs.length===0 || pool.some(p=>p.idle>0) || r.static_dir;
       return '<tr><td><code>'+esc(path)+'</code></td><td>'+ups+'</td><td>'+mode+'</td>'
-        +'<td><span class="chip '+(ok?'ok':'warn')+'">'+(ok?'активен':'нет данных')+'</span></td>'
-        +'<td>'+openBtn+' <button class="btn danger" style="padding:4px 10px;font-size:12px" data-del="'+esc(path)+'">Удалить</button></td></tr>';
-    }).join('') || '<tr><td colspan="5" class="empty">маршрутов нет — добавьте первый выше</td></tr>';
+        +'<td><span class="chip '+(ok?'ok':'warn')+'">'+(ok?t('st_active_ok'):t('st_nodata'))+'</span></td>'
+        +'<td>'+openBtn+' <button class="btn danger" style="padding:4px 10px;font-size:12px" data-del="'+esc(path)+'">'+t('btn_delete')+'</button></td></tr>';
+    }).join('') || '<tr><td colspan="5" class="empty">'+t('routes_empty')+'</td></tr>';
     document.querySelectorAll('[data-del]').forEach(b => b.onclick = ()=>delRoute(b.dataset.del));
     document.querySelectorAll('[data-open]').forEach(b => b.onclick = ()=>{
       // Open via the server's own DATA plane, not the admin origin: the
@@ -873,8 +1369,8 @@ async function delRoute(path){
 $('route-add').onclick = async () => {
   if (roBlocked()) return;
   const path = $('new-path').value.trim(), ups = $('new-up').value.trim();
-  if (!path.startsWith('/')){ $('route-status').textContent='Путь должен начинаться с /'; return; }
-  if (!ups){ $('route-status').textContent='Укажите хотя бы один upstream host:port'; return; }
+  if (!path.startsWith('/')){ $('route-status').textContent=t('err_path'); return; }
+  if (!ups){ $('route-status').textContent=t('err_ups'); return; }
   if (!routesCfg) routesCfg = {routes:{}};
   routesCfg.routes[path] = { upstream_addrs: ups.split(',').map(s=>s.trim()).filter(Boolean) };
   $('new-path').value=''; $('new-up').value='';
@@ -885,30 +1381,30 @@ $('routes-apply').onclick = async () => {
   try{
     const cfg = JSON.parse($('routes-json').value);
     await applyRoutes(cfg);
-  }catch(e){ $('route-status').textContent = 'Некорректный JSON: '+e.message; }
+  }catch(e){ $('route-status').textContent = tf('err_json',{m:e.message}); }
 };
 $('routes-reload-json').onclick = ()=>pollRoutes();
 async function applyRoutes(cfg){
   try{
     const r = await api('/api/routes', {method:'POST', body:JSON.stringify(cfg)});
-    if (r.ok){ $('route-status').textContent=''; toast('Маршруты применены (атомарный swap)'); pollRoutes(); }
-    else { const t = await r.text(); $('route-status').textContent = t; toast('Отклонено: '+t, true); }
-  }catch(e){ $('route-status').textContent = e.message; toast('Ошибка: '+e.message, true); }
+    if (r.ok){ $('route-status').textContent=''; toast(t('ok_routes')); pollRoutes(); }
+    else { const txt = await r.text(); $('route-status').textContent = txt; toast(tf('rejected',{t:txt}), true); }
+  }catch(e){ $('route-status').textContent = e.message; toast(t('err_prefix')+e.message, true); }
 }
 
 /* ================================================================
    SETTINGS
    ================================================================ */
 const HINTS = {
-  balancer:'0 = leastconn · 1 = predictive (Pythia)',
-  rate_limit_tokens:'burst на IP (token bucket)',
-  rate_limit_refill:'токенов в секунду на IP',
-  pool_cap_per_upstream:'keep-alive сокетов на upstream',
-  max_keepalive_requests:'запросов на одно клиентское соединение',
-  pool_idle_timeout_secs:'время жизни idle-сокета',
-  prewarm_floor:'минимум прогретых сокетов',
-  health_max_failures:'отказов до пометки UNHEALTHY',
-  health_cooldown_secs:'пауза перед half-open пробой',
+  balancer:'h_balancer',
+  rate_limit_tokens:'h_rate_limit_tokens',
+  rate_limit_refill:'h_rate_limit_refill',
+  pool_cap_per_upstream:'h_pool_cap_per_upstream',
+  max_keepalive_requests:'h_max_keepalive_requests',
+  pool_idle_timeout_secs:'h_pool_idle_timeout_secs',
+  prewarm_floor:'h_prewarm_floor',
+  health_max_failures:'h_health_max_failures',
+  health_cooldown_secs:'h_health_cooldown_secs',
 };
 const GROUPS = {
   'set-core': ['balancer','prewarm_floor','adaptive_prewarm'],
@@ -930,28 +1426,28 @@ function renderSettings(){
     let h = '';
     for (const n of names){
       if (n==='adaptive_prewarm'){
-        h += setRow('adaptive_prewarm','adaptive prewarm','держать пулы прогретыми по high-water mark',
+        h += setRow('adaptive_prewarm','adaptive prewarm',t('h_adaptive'),
           '<label class="switch"><input type="checkbox" id="sw-adaptive_prewarm" '+(settingsData.adaptive_prewarm?'checked':'')
           +' onchange="markDirty(\'adaptive_prewarm\',this.checked)"><span class="slider"></span></label>', '');
         continue;
       }
       if (n==='balancer'){
         const v = byName.balancer.value;
-        h += setRow('balancer','balancer','алгоритм распределения',
+        h += setRow('balancer','balancer',t('h_balancer'),
           '<span class="seg"><button id="seg-b0" class="'+(v===0?'on':'')+'" onclick="markDirty(\'balancer\',0);paintSeg(0)">leastconn</button>'
           +'<button id="seg-b1" class="'+(v===1?'on':'')+'" onclick="markDirty(\'balancer\',1);paintSeg(1)">predictive</button></span>','');
         continue;
       }
       const s = byName[n]; if (!s) continue;
       const fill = ((s.value-s.min)/Math.max(1,s.max-s.min)*100).toFixed(1);
-      h += setRow(n, n, HINTS[n]||'',
+      h += setRow(n, n, t(HINTS[n]||''),
         '<input type="range" min="'+s.min+'" max="'+s.max+'" value="'+s.value+'" id="rng-'+n+'" oninput="syncSet(\''+n+'\',this.value)">',
         '<input type="number" min="'+s.min+'" max="'+s.max+'" value="'+s.value+'" id="num-'+n+'" oninput="syncSet(\''+n+'\',this.value)">');
     }
     $(box).innerHTML = h;
     for (const n of names){ const r=$('rng-'+n); if (r) paint(r); }
   }
-  // ports (read-only env listeners); also cached for the routes-table "Открыть" button
+  // ports (read-only env listeners); also cached for the routes-table "Open" button
   apiJson('/api/components').then(comp=>{
     componentsCache = comp;
     const L = comp.listeners;
@@ -980,7 +1476,7 @@ window.markDirty = (n,v)=>{
 function updateDirty(){
   const b = $('settings-save');
   b.disabled = dirty.size===0;
-  $('settings-dirty').textContent = dirty.size ? 'неприменённых изменений: '+dirty.size : '';
+  $('settings-dirty').textContent = dirty.size ? tf('dirty',{n:dirty.size}) : '';
 }
 $('settings-save').onclick = async () => {
   if (roBlocked() || !dirty.size) return;
@@ -988,20 +1484,20 @@ $('settings-save').onclick = async () => {
   try{
     const r = await api('/api/settings', {method:'POST', body:JSON.stringify(payload)});
     const d = await r.json().catch(()=>({}));
-    if (r.ok){ toast('Применено параметров: '+d.applied); dirty.clear(); loadSettings(); }
-    else toast('Ошибка: '+(d.error||await r.text()), true);
-  }catch(e){ toast('Ошибка: '+e.message, true); }
+    if (r.ok){ toast(tf('applied',{n:d.applied})); dirty.clear(); loadSettings(); }
+    else toast(t('err_prefix')+(d.error||await r.text()), true);
+  }catch(e){ toast(t('err_prefix')+e.message, true); }
 };
 
 /* ---- Динамические HTTP/HTTPS-порты (POST /api/listeners) ------------- */
 function dynRows(dyn){
-  if (!dyn.length) return '<div class="empty">порты не добавлены</div>';
+  if (!dyn.length) return '<div class="empty">'+t('no_ports')+'</div>';
   return dyn.map(l=>
     '<div class="set-row" style="grid-template-columns:auto 1fr auto auto">'
     +'<code>'+esc(l.addr)+'</code>'
     +'<span class="chip '+(l.kind==='https'?'blue':'ok')+'">'+l.kind.toUpperCase()+'</span>'
     +'<button class="btn" data-flip="'+esc(l.addr)+'|'+l.kind+'">'+(l.kind==='http'?'→ HTTPS':'→ HTTP')+'</button>'
-    +'<button class="btn danger" data-rm="'+esc(l.addr)+'">Удалить</button></div>').join('');
+    +'<button class="btn danger" data-rm="'+esc(l.addr)+'">'+t('btn_delete')+'</button></div>').join('');
 }
 async function loadDynPorts(){
   try{
@@ -1019,14 +1515,14 @@ async function dynPort(action, addr, kind){
   try{
     const r = await api('/api/listeners', {method:'POST', body:JSON.stringify({action, addr, kind})});
     const d = await r.json().catch(()=>({}));
-    toast(d.message || (r.ok?'готово':'ошибка'), !r.ok);
+    toast(d.message || (r.ok?t('done'):t('fail')), !r.ok);
     loadDynPorts();
-  }catch(e){ toast('Ошибка: '+e.message, true); }
+  }catch(e){ toast(t('err_prefix')+e.message, true); }
 }
 $('lp-add').onclick = ()=>{
   if (roBlocked()) return;
   const port = ($('lp-addr').value||'').trim();
-  if (!/^(\d{1,5})$/.test(port) || +port<1 || +port>65535){ toast('Укажите порт 1–65535', true); return; }
+  if (!/^(\d{1,5})$/.test(port) || +port<1 || +port>65535){ toast(t('port_range_err'), true); return; }
   const bind = '0.0.0.0:'+port;
   $('lp-addr').value='';
   dynPort('add', bind, $('lp-kind').value);
@@ -1041,29 +1537,29 @@ async function pollSecurity(){
     markAlive();
     const L = comp.listeners;
     $('sec-control').innerHTML = [
-      ['Admin API', L.admin.addr, L.admin.auth?'Bearer-токен: мутации разрешены':'БЕЗ токена: read-only (fail-closed)', L.admin.auth?'ok':'warn'],
-      ['gRPC Control', L.grpc.addr, String(L.grpc.auth).includes('bearer')?'Bearer-токен на мутациях':'Fail-closed: мутации запрещены (нет токена / внешний bind)', String(L.grpc.auth).includes('bearer')?'ok':'warn'],
-      ['Brute-force latch', '—', '20 неудач за 60 с → 429 + Retry-After; верный токен сбрасывает', 'ok'],
+      ['Admin API', L.admin.addr, L.admin.auth?t('adm_ok'):t('adm_ro'), L.admin.auth?'ok':'warn'],
+      ['gRPC Control', L.grpc.addr, String(L.grpc.auth).includes('bearer')?t('grpc_ok'):t('grpc_fc'), String(L.grpc.auth).includes('bearer')?'ok':'warn'],
+      [t('bf_latch'), '—', t('bf_desc'), 'ok'],
     ].map(([n,a,d,cls])=>compRow(n,a,d,cls)).join('');
     $('sec-egress').innerHTML = [
-      ['Egress policy', 'upstream-цели', comp.egress.allow_private_upstreams?'ОСЛАБЛЕНА env-оверрайдом (private разрешён)':'loopback / link-local / metadata запрещены по умолчанию', comp.egress.allow_private_upstreams?'warn':'ok'],
-      ['DNS-rebinding guard', 'resolve-time', 'каждый (ре)резолв проверяется по той же политике — evil.example → 169.254.169.254 блокируется', 'ok'],
-      ['DNS-кэш', comp.dns.cache_entries+' записей', 'TTL '+comp.dns.ttl_secs+' с', 'ok'],
-      ['Rate limiter', comp.limiter.tracked_ips+' IP', 'token bucket: '+comp.limiter.tokens+' burst / '+comp.limiter.refill+' rps', 'ok'],
+      ['Egress policy', t('egr_target'), comp.egress.allow_private_upstreams?t('egr_weak_full'):t('egr_denied_full'), comp.egress.allow_private_upstreams?'warn':'ok'],
+      [t('rebind'), 'resolve-time', t('rebind_desc'), 'ok'],
+      [t('dns_cache'), tf('entries_n',{n:comp.dns.cache_entries}), 'TTL '+comp.dns.ttl_secs+' s', 'ok'],
+      [t('rate_limiter'), comp.limiter.tracked_ips+' IP', tf('limiter_desc',{a:comp.limiter.tokens,b:comp.limiter.refill}), 'ok'],
     ].map(([n,a,d,cls])=>compRow(n,a,d,cls)).join('');
     $('sec-routes').innerHTML = Object.entries(st.routes).map(([path,r])=>{
       const sec = r.security||{};
-      const deny = (sec.deny_count||0) ? sec.deny_count+' шт.' : '—';
-      const hdrs = (sec.response_headers_count||0) ? sec.response_headers_count+' шт.' : '—';
+      const deny = (sec.deny_count||0) ? tf('n_items',{n:sec.deny_count}) : '—';
+      const hdrs = (sec.response_headers_count||0) ? tf('n_items',{n:sec.response_headers_count}) : '—';
       return '<tr><td><code>'+esc(path)+'</code></td><td>'+deny+'</td><td>'+hdrs+'</td>'
         +'<td>'+(sec.cms_fallback_path?('<code>'+esc(sec.cms_fallback_path)+'</code>'):'—')+'</td>'
         +'<td>'+(r.wasm_plugin?('<code>'+esc(r.wasm_plugin)+'</code>'):'—')+'</td></tr>';
-    }).join('') || '<tr><td colspan="5" class="empty">маршрутов нет</td></tr>';
+    }).join('') || '<tr><td colspan="5" class="empty">'+t('routes_empty2')+'</td></tr>';
   }catch(e){ if (e.status!==401) markDead(); }
 }
 function compRow(name, sub, desc, cls){
   return '<div class="comp"><div><div>'+name+' <span class="ro mono">'+(sub&&sub!=='—'?('· '+sub):'')+'</span></div>'
-    +'<div class="ro">'+desc+'</div></div><span class="st chip '+cls+'">● '+(cls==='ok'?'OK':(cls==='warn'?'внимание':'внимание'))+'</span></div>';
+    +'<div class="ro">'+desc+'</div></div><span class="st chip '+cls+'">● '+(cls==='ok'?'OK':t('attention'))+'</span></div>';
 }
 
 /* ================================================================
@@ -1076,27 +1572,28 @@ async function pollSystem(){
     const up = sys.uptime_secs;
     const d=Math.floor(up/86400), h=Math.floor(up%86400/3600), m=Math.floor(up%3600/60);
     $('sys-info').innerHTML = [
-      ['Версия', 'v'+sys.version],
-      ['Uptime', (d?d+' д ':'')+h+' ч '+m+' мин'],
-      ['Ядер / шардов', sys.cores+' / '+sys.shards],
-      ['Accept mode', sys.accept_mode],
-      ['CPU процесса', (sys.cpu_pct||0).toFixed(1).replace('.',',')+' %'],
-      ['Память RSS', sys.rss_kib>0?fmtKib(sys.rss_kib):'недоступно на этой платформе'],
-      ['TLS (PFX)', sys.tls_pfx?'настроен':'не настроен'],
+      [t('k_version'), 'v'+sys.version],
+      [t('k_uptime'), tf('uptime_fmt',{d:d?d:'',h:h,m:m})],
+      [t('k_cores'), sys.cores+' / '+sys.shards],
+      [t('k_accept'), sys.accept_mode],
+      [t('k_cpu'), pct1(sys.cpu_pct||0)],
+      [t('k_rss'), sys.rss_kib>0?fmtKib(sys.rss_kib):t('rss_na')],
+      [t('k_tls'), sys.tls_pfx?t('tls_on'):t('tls_off')],
     ].map(([k,v])=>'<div class="set-row" style="grid-template-columns:1fr 1fr"><div class="set-name">'+k+'</div><div>'+v+'</div></div>').join('');
     $('sys-int').innerHTML = [
-      ['Prometheus metrics', '<a href="/metrics" target="_blank">/metrics</a>'],
-      ['Health check', '<a href="/healthz" target="_blank">/healthz</a>'],
-      ['JSON API', '<code>/api/overview</code> <code>/api/history</code> <code>/api/logs</code> <code>/api/components</code> <code>/api/system</code>'],
-      ['Управление конфигом', '<code>POST /api/routes</code> <code>POST /api/settings</code>'],
-      ['Операции', '<code>POST /api/pool/clear</code> <code>POST /api/dns/clear</code>'],
-      ['gRPC Control Plane', '<code>'+comp.listeners.grpc.addr+'</code> — UpdateConfig (Bearer)'],
+      [t('i_prom'), '<a href="/metrics" target="_blank">/metrics</a>'],
+      [t('i_health'), '<a href="/healthz" target="_blank">/healthz</a>'],
+      [t('i_json'), '<code>/api/overview</code> <code>/api/history</code> <code>/api/logs</code> <code>/api/components</code> <code>/api/system</code>'],
+      [t('i_cfg'), '<code>POST /api/routes</code> <code>POST /api/settings</code>'],
+      [t('i_ops'), '<code>POST /api/pool/clear</code> <code>POST /api/dns/clear</code>'],
+      [t('i_grpc'), '<code>'+comp.listeners.grpc.addr+'</code> — UpdateConfig (Bearer)'],
     ].map(([k,v])=>'<div class="set-row" style="grid-template-columns:150px 1fr"><div class="set-name">'+k+'</div><div>'+v+'</div></div>').join('');
   }catch(e){ if (e.status!==401) markDead(); }
 }
 
 /* ---------- boot ---------- */
 (async function boot(){
+  applyLang();
   $('app').classList.remove('hidden');
   const page = (location.hash||'').replace('#/','') || 'overview';
   nav(PAGES.includes(page)?page:'overview');
@@ -1106,6 +1603,6 @@ async function pollSystem(){
     const r = await fetch('/api/overview', TOK?{headers:{'Authorization':'Bearer '+TOK}}:{});
     if (r.status===401){ sessionStorage.removeItem('juggler_token'); TOK=''; showLogin(); }
     else { loadSettings(); pollCurrent(true); }
-  }catch(e){ showLogin('Нет связи с сервером'); }
+  }catch(e){ showLogin(t('login_err_net')); }
 })();
 </script></body></html>
