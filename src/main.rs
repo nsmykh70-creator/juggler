@@ -4011,10 +4011,22 @@ fn admin_credentials() -> &'static std::sync::RwLock<AdminCredentials> {
     })
 }
 
+/// Tests must never touch the real admin_credentials.json (a stray write
+/// would replace the live operator's credentials on next boot), so under
+/// cfg(test) persistence is a no-op — the same guard persist_settings uses.
+#[cfg_attr(test, allow(dead_code))]
 fn persist_credentials(creds: &AdminCredentials) {
-    let json = serde_json::to_string_pretty(&creds.persisted()).unwrap_or_default();
-    if let Err(e) = std::fs::write(ADMIN_CRED_FILE, json) {
-        eprintln!("⚠️ failed to persist admin credentials: {e}");
+    #[cfg(test)]
+    {
+        let _ = creds;
+        return;
+    }
+    #[allow(unreachable_code)]
+    {
+        let json = serde_json::to_string_pretty(&creds.persisted()).unwrap_or_default();
+        if let Err(e) = std::fs::write(ADMIN_CRED_FILE, json) {
+            eprintln!("⚠️ failed to persist admin credentials: {e}");
+        }
     }
 }
 
@@ -7972,9 +7984,9 @@ mod tests {
 
     #[test]
     fn credentials_roundtrip_and_change() {
-        // Fresh test cell: the shared init reads admin_credentials.json (may
-        // exist from a live run); the API under test is state-changing, so
-        // exercise change/verify without depending on file state.
+        // In-memory only: persist_credentials is a no-op under cfg(test), so
+        // the real admin_credentials.json (live operator's credentials) is
+        // never touched. State below lives solely in the shared RwLock.
         let ip: IpAddr = "192.0.2.77".parse().unwrap();
         // Force a known state.
         {
