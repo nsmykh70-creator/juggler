@@ -3513,7 +3513,7 @@ fn admin_ui_html() -> &'static str {
 
 /// Build the full admin JSON snapshot (also reused by /api/stats).
 /// /api/overview — header KPIs: request deltas, success %, p99, conns.
-fn admin_overview_json() -> String {
+fn admin_overview_json(mutating: bool) -> String {
     let t2 = RESP_CLASS_TOTALS[0].load(Ordering::Relaxed);
     let t3 = RESP_CLASS_TOTALS[1].load(Ordering::Relaxed);
     let t4 = RESP_CLASS_TOTALS[2].load(Ordering::Relaxed);
@@ -3557,9 +3557,7 @@ fn admin_overview_json() -> String {
         // Auth mode flag so the panel can disable mutations client-side too:
         // read-only (token unset) answers 403 on every POST — surfacing it
         // here turns a silent 403 into an explicit banner.
-        "admin_read_only": std::env::var("JUGGLER_ADMIN_TOKEN")
-            .map(|t| t.is_empty())
-            .unwrap_or(true),
+        "admin_read_only": !mutating,
     });
     serde_json::to_string(&body).unwrap_or_else(|_| "{}".into())
 }
@@ -3621,7 +3619,7 @@ fn admin_logs_json(query: &str) -> String {
 }
 
 /// /api/components — live listener/upstream/limiter/DNS/egress status.
-fn admin_components_json() -> String {
+fn admin_components_json(mutating: bool) -> String {
     let admin_addr =
         std::env::var("JUGGLER_ADMIN_ADDR").unwrap_or_else(|_| "127.0.0.1:9090".into());
     let grpc_addr = std::env::var("JUGGLER_GRPC_ADDR").unwrap_or_else(|_| "127.0.0.1:50051".into());
@@ -3678,7 +3676,7 @@ fn admin_components_json() -> String {
         "dataplane": {"active_conns": active, "backpressure": backpressure, "pending_handoff": pending},
         // Read-only admin mode (token unset) surfaced on every page: the SPA
         // polls /api/components on every section and disables mutations.
-        "admin_read_only": admin_token.is_none(),
+        "admin_read_only": !mutating,
         "upstreams": upstreams,
         "pool_sockets_total": pool_total,
         "limiter": {"tracked_ips": limiter_ips,
@@ -3692,7 +3690,9 @@ fn admin_components_json() -> String {
 }
 
 /// /api/system — resources, versions, security posture (Система page).
-fn admin_system_json() -> String {
+/// `mutating` = the CALLER is authenticated (env token or session); the
+/// read-only flag must reflect per-caller capability, not global config.
+fn admin_system_json(mutating: bool) -> String {
     let hist = panel_history_snapshot();
     let rss = hist
         .last()
@@ -3724,12 +3724,7 @@ fn admin_system_json() -> String {
             "allow_private_upstreams".into(),
             serde_json::json!(private_upstreams_allowed()),
         );
-        obj.insert(
-            "admin_read_only".into(),
-            serde_json::json!(std::env::var("JUGGLER_ADMIN_TOKEN")
-                .map(|t| t.is_empty())
-                .unwrap_or(true)),
-        );
+        obj.insert("admin_read_only".into(), serde_json::json!(!mutating));
     }
     serde_json::to_string(&sysinfo).unwrap_or_else(|_| "{}".into())
 }
@@ -3888,6 +3883,236 @@ fn admin_auth_note_success(ip: IpAddr) {
     admin_fail_map().lock().unwrap().remove(&ip);
 }
 
+// ------------------------------------------------------------------------
+// Admin credentials (user + password) with changeable defaults.
+//
+// The env token (JUGGLER_ADMIN_TOKEN) stays the scripted-automation path;
+// the interactive panel logs in with a username/password pair stored in
+// admin_credentials.json as PBKDF2-HMAC-SHA256 (ring). Fresh installs get
+// admin/admin1 and MUST change it — the panel shows a "default credentials"
+// banner until the first change. Deleting the file restores the default.
+// ------------------------------------------------------------------------
+
+const ADMIN_CRED_FILE: &str = "admin_credentials.json";
+const PBKDF2_ITERS: u32 = 60_000;
+const SESSION_TTL: Duration = Duration::from_secs(12 * 3600);
+
+struct AdminCredentials {
+    user: String,
+    salt: [u8; 16],
+    hash: [u8; 32],
+    is_default: bool,
+}
+
+impl AdminCredentials {
+    fn new(user: &str, password: &str, is_default: bool) -> Self {
+        let mut salt = [0u8; 16];
+        rand::RngCore::fill_bytes(&mut rand::thread_rng(), &mut salt);
+        Self {
+            user: user.to_string(),
+            salt,
+            hash: pbkdf2_password(password, &salt),
+            is_default,
+        }
+    }
+
+    fn persisted(&self) -> PersistedCredentials {
+        PersistedCredentials {
+            user: self.user.clone(),
+            salt: hex_encode(&self.salt),
+            hash: hex_encode(&self.hash),
+            iters: PBKDF2_ITERS,
+        }
+    }
+}
+
+#[derive(serde::Serialize, serde::Deserialize)]
+struct PersistedCredentials {
+    user: String,
+    salt: String,
+    hash: String,
+    iters: u32,
+}
+
+fn pbkdf2_password(password: &str, salt: &[u8]) -> [u8; 32] {
+    let mut out = [0u8; 32];
+    ring::pbkdf2::derive(
+        ring::pbkdf2::PBKDF2_HMAC_SHA256,
+        std::num::NonZeroU32::new(PBKDF2_ITERS).expect("nonzero iters"),
+        salt,
+        password.as_bytes(),
+        &mut out,
+    );
+    out
+}
+
+fn pbkdf2_verify(password: &str, salt: &[u8], iters: u32, expected: &[u8]) -> bool {
+    ring::pbkdf2::verify(
+        ring::pbkdf2::PBKDF2_HMAC_SHA256,
+        std::num::NonZeroU32::new(iters).expect("nonzero iters"),
+        salt,
+        password.as_bytes(),
+        expected,
+    )
+    .is_ok()
+}
+
+fn hex_encode(bytes: &[u8]) -> String {
+    const HEX: &[u8; 16] = b"0123456789abcdef";
+    let mut s = String::with_capacity(bytes.len() * 2);
+    for &b in bytes {
+        s.push(HEX[(b >> 4) as usize] as char);
+        s.push(HEX[(b & 0xF) as usize] as char);
+    }
+    s
+}
+
+fn hex_decode(s: &str) -> Option<Vec<u8>> {
+    if !s.len().is_multiple_of(2) || !s.bytes().all(|b| b.is_ascii_hexdigit()) {
+        return None;
+    }
+    (0..s.len() / 2)
+        .map(|i| u8::from_str_radix(&s[i * 2..i * 2 + 2], 16).ok())
+        .collect()
+}
+
+fn admin_credentials() -> &'static std::sync::RwLock<AdminCredentials> {
+    static CELLS: OnceLock<std::sync::RwLock<AdminCredentials>> = OnceLock::new();
+    CELLS.get_or_init(|| {
+        let creds = match std::fs::read_to_string(ADMIN_CRED_FILE) {
+            Ok(data) => match serde_json::from_str::<PersistedCredentials>(&data) {
+                Ok(p) => {
+                    let (salt, hash) = match (
+                        hex_decode(&p.salt).and_then(|v| <[u8; 16]>::try_from(v).ok()),
+                        hex_decode(&p.hash).and_then(|v| <[u8; 32]>::try_from(v).ok()),
+                    ) {
+                        (Some(s), Some(h)) => (s, h),
+                        _ => {
+                            eprintln!("⚠️ corrupted admin_credentials.json — default credentials restored");
+                            let d = AdminCredentials::new("admin", "admin1", true);
+                            return std::sync::RwLock::new(d);
+                        }
+                    };
+                    AdminCredentials {
+                        user: p.user,
+                        salt,
+                        hash,
+                        is_default: false,
+                    }
+                }
+                Err(_) => {
+                    eprintln!("⚠️ corrupted admin_credentials.json — default credentials restored");
+                    AdminCredentials::new("admin", "admin1", true)
+                }
+            },
+            Err(_) => AdminCredentials::new("admin", "admin1", true),
+        };
+        std::sync::RwLock::new(creds)
+    })
+}
+
+fn persist_credentials(creds: &AdminCredentials) {
+    let json = serde_json::to_string_pretty(&creds.persisted()).unwrap_or_default();
+    if let Err(e) = std::fs::write(ADMIN_CRED_FILE, json) {
+        eprintln!("⚠️ failed to persist admin credentials: {e}");
+    }
+}
+
+fn credentials_default() -> bool {
+    admin_credentials().read().unwrap().is_default
+}
+
+fn credentials_user() -> String {
+    admin_credentials().read().unwrap().user.clone()
+}
+
+/// Verify a user/password pair; counts as a brute-force attempt on mismatch.
+fn verify_admin_password(user: &str, password: &str, peer_ip: IpAddr) -> bool {
+    let creds = admin_credentials().read().unwrap();
+    let ok = creds.user == user && pbkdf2_verify(password, &creds.salt, PBKDF2_ITERS, &creds.hash);
+    drop(creds);
+    if ok {
+        admin_auth_note_success(peer_ip);
+    } else {
+        admin_auth_note_failure(peer_ip);
+    }
+    ok
+}
+
+fn change_admin_credentials(
+    user: &str,
+    current_password: &str,
+    new_password: &str,
+    new_username: Option<&str>,
+) -> Result<(), String> {
+    {
+        let creds = admin_credentials().read().unwrap();
+        if creds.user != user
+            || !pbkdf2_verify(current_password, &creds.salt, PBKDF2_ITERS, &creds.hash)
+        {
+            return Err("current username or password is incorrect".into());
+        }
+    }
+    if new_password.len() < 8 {
+        return Err("new password must be at least 8 characters".into());
+    }
+    let user = user.trim();
+    if user.is_empty() || user.len() > 64 || !user.bytes().all(|b| b.is_ascii_graphic()) {
+        return Err("invalid username".into());
+    }
+    // Optional rename: same validation as the initial username.
+    let final_user = match new_username.map(str::trim) {
+        Some(u) if u.is_empty() || u.len() > 64 || !u.bytes().all(|b| b.is_ascii_graphic()) => {
+            return Err("invalid new username".into())
+        }
+        Some(u) => u.to_string(),
+        None => user.to_string(),
+    };
+    let mut creds = admin_credentials().write().unwrap();
+    let updated = AdminCredentials::new(&final_user, new_password, false);
+    persist_credentials(&updated);
+    *creds = updated;
+    Ok(())
+}
+
+// ------------------------------------------------------------------------
+// Sessions: POST /api/login issues an opaque bearer token, valid until the
+// TTL; stored only in memory so a restart logs everyone out. The env token
+// keeps working for scripts. Both are checked in the same bearer scan.
+// ------------------------------------------------------------------------
+
+struct Session {
+    issued: Instant,
+}
+
+fn admin_sessions() -> &'static std::sync::RwLock<HashMap<String, Session>> {
+    static MAP: OnceLock<std::sync::RwLock<HashMap<String, Session>>> = OnceLock::new();
+    MAP.get_or_init(|| std::sync::RwLock::new(HashMap::new()))
+}
+
+fn session_create() -> String {
+    let mut tok = [0u8; 24];
+    rand::RngCore::fill_bytes(&mut rand::thread_rng(), &mut tok);
+    let tok = hex_encode(&tok);
+    admin_sessions().write().unwrap().insert(
+        tok.clone(),
+        Session {
+            issued: Instant::now(),
+        },
+    );
+    tok
+}
+
+fn session_valid(tok: &str) -> bool {
+    let mut map = admin_sessions().write().unwrap();
+    map.retain(|_, s| s.issued.elapsed() < SESSION_TTL);
+    map.contains_key(tok)
+}
+
+fn session_revoke(tok: &str) {
+    admin_sessions().write().unwrap().remove(tok);
+}
+
 async fn serve_admin_connection(mut stream: tokio::net::TcpStream) -> std::io::Result<()> {
     use tokio::io::{AsyncReadExt, AsyncWriteExt};
     let peer_ip = stream
@@ -3953,31 +4178,38 @@ async fn serve_admin_connection(mut stream: tokio::net::TcpStream) -> std::io::R
     // READ-ONLY (stats/routes/settings GET still work for local monitoring)
     // and every mutating endpoint answers 403 — forgetting to set the token
     // must never silently expose a config-write API.
-    let auth_mode = match &token {
-        Some(expected) => {
-            let bearer = format!("Bearer {expected}");
-            if data
-                .windows(bearer.len())
-                .any(|w| w.eq_ignore_ascii_case(bearer.as_bytes()))
-            {
-                admin_auth_note_success(peer_ip);
-                AuthMode::Mutating
-            } else if data
-                .windows(b"uthorization:".len())
-                .any(|w| w.eq_ignore_ascii_case(b"uthorization:"))
-            {
-                // A wrong credential was presented: count it as a brute-force
-                // attempt. Bare requests without any Authorization header are
-                // anonymous (the public SPA shell, pre-login polling) and must
-                // not arm the latch — a browser reload of the login screen is
-                // not an attack.
-                admin_auth_note_failure(peer_ip);
-                AuthMode::Denied
-            } else {
-                AuthMode::Denied
-            }
+    //
+    // Two credential classes share the bearer scan: the env token (scripts)
+    // and a session token issued by POST /api/login (the interactive panel).
+    // A presented-but-wrong Authorization header feeds the brute-force latch;
+    // anonymous requests (SPA shell, pre-login polling) do not.
+    let presented = data
+        .windows(b"uthorization: bearer ".len())
+        .find(|w| w.eq_ignore_ascii_case(b"uthorization: bearer "))
+        .map(|_| ());
+    let bearer_value: Option<String> = presented.and_then(|_| {
+        let head_str = std::str::from_utf8(&data[..head_end]).ok()?;
+        head_str.lines().find_map(|l| {
+            let (k, v) = l.split_once(':')?;
+            k.trim()
+                .eq_ignore_ascii_case("authorization")
+                .then(|| v.trim().strip_prefix("Bearer ").map(str::to_string))
+                .flatten()
+        })
+    });
+    let session_ok = bearer_value.as_deref().map(session_valid).unwrap_or(false);
+    let auth_mode = match (&token, session_ok) {
+        (Some(expected), _) if bearer_value.as_deref() == Some(expected.as_str()) => {
+            admin_auth_note_success(peer_ip);
+            AuthMode::Mutating
         }
-        None => AuthMode::ReadOnly,
+        (_, true) => AuthMode::Mutating,
+        (Some(_), _) if presented.is_some() => {
+            admin_auth_note_failure(peer_ip);
+            AuthMode::Denied
+        }
+        (Some(_), _) => AuthMode::Denied,
+        (None, _) => AuthMode::ReadOnly,
     };
     // Brute-force throttle: a source with too many failed token attempts in
     // the window is shed BEFORE any handler work. Legitimate operators are
@@ -4006,6 +4238,113 @@ async fn serve_admin_connection(mut stream: tokio::net::TcpStream) -> std::io::R
         // Without this, a viewer without the token would see a plain 401
         // string instead of the login form.
         ("/", AuthMode::Denied) => (200, "text/html; charset=utf-8", admin_ui_html().to_string()),
+        // Login/logout/session-status are reachable in every auth mode: a
+        // denied caller must be able to authenticate, and a session holder
+        // must be able to log out even when the env token is unset.
+        ("/api/login", _) if method == "POST" => {
+            #[derive(serde::Deserialize)]
+            struct LoginReq {
+                user: String,
+                password: String,
+            }
+            match serde_json::from_slice::<LoginReq>(&data[head_end..]) {
+                Ok(req) => {
+                    if verify_admin_password(&req.user, &req.password, peer_ip) {
+                        let tok = session_create();
+                        panel_log(
+                            "info",
+                            "admin",
+                            format!("admin login: {peer_ip} as {}", credentials_user()),
+                        );
+                        (
+                            200,
+                            "application/json",
+                            format!(
+                                "{{\"token\":\"{tok}\",\"user\":{},\"default_credentials\":{}}}",
+                                serde_json::to_string(&credentials_user()).unwrap(),
+                                credentials_default()
+                            ),
+                        )
+                    } else {
+                        panel_log("warn", "admin", format!("admin login failed for {peer_ip}"));
+                        (
+                            401,
+                            "application/json",
+                            "{\"error\":\"bad credentials\"}".into(),
+                        )
+                    }
+                }
+                Err(e) => (400, "text/plain; charset=utf-8", format!("bad JSON: {e}")),
+            }
+        }
+        ("/api/logout", _) if method == "POST" => {
+            if let Some(tok) = &bearer_value {
+                session_revoke(tok);
+            }
+            (200, "application/json", "{\"success\":true}".into())
+        }
+        ("/api/admin/reload", AuthMode::ReadOnly) if method == "POST" => (
+            403,
+            "text/plain; charset=utf-8",
+            "forbidden: admin is read-only while JUGGLER_ADMIN_TOKEN is unset (fail-closed)".into(),
+        ),
+        ("/api/admin/reload", AuthMode::Mutating) if method == "POST" => {
+            match admin_reload().await {
+                Ok(msg) => (200, "application/json", msg),
+                Err(e) => (
+                    500,
+                    "text/plain; charset=utf-8",
+                    format!("reload failed: {e}"),
+                ),
+            }
+        }
+        ("/api/session", _) => (
+            200,
+            "application/json",
+            format!(
+                "{{\"authenticated\":{},\"user\":{},\"default_credentials\":{},\"env_token\":{}}}",
+                auth_mode == AuthMode::Mutating,
+                serde_json::to_string(&credentials_user()).unwrap(),
+                credentials_default(),
+                token.is_some()
+            ),
+        ),
+        ("/api/admin/credentials", AuthMode::Mutating) if method == "POST" => {
+            #[derive(serde::Deserialize)]
+            struct CredReq {
+                user: String,
+                current_password: String,
+                new_password: String,
+                new_username: Option<String>,
+            }
+            match serde_json::from_slice::<CredReq>(&data[head_end..]) {
+                Ok(req) => match change_admin_credentials(
+                    &req.user,
+                    &req.current_password,
+                    &req.new_password,
+                    req.new_username.as_deref(),
+                ) {
+                    Ok(()) => {
+                        panel_log(
+                            "info",
+                            "admin",
+                            format!("admin credentials changed via panel ({peer_ip})"),
+                        );
+                        // Invalidate every existing session: a credential
+                        // change is also a global logout.
+                        admin_sessions().write().unwrap().clear();
+                        (200, "application/json", "{\"success\":true}".into())
+                    }
+                    Err(e) => (400, "text/plain; charset=utf-8", format!("invalid: {e}")),
+                },
+                Err(e) => (400, "text/plain; charset=utf-8", format!("bad JSON: {e}")),
+            }
+        }
+        ("/api/admin/credentials", _) => (
+            403,
+            "text/plain; charset=utf-8",
+            "forbidden: authentication required".into(),
+        ),
         (_, AuthMode::Denied) => (
             401,
             "text/plain; charset=utf-8",
@@ -4022,14 +4361,26 @@ async fn serve_admin_connection(mut stream: tokio::net::TcpStream) -> std::io::R
             "forbidden: admin is read-only while JUGGLER_ADMIN_TOKEN is unset (fail-closed)".into(),
         ),
         ("/api/stats", _) => (200, "application/json", admin_stats_json()),
-        ("/api/overview", _) => (200, "application/json", admin_overview_json()),
+        ("/api/overview", _) => (
+            200,
+            "application/json",
+            admin_overview_json(auth_mode == AuthMode::Mutating),
+        ),
         ("/api/history", _) => (200, "application/json", admin_history_json()),
         ("/api/logs", _) => {
             let query = path.split_once('?').map(|(_, q)| q).unwrap_or("");
             (200, "application/json", admin_logs_json(query))
         }
-        ("/api/components", _) => (200, "application/json", admin_components_json()),
-        ("/api/system", _) => (200, "application/json", admin_system_json()),
+        ("/api/components", _) => (
+            200,
+            "application/json",
+            admin_components_json(auth_mode == AuthMode::Mutating),
+        ),
+        ("/api/system", _) => (
+            200,
+            "application/json",
+            admin_system_json(auth_mode == AuthMode::Mutating),
+        ),
         ("/api/routes", AuthMode::Mutating) if method == "POST" => {
             // Body after the head: accept full routes JSON (same schema as
             // routes.json / gRPC UpdateConfig) — validated before store.
@@ -4238,6 +4589,90 @@ fn validate_upstream_egress(routes: &HashMap<String, RouteConfig>) -> Result<(),
             bad.join(", ")
         ))
     }
+}
+
+/// Emit the final boot summary once every component has reported ready.
+/// Called once from `main` after all listeners are spawned; also queried by
+/// the admin panel (`/api/system`) and used by bench drivers as the
+/// "server is fully up" sentinel.
+fn log_boot_complete() {
+    let n = dyn_listeners_snapshot().len();
+    if n > 0 {
+        println!("🚀 Boot complete: data plane, control plane and admin UI are up (+{n} dynamic listener(s))");
+    } else {
+        println!("🚀 Boot complete: data plane, control plane and admin UI are up");
+    }
+}
+
+/// Dynamic reload: re-read settings.json and routes.json from disk and apply
+/// them to the live process — no restart. This is the admin panel's
+/// "Reload config" button and the `POST /api/admin/reload` endpoint.
+///
+/// Routes first (validated through the same path as `POST /api/routes`), then
+/// runtime knobs. Nothing is applied unless both files are valid, so a half
+/// written file pair can never leave the server in a mixed state.
+async fn admin_reload() -> Result<String, String> {
+    let routes_file = ADMIN_ROUTES_FILE
+        .get_or_init(|| {
+            std::env::var("JUGGLER_ROUTES_FILE").unwrap_or_else(|_| "routes.json".into())
+        })
+        .clone();
+    let body = std::fs::read_to_string(&routes_file)
+        .map_err(|e| format!("routes file {routes_file}: {e}"))?;
+    let loaded: ServerConfig =
+        serde_json::from_str(&body).map_err(|e| format!("routes JSON invalid: {e}"))?;
+    let cfg = ServerConfig {
+        routes: merge_static_routes(&default_static_root(), loaded.routes),
+    };
+    // Validate + swap routes (reuses the exact POST /api/rules path).
+    let n_routes = cfg.routes.len();
+    apply_admin_config(cfg)
+        .await
+        .map_err(|e| format!("routes: {e:#}"))?;
+    // Then runtime knobs from settings.json.
+    let sdata =
+        std::fs::read_to_string(SETTINGS_FILE).map_err(|e| format!("settings file: {e}"))?;
+    let sfile: SettingsFile =
+        serde_json::from_str(&sdata).map_err(|e| format!("settings JSON invalid: {e}"))?;
+    let s = settings();
+    if let Some(v) = sfile.balancer {
+        s.balancer.set(v);
+    }
+    if let Some(v) = sfile.rate_limit_tokens {
+        s.rate_limit_tokens.set(v);
+    }
+    if let Some(v) = sfile.rate_limit_refill {
+        s.rate_limit_refill.set(v);
+    }
+    if let Some(v) = sfile.pool_cap_per_upstream {
+        s.pool_cap_per_upstream.set(v);
+    }
+    if let Some(v) = sfile.max_keepalive_requests {
+        s.max_keepalive_requests.set(v);
+    }
+    if let Some(v) = sfile.pool_idle_timeout_secs {
+        s.pool_idle_timeout_secs.set(v);
+    }
+    if let Some(v) = sfile.prewarm_floor {
+        s.prewarm_floor.set(v);
+    }
+    if let Some(v) = sfile.health_max_failures {
+        s.health_max_failures.set(v);
+    }
+    if let Some(v) = sfile.health_cooldown_secs {
+        s.health_cooldown_secs.set(v);
+    }
+    if let Some(v) = sfile.adaptive_prewarm {
+        s.adaptive_prewarm.store(v, Ordering::Relaxed);
+    }
+    panel_log(
+        "info",
+        "control",
+        "dynamic reload applied (settings + routes)".to_string(),
+    );
+    Ok(format!(
+        "{{\"success\":true,\"routes\":{n_routes},\"knobs\":true}}"
+    ))
 }
 
 async fn apply_admin_config(new_cfg: ServerConfig) -> anyhow::Result<String> {
@@ -5861,6 +6296,10 @@ fn main() -> Result<()> {
     // Admin web UI + JSON API (JUGGLER_ADMIN_ADDR, default 127.0.0.1:9090):
     // dashboard with per-shard telemetry, route table, and hot-reload POST.
     spawn_admin_server(shared_config.clone(), routes_file.clone());
+
+    // Boot log after every listener is settled (used by the live bench driver
+    // and by /api/system's boot-detail readers to detect a complete boot).
+    log_boot_complete();
 
     // One OS thread per core, each with its own single-threaded Tokio runtime
     // and its own SO_REUSEPORT listener: the kernel load-balances connections
@@ -7528,6 +7967,82 @@ pub fn build_h1_request_from_parts(
 mod tests {
     use super::*;
     use std::time::Duration;
+
+    // ---- Admin credentials / sessions ----
+
+    #[test]
+    fn credentials_roundtrip_and_change() {
+        // Fresh test cell: the shared init reads admin_credentials.json (may
+        // exist from a live run); the API under test is state-changing, so
+        // exercise change/verify without depending on file state.
+        let ip: IpAddr = "192.0.2.77".parse().unwrap();
+        // Force a known state.
+        {
+            let mut creds = admin_credentials().write().unwrap();
+            *creds = AdminCredentials::new("ops", "s3cret-pw", false);
+        }
+        assert!(verify_admin_password("ops", "s3cret-pw", ip));
+        assert!(!verify_admin_password("ops", "wrong", ip));
+        assert!(!verify_admin_password("admin", "s3cret-pw", ip));
+        // Wrong current password rejected.
+        assert!(change_admin_credentials("ops", "nope", "newpassword1", None).is_err());
+        // Short new password rejected.
+        assert!(change_admin_credentials("ops", "s3cret-pw", "short", None).is_err());
+        // Valid change lands.
+        change_admin_credentials("ops", "s3cret-pw", "newpassword1", None).expect("change ok");
+        assert!(!verify_admin_password("ops", "s3cret-pw", ip));
+        assert!(verify_admin_password("ops", "newpassword1", ip));
+        // Username rename requires the CURRENT username + password (the
+        // change is authenticated as the existing account).
+        change_admin_credentials("root", "newpassword1", "another-pw-9", None)
+            .expect_err("wrong current username must be rejected");
+        change_admin_credentials("ops", "newpassword1", "another-pw-9", None).expect("rename ok");
+        assert!(verify_admin_password("ops", "another-pw-9", ip));
+        assert!(!verify_admin_password("root", "another-pw-9", ip));
+        // Optional new_username overrides the stored name.
+        change_admin_credentials("ops", "another-pw-9", "newer-pw-22", Some("admin2"))
+            .expect("new_username rename ok");
+        assert!(verify_admin_password("admin2", "newer-pw-22", ip));
+        assert!(!verify_admin_password("ops", "newer-pw-22", ip));
+        // Invalid rename rejected even with a correct current password.
+        assert!(change_admin_credentials(
+            "admin2",
+            "newer-pw-22",
+            "newer-pw-23",
+            Some("bad name!")
+        )
+        .is_err());
+    }
+
+    #[test]
+    fn session_tokens_issue_validate_revoke_and_expire() {
+        let tok = session_create();
+        assert!(session_valid(&tok));
+        assert!(!session_valid("forged-token"));
+        session_revoke(&tok);
+        assert!(!session_valid(&tok), "revoked session must be dead");
+        // TTL: forge an old issued timestamp and confirm expiry.
+        let tok2 = session_create();
+        admin_sessions()
+            .write()
+            .unwrap()
+            .get_mut(&tok2)
+            .unwrap()
+            .issued = Instant::now() - SESSION_TTL - Duration::from_secs(1);
+        assert!(!session_valid(&tok2), "expired session must be rejected");
+    }
+
+    #[test]
+    fn credential_persist_format_roundtrips() {
+        let creds = AdminCredentials::new("webmaster", "long-enough-pw", false);
+        let p = creds.persisted();
+        let json = serde_json::to_string(&p).unwrap();
+        let back: PersistedCredentials = serde_json::from_str(&json).unwrap();
+        let salt = hex_decode(&back.salt).unwrap();
+        let hash = hex_decode(&back.hash).unwrap();
+        assert!(pbkdf2_verify("long-enough-pw", &salt, back.iters, &hash));
+        assert!(!pbkdf2_verify("wrong-pw", &salt, back.iters, &hash));
+    }
 
     // ---- HTTP/1.1 pipelining ----
 

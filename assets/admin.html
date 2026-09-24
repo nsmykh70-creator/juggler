@@ -183,9 +183,10 @@ footer.pagefoot{margin-top:22px;display:flex;justify-content:space-between;color
     <h1>Juggler Admin</h1>
     <p data-i18n="login_sub">Web Server &amp; Proxy — вход в панель управления</p>
     <div class="login-err" id="login-err"></div>
-    <input type="password" id="login-token" data-i18n-ph="login_ph" placeholder="Токен администратора (JUGGLER_ADMIN_TOKEN)" autocomplete="current-password">
+    <input type="text" id="login-user" data-i18n-ph="login_user_ph" placeholder="Имя пользователя" autocomplete="username" style="margin-bottom:10px">
+    <input type="password" id="login-token" data-i18n-ph="login_ph" placeholder="Пароль" autocomplete="current-password">
     <button id="login-btn" data-i18n="login_btn">Войти</button>
-    <div class="login-note" data-i18n="login_note">Если на сервере токен не задан, панель работает в режиме только чтение — кнопка входа не обязательна.</div>
+    <div class="login-note" data-i18n="login_note">Учётные данные по умолчанию: admin / admin1 — смените их в Настройках после первого входа. Токен JUGGLER_ADMIN_TOKEN из окружения тоже работает.</div>
   </div>
 </div>
 
@@ -378,6 +379,23 @@ footer.pagefoot{margin-top:22px;display:flex;justify-content:space-between;color
               </div>
             </div>
           </div>
+          <div class="card" id="card-creds">
+            <h2 data-i18n="card_creds">Учётные данные администратора</h2>
+            <div id="cred-banner" class="ro" style="margin-bottom:10px;color:var(--amber)"></div>
+            <div class="set-name"><small data-i18n="creds_hint">Пароли хранятся как PBKDF2-SHA256 (60k итераций); смена пароля завершает все сессии, включая текущую.</small></div>
+            <div style="display:grid;gap:8px;margin-top:10px;max-width:420px">
+              <input type="text" id="cred-user" data-i18n-ph="cred_user_ph" placeholder="Текущее имя пользователя" autocomplete="username">
+              <input type="text" id="cred-rename" data-i18n-ph="cred_rename_ph" placeholder="Новое имя пользователя (необязательно)" autocomplete="off">
+              <input type="password" id="cred-cur" data-i18n-ph="cred_cur_ph" placeholder="Текущий пароль" autocomplete="current-password">
+              <input type="password" id="cred-new" data-i18n-ph="cred_new_ph" placeholder="Новый пароль (мин. 8 символов)" autocomplete="new-password">
+              <input type="password" id="cred-new2" data-i18n-ph="cred_new2_ph" placeholder="Новый пароль ещё раз" autocomplete="new-password">
+              <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+                <button class="btn" id="cred-save" data-i18n="cred_save">Сохранить учётные данные</button>
+                <button class="btn" id="logout-btn" style="background:var(--panel2)" data-i18n="logout">Выйти</button>
+                <span id="cred-status" class="hint"></span>
+              </div>
+            </div>
+          </div>
         </div>
         <div style="margin-top:16px;display:flex;align-items:center;gap:14px;flex-wrap:wrap">
           <button class="btn" id="settings-save" disabled data-i18n="save_btn">💾 Сохранить изменения</button>
@@ -444,7 +462,16 @@ en: {
   login_ph:"Admin token (JUGGLER_ADMIN_TOKEN)", login_btn:"Sign in",
   login_note:"If no token is set on the server, the panel runs in read-only mode — signing in is optional.",
   login_err_auth:"Authorization required", login_err_rate:"Too many failed attempts — retry in {s} s",
-  login_err_bad:"Invalid token", login_err_net:"No connection to server",
+  login_err_bad:"Invalid token",
+  login_user_ph:"Username", login_ph:"Password",
+  login_note:"Default credentials: admin / admin1 — change them in Settings after the first sign-in. The JUGGLER_ADMIN_TOKEN environment token also works.",
+  login_err_bad:"Invalid username or password",
+  card_creds:"Administrator credentials", creds_hint:"Passwords are stored as PBKDF2-SHA256 (60k iterations); changing the password signs out every session, including this one.",
+cred_user_ph:"Current username", cred_rename_ph:"New username (optional)", cred_cur_ph:"Current password", cred_new_ph:"New password (min. 8 characters)", cred_new2_ph:"Repeat new password",
+  cred_save:"Save credentials", logout:"Sign out", cred_saved:"Credentials changed — sign in with the new password",
+  cred_mismatch:"New passwords do not match", cred_short:"New password must be at least 8 characters",
+  default_creds_banner:"Default credentials are active (admin / admin1) — change them here.",
+  default_creds_warn:"Default credentials are active — change them in Settings",
   nav_overview:"Overview", nav_stats:"Statistics", nav_logs:"Logs", nav_routes:"Routes",
   nav_settings:"Settings", nav_security:"Security", nav_system:"System",
   footer_prod:"Web Server & Proxy", footer_admin:"Admin panel", foot_running:"Server is running",
@@ -520,7 +547,16 @@ de: {
   login_ph:"Admin-Token (JUGGLER_ADMIN_TOKEN)", login_btn:"Anmelden",
   login_note:"Wenn kein Token gesetzt ist, läuft das Panel im Nur-Lese-Modus — die Anmeldung ist optional.",
   login_err_auth:"Autorisierung erforderlich", login_err_rate:"Zu viele fehlgeschlagene Versuche — bitte in {s} s erneut versuchen",
-  login_err_bad:"Ungültiger Token", login_err_net:"Keine Verbindung zum Server",
+  login_err_bad:"Ungültiger Token",
+  login_user_ph:"Benutzername", login_ph:"Passwort",
+  login_note:"Standard-Zugangsdaten: admin / admin1 — nach der ersten Anmeldung in den Einstellungen ändern. Der Umgebungs-Token JUGGLER_ADMIN_TOKEN funktioniert ebenfalls.",
+  login_err_bad:"Ungültiger Benutzername oder Passwort",
+  card_creds:"Administrator-Zugangsdaten", creds_hint:"Passwörter werden als PBKDF2-SHA256 (60k Iterationen) gespeichert; eine Passwortänderung meldet alle Sitzungen ab.",
+cred_user_ph:"Aktueller Benutzername", cred_rename_ph:"Neuer Benutzername (optional)", cred_cur_ph:"Aktuelles Passwort", cred_new_ph:"Neues Passwort (min. 8 Zeichen)", cred_new2_ph:"Neues Passwort wiederholen",
+  cred_save:"Zugangsdaten speichern", logout:"Abmelden", cred_saved:"Zugangsdaten geändert — mit dem neuen Passwort anmelden",
+  cred_mismatch:"Neue Passwörter stimmen nicht überein", cred_short:"Neues Passwort muss mindestens 8 Zeichen haben",
+  default_creds_banner:"Standard-Zugangsdaten aktiv (admin / admin1) — hier ändern.",
+  default_creds_warn:"Standard-Zugangsdaten aktiv — in den Einstellungen ändern",
   nav_overview:"Übersicht", nav_stats:"Statistik", nav_logs:"Protokolle", nav_routes:"Routen",
   nav_settings:"Einstellungen", nav_security:"Sicherheit", nav_system:"System",
   footer_prod:"Web Server & Proxy", footer_admin:"Admin-Panel", foot_running:"Server läuft",
@@ -596,7 +632,16 @@ fr: {
   login_ph:"Jeton admin (JUGGLER_ADMIN_TOKEN)", login_btn:"Se connecter",
   login_note:"Si aucun jeton n'est défini sur le serveur, le panneau fonctionne en lecture seule — la connexion est facultative.",
   login_err_auth:"Autorisation requise", login_err_rate:"Trop de tentatives échouées — réessayez dans {s} s",
-  login_err_bad:"Jeton invalide", login_err_net:"Pas de connexion au serveur",
+  login_err_bad:"Jeton invalide",
+  login_user_ph:"Nom d'utilisateur", login_ph:"Mot de passe",
+  login_note:"Identifiants par défaut : admin / admin1 — modifiez-les dans les Paramètres après la première connexion. Le jeton d'environnement JUGGLER_ADMIN_TOKEN fonctionne aussi.",
+  login_err_bad:"Nom d'utilisateur ou mot de passe invalide",
+  card_creds:"Identifiants administrateur", creds_hint:"Les mots de passe sont stockés en PBKDF2-SHA256 (60k itérations) ; changer le mot de passe déconnecte toutes les sessions.",
+cred_user_ph:"Nom d'utilisateur actuel", cred_rename_ph:"Nouveau nom d'utilisateur (facultatif)", cred_cur_ph:"Mot de passe actuel", cred_new_ph:"Nouveau mot de passe (min. 8 caractères)", cred_new2_ph:"Répéter le nouveau mot de passe",
+  cred_save:"Enregistrer les identifiants", logout:"Se déconnecter", cred_saved:"Identifiants modifiés — connectez-vous avec le nouveau mot de passe",
+  cred_mismatch:"Les nouveaux mots de passe ne correspondent pas", cred_short:"Le nouveau mot de passe doit contenir au moins 8 caractères",
+  default_creds_banner:"Identifiants par défaut actifs (admin / admin1) — modifiez-les ici.",
+  default_creds_warn:"Identifiants par défaut actifs — modifiez-les dans les Paramètres",
   nav_overview:"Tableau de bord", nav_stats:"Statistiques", nav_logs:"Journaux", nav_routes:"Routes",
   nav_settings:"Paramètres", nav_security:"Sécurité", nav_system:"Système",
   footer_prod:"Web Server & Proxy", footer_admin:"Panneau d'administration", foot_running:"Le serveur fonctionne",
@@ -672,7 +717,16 @@ es: {
   login_ph:"Token de administrador (JUGGLER_ADMIN_TOKEN)", login_btn:"Entrar",
   login_note:"Si no hay token en el servidor, el panel funciona en modo de solo lectura — iniciar sesión es opcional.",
   login_err_auth:"Se requiere autorización", login_err_rate:"Demasiados intentos fallidos — reintenta en {s} s",
-  login_err_bad:"Token no válido", login_err_net:"Sin conexión con el servidor",
+  login_err_bad:"Token no válido",
+  login_user_ph:"Usuario", login_ph:"Contraseña",
+  login_note:"Credenciales por defecto: admin / admin1 — cámbielas en Ajustes tras el primer acceso. El token de entorno JUGGLER_ADMIN_TOKEN también funciona.",
+  login_err_bad:"Usuario o contraseña no válidos",
+  card_creds:"Credenciales de administrador", creds_hint:"Las contraseñas se guardan como PBKDF2-SHA256 (60k iteraciones); cambiar la contraseña cierra todas las sesiones.",
+cred_user_ph:"Usuario actual", cred_rename_ph:"Nuevo nombre de usuario (opcional)", cred_cur_ph:"Contraseña actual", cred_new_ph:"Nueva contraseña (mín. 8 caracteres)", cred_new2_ph:"Repita la nueva contraseña",
+  cred_save:"Guardar credenciales", logout:"Cerrar sesión", cred_saved:"Credenciales cambiadas — acceda con la nueva contraseña",
+  cred_mismatch:"Las nuevas contraseñas no coinciden", cred_short:"La nueva contraseña debe tener al menos 8 caracteres",
+  default_creds_banner:"Credenciales por defecto activas (admin / admin1) — cámbielas aquí.",
+  default_creds_warn:"Credenciales por defecto activas — cámbielas en Ajustes",
   nav_overview:"Resumen", nav_stats:"Estadísticas", nav_logs:"Registros", nav_routes:"Rutas",
   nav_settings:"Ajustes", nav_security:"Seguridad", nav_system:"Sistema",
   footer_prod:"Web Server & Proxy", footer_admin:"Panel de administración", foot_running:"El servidor funciona",
@@ -748,7 +802,16 @@ zh: {
   login_ph:"管理员令牌（JUGGLER_ADMIN_TOKEN）", login_btn:"登录",
   login_note:"若服务器未设置令牌，面板将以只读模式运行 — 无需登录。",
   login_err_auth:"需要授权", login_err_rate:"失败次数过多 — 请在 {s} 秒后重试",
-  login_err_bad:"令牌无效", login_err_net:"无法连接服务器",
+  login_err_bad:"令牌无效",
+  login_user_ph:"用户名", login_ph:"密码",
+  login_note:"默认凭据：admin / admin1 — 首次登录后请在“设置”中修改。环境变量 JUGGLER_ADMIN_TOKEN 也可使用。",
+  login_err_bad:"用户名或密码错误",
+  card_creds:"管理员凭据", creds_hint:"密码以 PBKDF2-SHA256（6 万次迭代）存储；修改密码会使所有会话（含当前会话）注销。",
+cred_user_ph:"当前用户名", cred_rename_ph:"新用户名（可选）", cred_cur_ph:"当前密码", cred_new_ph:"新密码（至少 8 个字符）", cred_new2_ph:"再次输入新密码",
+  cred_save:"保存凭据", logout:"退出登录", cred_saved:"凭据已修改 — 请使用新密码登录",
+  cred_mismatch:"两次输入的新密码不一致", cred_short:"新密码至少需要 8 个字符",
+  default_creds_banner:"默认凭据生效中（admin / admin1）— 请在此修改。",
+  default_creds_warn:"默认凭据生效中 — 请在“设置”中修改",
   nav_overview:"总览", nav_stats:"统计", nav_logs:"日志", nav_routes:"路由",
   nav_settings:"设置", nav_security:"安全", nav_system:"系统",
   footer_prod:"Web Server & Proxy", footer_admin:"管理面板", foot_running:"服务器运行中",
@@ -824,7 +887,16 @@ ru: {
   login_ph:"Токен администратора (JUGGLER_ADMIN_TOKEN)", login_btn:"Войти",
   login_note:"Если на сервере токен не задан, панель работает в режиме только чтение — кнопка входа не обязательна.",
   login_err_auth:"Требуется авторизация", login_err_rate:"Слишком много неудачных попыток — повторите через {s} с",
-  login_err_bad:"Неверный токен", login_err_net:"Нет связи с сервером",
+  login_err_bad:"Неверный токен",
+  login_user_ph:"Имя пользователя", login_ph:"Пароль",
+  login_note:"Учётные данные по умолчанию: admin / admin1 — смените их в Настройках после первого входа. Токен JUGGLER_ADMIN_TOKEN из окружения тоже работает.",
+  login_err_bad:"Неверное имя пользователя или пароль",
+  card_creds:"Учётные данные администратора", creds_hint:"Пароли хранятся как PBKDF2-SHA256 (60k итераций); смена пароля завершает все сессии, включая текущую.",
+cred_user_ph:"Текущее имя пользователя", cred_rename_ph:"Новое имя пользователя (необязательно)", cred_cur_ph:"Текущий пароль", cred_new_ph:"Новый пароль (мин. 8 символов)", cred_new2_ph:"Новый пароль ещё раз",
+  cred_save:"Сохранить учётные данные", logout:"Выйти", cred_saved:"Учётные данные изменены — войдите с новым паролем",
+  cred_mismatch:"Новые пароли не совпадают", cred_short:"Новый пароль должен быть не короче 8 символов",
+  default_creds_banner:"Активны учётные данные по умолчанию (admin / admin1) — смените их здесь.",
+  default_creds_warn:"Активны учётные данные по умолчанию — смените их в Настройках",
   nav_overview:"Обзор", nav_stats:"Статистика", nav_logs:"Логи", nav_routes:"Маршруты",
   nav_settings:"Настройки", nav_security:"Безопасность", nav_system:"Система",
   footer_prod:"Web Server & Proxy", footer_admin:"Панель администратора", foot_running:"Сервер работает",
@@ -963,21 +1035,28 @@ function showLogin(err){
   setTimeout(()=>$('login-token').focus(), 50);
 }
 function hideLogin(){ $('login').classList.add('hidden'); }
-async function tryAuth(tok){
-  const h = tok ? {'Authorization':'Bearer '+tok} : {};
-  const r = await fetch('/api/overview', {headers:h});
+async function tryAuth(user, pass){
+  let r;
+  try {
+    r = await fetch('/api/login', {method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({user: user, password: pass})});
+  } catch(e){ $('login-err').textContent = t('login_err_net'); return false; }
   if (r.status === 429){
     const ra = r.headers.get('Retry-After') || '?';
     $('login-err').textContent = tf('login_err_rate',{s:ra});
     return false;
   }
   if (r.status === 401){ $('login-err').textContent = t('login_err_bad'); return false; }
-  TOK = tok; sessionStorage.setItem('juggler_token', tok);
+  if (!r.ok){ $('login-err').textContent = t('login_err_bad'); return false; }
+  const d = await r.json();
+  TOK = d.token; sessionStorage.setItem('juggler_token', d.token);
+  if (d.default_credentials) setTimeout(()=>toast(t('default_creds_warn')), 600);
   hideLogin(); loadSettings(); pollCurrent(true);
   return true;
 }
-$('login-btn').onclick = () => tryAuth($('login-token').value.trim());
-$('login-token').addEventListener('keydown', e => { if (e.key==='Enter') tryAuth($('login-token').value.trim()); });
+$('login-btn').onclick = () => tryAuth($('login-user').value.trim(), $('login-token').value);
+$('login-token').addEventListener('keydown', e => { if (e.key==='Enter') tryAuth($('login-user').value.trim(), $('login-token').value); });
+$('login-user').addEventListener('keydown', e => { if (e.key==='Enter') $('login-token').focus(); });
 
 /* ---------- router ---------- */
 const PAGES = ['overview','stats','logs','routes','settings','security','system'];
@@ -1212,9 +1291,8 @@ function niceMax(v){
 $('qa-reload').onclick = async () => {
   if (roBlocked()) return;
   try{
-    const cfg = await apiJson('/api/routes');
-    const r = await api('/api/routes', {method:'POST', body:JSON.stringify(cfg)});
-    if (r.ok){ toast(t('ok_routes')); pollCurrent(true); }
+    const r = await api('/api/admin/reload', {method:'POST', body:'{}'});
+    if (r.ok){ toast(t('qa_reload')+' — '+t('done')); pollCurrent(true); }
     else toast(t('err_prefix')+(await r.text()), true);
   }catch(e){ toast(t('err_prefix')+e.message, true); }
 };
@@ -1418,6 +1496,7 @@ async function loadSettings(){
     settingsData = await apiJson('/api/settings');
     settings_hint_pool_cap = (settingsData.settings.find(s=>s.name==='pool_cap_per_upstream')||{}).value || 512;
     renderSettings();
+    refreshCredCard();
   }catch(e){ if (e.status===401) showLogin(); }
 }
 function renderSettings(){
@@ -1526,6 +1605,46 @@ $('lp-add').onclick = ()=>{
   const bind = '0.0.0.0:'+port;
   $('lp-addr').value='';
   dynPort('add', bind, $('lp-kind').value);
+};
+
+/* ---- Учётные данные администратора (login / смена пароля) ------------ */
+async function refreshCredCard(){
+  try{
+    const d = await apiJson('/api/session');
+    $('cred-user').value = d.authenticated ? (d.user||'') : '';
+    $('cred-banner').textContent = d.default_credentials
+      ? t('default_creds_banner')
+      : '';
+  }catch(e){ /* read-only mode: карточка не критична */ }
+}
+$('cred-save').onclick = async () => {
+  if (roBlocked()) return;
+  const user = $('cred-user').value.trim(),
+        rename = $('cred-rename').value.trim(),
+        cur = $('cred-cur').value,
+        p1 = $('cred-new').value, p2 = $('cred-new2').value;
+  if (p1 !== p2){ $('cred-status').textContent = t('cred_mismatch'); return; }
+  if (p1.length < 8){ $('cred-status').textContent = t('cred_short'); return; }
+  try{
+    const r = await api('/api/admin/credentials', {method:'POST',
+      body: JSON.stringify({user, current_password: cur, new_password: p1, ...(rename?{new_username:rename}:{})})});
+    const d = await r.json().catch(()=>({}));
+    if (r.ok){
+      toast(t('cred_saved'));
+      ['cred-cur','cred-new','cred-new2'].forEach(id=>$(id).value='');
+      $('cred-status').textContent = '';
+      // Все сессии сброшены сервером — перелогин новым паролем.
+      TOK=''; sessionStorage.removeItem('juggler_token');
+      showLogin(t('cred_saved')); $('cred-user') && ($('login-user').value = rename || user);
+    } else {
+      $('cred-status').textContent = (d.error||await r.text()).slice(0,120);
+    }
+  }catch(e){ $('cred-status').textContent = e.message.slice(0,120); }
+};
+$('logout-btn').onclick = async () => {
+  try{ await api('/api/logout', {method:'POST'}); }catch(e){}
+  TOK=''; sessionStorage.removeItem('juggler_token');
+  showLogin();
 };
 
 /* ================================================================

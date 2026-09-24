@@ -20,3 +20,6 @@ juggler_live.log
 bench/probe_live.json
 mock_pid.txt
 www/aicms/admin/cache/
+admin_credentials.json
+build_rel.err
+juggler_live.err
