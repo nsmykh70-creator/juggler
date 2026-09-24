@@ -23,6 +23,10 @@ services:
       JUGGLER_PLAIN_HTTP_ADDR: 0.0.0.0:8080   # wrk cannot speak TLS
       # The admin UI must be reachable through the 19090 port mapping.
       JUGGLER_ADMIN_ADDR: 0.0.0.0:9090
+      # CMS demo routes (aicms/wordpress/joomla containers) resolve to
+      # RFC1918 addresses inside the bench network; the SSRF egress policy
+      # forbids private targets unless explicitly allowed.
+      JUGGLER_ALLOW_PRIVATE_UPSTREAMS: "1"
       # Benchmark mode: the per-IP token bucket is a DoS guard, not a bench
       # knob; a load test from one IP would throttle itself immediately.
       JUGGLER_RATE_LIMIT_TOKENS: "1000000"

@@ -1079,6 +1079,13 @@ pub struct RouteConfig {
     /// `index.html` inside it.
     #[serde(default)]
     pub static_dir: Option<String>,
+    /// nginx `proxy_pass http://backend;` semantics (no URI part): forward
+    /// the FULL request path, including the matched route prefix. Use for
+    /// upstreams whose files physically live under the route subdirectory
+    /// (CMS subdirectory installs). Default `false` strips the prefix
+    /// (`proxy_pass http://backend/;` semantics).
+    #[serde(default)]
+    pub preserve_prefix: bool,
 }
 
 #[derive(Clone, Serialize, Deserialize, Debug, Default, PartialEq)]
@@ -2936,6 +2943,7 @@ impl ControlPlane for MyControlPlane {
                         cms_fallback_path: security.cms_fallback_path,
                     },
                     static_dir: None,
+                    preserve_prefix: false,
                 },
             );
         }
@@ -5407,7 +5415,17 @@ fn resolve_route(
                     .inc();
                 return RouteDecision::Redirect301(format!("{prefix}/"));
             }
-            return proxy_decision(path, route, body, prefix.len(), proto);
+            return proxy_decision(
+                path,
+                route,
+                body,
+                if route.preserve_prefix {
+                    0
+                } else {
+                    prefix.len()
+                },
+                proto,
+            );
         }
     }
     {
@@ -6813,8 +6831,14 @@ where
                 } else {
                     format!("/{}{}", path.trim_start_matches('/'), query)
                 };
-                let forwarded =
-                    build_forwarded_request(&req, &buf, &body, &extra_headers, &forwarded_target);
+                let forwarded = build_forwarded_request(
+                    &req,
+                    &buf,
+                    &body,
+                    &extra_headers,
+                    &forwarded_target,
+                    peer_ip,
+                );
                 // Signature oracle: hash the request pattern so the cost
                 // prediction is available to the balancer and the observed
                 // cost is fed back after dispatch.
@@ -6965,6 +6989,7 @@ fn build_forwarded_request(
     body: &[u8],
     extra_headers: &[(String, String)],
     target_override: &str,
+    client_ip: IpAddr,
 ) -> Vec<u8> {
     let head_len = req.body_offset.min(raw.len());
     let head_end = head_len.saturating_sub(2); // keep the last header CRLF, drop the blank line
@@ -7048,7 +7073,10 @@ fn build_forwarded_request(
     }
 
     // Injected headers, written directly into the output (zero temp allocs).
-    out.extend_from_slice(b"X-Forwarded-For: client\r\n");
+    // XFF must carry the real peer IP: literal placeholders like "client" make
+    // mod_remoteip downstream try to interpret/resolve them (observed as
+    // multi-second stalls against WordPress/Joomla containers).
+    out.extend_from_slice(format!("X-Forwarded-For: {client_ip}\r\n").as_bytes());
     out.extend_from_slice(b"X-Request-Id: req-");
     const HEX: &[u8; 16] = b"0123456789abcdef";
     let r = rand::random::<u64>();
@@ -7347,6 +7375,7 @@ async fn handle_h2_request(
                 &head.headers,
                 &body,
                 &extra_headers,
+                peer_ip,
             );
             let sig = request_signature_hash(head.method.as_str().as_bytes(), &path, body.len());
             let (result, _used_upstream) = dispatch_to_upstreams(&forwarded, &upstreams, sig).await;
@@ -7444,6 +7473,7 @@ pub fn build_h1_request_from_parts(
     headers: &HeaderMap,
     body: &[u8],
     extra_headers: &[(String, String)],
+    client_ip: IpAddr,
 ) -> Vec<u8> {
     let mut out = Vec::with_capacity(body.len() + 512);
     out.extend_from_slice(format!("{} {} HTTP/1.1\r\n", method.as_str(), target).as_bytes());
@@ -7478,7 +7508,8 @@ pub fn build_h1_request_from_parts(
     }
     out.extend_from_slice(format!("Host: {}\r\n", host.unwrap_or("localhost")).as_bytes());
     out.extend_from_slice(b"Connection: keep-alive\r\n");
-    out.extend_from_slice(b"X-Forwarded-For: client\r\n");
+    // Real peer IP (see build_forwarded_request: "client" stalls mod_remoteip).
+    out.extend_from_slice(format!("X-Forwarded-For: {client_ip}\r\n").as_bytes());
     out.extend_from_slice(format!("X-Request-Id: req-{:x}\r\n", rand::random::<u64>()).as_bytes());
     for (k, v) in extra_headers {
         out.extend_from_slice(format!("{k}: {v}\r\n").as_bytes());
@@ -8135,8 +8166,14 @@ mod tests {
         headers.insert("host", "example.com".parse().unwrap());
         headers.insert("user-agent", "h2-client".parse().unwrap());
         headers.insert("x-forwarded-for", "spoofed".parse().unwrap());
-        let out =
-            build_h1_request_from_parts(&http::Method::POST, "/api?x=1", &headers, b"payload", &[]);
+        let out = build_h1_request_from_parts(
+            &http::Method::POST,
+            "/api?x=1",
+            &headers,
+            b"payload",
+            &[],
+            "203.0.113.9".parse().unwrap(),
+        );
         let text = String::from_utf8(out).unwrap();
         assert!(text.starts_with("POST /api?x=1 HTTP/1.1\r\n"));
         assert!(text.contains("Host: example.com"));
@@ -8145,7 +8182,7 @@ mod tests {
         assert!(!text.to_ascii_lowercase().contains("transfer-encoding"));
         // forwarded headers are replaced, not duplicated
         assert_eq!(text.matches("X-Forwarded-For").count(), 1);
-        assert!(text.contains("X-Forwarded-For: client"));
+        assert!(text.contains("X-Forwarded-For: 203.0.113.9\r\n"));
         assert!(text.contains("X-Request-Id: req-"));
         // body framing is exact
         assert!(text.contains("Content-Length: 7\r\n"));
@@ -8213,6 +8250,7 @@ mod tests {
                 wasm_plugin: None,
                 security: SecurityConfig::default(),
                 static_dir: None,
+                preserve_prefix: false,
             },
         );
         bal.update_registry(&routes);
@@ -8239,6 +8277,7 @@ mod tests {
                 wasm_plugin: None,
                 security: SecurityConfig::default(),
                 static_dir: None,
+                preserve_prefix: false,
             },
         );
         bal.update_registry(&cfg1);
@@ -8253,6 +8292,7 @@ mod tests {
                 wasm_plugin: None,
                 security: SecurityConfig::default(),
                 static_dir: None,
+                preserve_prefix: false,
             },
         );
         bal.update_registry(&cfg2);
@@ -8518,7 +8558,14 @@ mod tests {
         let req = parse_request(raw).unwrap();
         let body = b"abcd".to_vec();
         let extra = vec![("X-Plugin".to_string(), "1".to_string())];
-        let out = build_forwarded_request(&req, raw, &body, &extra, "/api");
+        let out = build_forwarded_request(
+            &req,
+            raw,
+            &body,
+            &extra,
+            "/api",
+            "127.0.0.1".parse().unwrap(),
+        );
         let parsed = parse_request(&out).unwrap();
         assert_eq!(parsed.content_length(), 4);
         assert!(out.windows(11).any(|w| w == b"X-Plugin: 1"));
@@ -8624,12 +8671,14 @@ mod tests {
                 cms_fallback_path: Some("/cms".into()),
             },
             static_dir: None,
+            preserve_prefix: false,
         };
         let cms = RouteConfig {
             upstream_addrs: vec!["10.0.0.2:80".into()],
             wasm_plugin: None,
             security: SecurityConfig::default(),
             static_dir: None,
+            preserve_prefix: false,
         };
         let mut routes = HashMap::new();
         routes.insert("/api".to_string(), route.clone());
@@ -8717,6 +8766,47 @@ mod tests {
     }
 
     #[test]
+    fn preserve_prefix_forwards_full_path() {
+        // nginx proxy_pass-without-URI semantics: preserve_prefix=true keeps
+        // the route prefix in the forwarded path (strip 0), for upstreams
+        // whose files live under the route subdirectory.
+        let cfg = sec_config();
+        let mut routes = cfg.load().routes.clone();
+        routes.insert(
+            "/joomla".to_string(),
+            RouteConfig {
+                upstream_addrs: vec!["10.0.0.9:80".into()],
+                preserve_prefix: true,
+                ..Default::default()
+            },
+        );
+        let swap = Arc::new(ArcSwap::from_pointee(ServerConfig { routes }));
+        let mut body = Vec::new();
+        match resolve_route(
+            "/joomla/administrator/",
+            &mut body,
+            "203.0.113.8".parse().unwrap(),
+            PROTO_H1,
+            &swap,
+        ) {
+            RouteDecision::Proxy(_, _, _, _, strip) => assert_eq!(strip, 0),
+            other => panic!("expected proxy decision, got {other:?}"),
+        }
+        // Default stays strip-mode.
+        let mut body2 = Vec::new();
+        match resolve_route(
+            "/api/x",
+            &mut body2,
+            "203.0.113.8".parse().unwrap(),
+            PROTO_H1,
+            &swap,
+        ) {
+            RouteDecision::Proxy(_, _, _, _, strip) => assert_eq!(strip, 4),
+            other => panic!("expected proxy decision, got {other:?}"),
+        }
+    }
+
+    #[test]
     fn longer_prefix_wins_over_shorter() {
         // /api and /api/v2 both proxy: /api/v2/x must pick /api/v2 (strip 7).
         let cfg = sec_config();
@@ -8753,12 +8843,22 @@ mod tests {
         assert_eq!(req.query(raw), "page=2&x=1");
         let body = Vec::new();
         let extra: Vec<(String, String)> = Vec::new();
-        let out = build_forwarded_request(&req, raw, &body, &extra, "/index.php?page=2&x=1");
+        let out = build_forwarded_request(
+            &req,
+            raw,
+            &body,
+            &extra,
+            "/index.php?page=2&x=1",
+            "192.0.2.7".parse().unwrap(),
+        );
         let text = String::from_utf8(out).unwrap();
         assert!(
             text.starts_with("GET /index.php?page=2&x=1 HTTP/1.1\r\n"),
             "{text}"
         );
+        // Real peer IP in XFF, never the old "client" placeholder.
+        assert!(text.contains("X-Forwarded-For: 192.0.2.7\r\n"), "{text}");
+        assert!(!text.contains("X-Forwarded-For: client"));
     }
 
     #[test]
@@ -9256,6 +9356,7 @@ mod hardening_tests {
                 wasm_plugin: None,
                 security: SecurityConfig::default(),
                 static_dir: None,
+                preserve_prefix: false,
             },
         );
         assert!(validate_upstream_egress(&routes).is_err());

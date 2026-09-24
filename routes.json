@@ -8,7 +8,21 @@
         "response_headers": [],
         "cms_fallback_path": null
       },
-      "static_dir": "www\\sample_sites1"
+      "static_dir": "www\\sample_sites1",
+      "preserve_prefix": false
+    },
+    "/wordpress": {
+      "upstream_addrs": [
+        "127.0.0.1:8092"
+      ],
+      "wasm_plugin": null,
+      "security": {
+        "deny_substrings": [],
+        "response_headers": [],
+        "cms_fallback_path": null
+      },
+      "static_dir": null,
+      "preserve_prefix": true
     },
     "/sample_sites3": {
       "upstream_addrs": [],
@@ -18,7 +32,8 @@
         "response_headers": [],
         "cms_fallback_path": null
       },
-      "static_dir": "www\\sample_sites3"
+      "static_dir": "www\\sample_sites3",
+      "preserve_prefix": false
     },
     "/sample_sites2": {
       "upstream_addrs": [],
@@ -28,20 +43,8 @@
         "response_headers": [],
         "cms_fallback_path": null
       },
-      "static_dir": "www\\sample_sites2"
-    },
-    "/api": {
-      "upstream_addrs": [
-        "127.0.0.1:7001",
-        "127.0.0.1:7002"
-      ],
-      "wasm_plugin": null,
-      "security": {
-        "deny_substrings": [],
-        "response_headers": [],
-        "cms_fallback_path": null
-      },
-      "static_dir": null
+      "static_dir": "www\\sample_sites2",
+      "preserve_prefix": false
     },
     "/aicms": {
       "upstream_addrs": [
@@ -53,7 +56,21 @@
         "response_headers": [],
         "cms_fallback_path": null
       },
-      "static_dir": null
+      "static_dir": null,
+      "preserve_prefix": false
+    },
+    "/joomla": {
+      "upstream_addrs": [
+        "127.0.0.1:8093"
+      ],
+      "wasm_plugin": null,
+      "security": {
+        "deny_substrings": [],
+        "response_headers": [],
+        "cms_fallback_path": null
+      },
+      "static_dir": null,
+      "preserve_prefix": true
     }
   }
 }
