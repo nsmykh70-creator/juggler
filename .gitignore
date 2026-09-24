@@ -19,3 +19,4 @@ mock_live.*
 juggler_live.log
 bench/probe_live.json
 mock_pid.txt
+www/aicms/admin/cache/

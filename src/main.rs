@@ -1726,8 +1726,13 @@ struct SettingsFile {
     health_cooldown_secs: Option<u64>,
     #[serde(default)]
     adaptive_prewarm: Option<bool>,
+    /// Runtime-added data-plane listeners: [{addr:"0.0.0.0:8000", kind:"http"}].
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    extra_listeners: Option<Vec<serde_json::Value>>,
 }
 
+/// Single writer for settings.json: runtime knobs + dynamic listeners.
+/// Two read-modify-write paths would race and silently drop one block.
 fn persist_settings() {
     // Unit tests apply settings through the same code path; persisting from
     // a test binary would pollute the real settings.json that the server
@@ -1735,26 +1740,38 @@ fn persist_settings() {
     #[cfg(test)]
     return;
     #[allow(unreachable_code)]
-    let s = settings();
-    let file = SettingsFile {
-        balancer: Some(s.balancer.get()),
-        rate_limit_tokens: Some(s.rate_limit_tokens.get()),
-        rate_limit_refill: Some(s.rate_limit_refill.get()),
-        pool_cap_per_upstream: Some(s.pool_cap_per_upstream.get()),
-        max_keepalive_requests: Some(s.max_keepalive_requests.get()),
-        pool_idle_timeout_secs: Some(s.pool_idle_timeout_secs.get()),
-        prewarm_floor: Some(s.prewarm_floor.get()),
-        health_max_failures: Some(s.health_max_failures.get()),
-        health_cooldown_secs: Some(s.health_cooldown_secs.get()),
-        adaptive_prewarm: Some(s.adaptive_prewarm.load(Ordering::Relaxed)),
-    };
-    match serde_json::to_string_pretty(&file) {
-        Ok(json) => {
-            if let Err(e) = std::fs::write(SETTINGS_FILE, json) {
-                eprintln!("⚠️ failed to persist settings: {e}");
+    {
+        let s = settings();
+        let file = SettingsFile {
+            balancer: Some(s.balancer.get()),
+            rate_limit_tokens: Some(s.rate_limit_tokens.get()),
+            rate_limit_refill: Some(s.rate_limit_refill.get()),
+            pool_cap_per_upstream: Some(s.pool_cap_per_upstream.get()),
+            max_keepalive_requests: Some(s.max_keepalive_requests.get()),
+            pool_idle_timeout_secs: Some(s.pool_idle_timeout_secs.get()),
+            prewarm_floor: Some(s.prewarm_floor.get()),
+            health_max_failures: Some(s.health_max_failures.get()),
+            health_cooldown_secs: Some(s.health_cooldown_secs.get()),
+            adaptive_prewarm: Some(s.adaptive_prewarm.load(Ordering::Relaxed)),
+            extra_listeners: {
+                let list = dyn_listeners_snapshot();
+                (!list.is_empty()).then(|| {
+                    list.iter()
+                        .map(
+                            |(a, k)| serde_json::json!({"addr": a.to_string(), "kind": k.as_str()}),
+                        )
+                        .collect()
+                })
+            },
+        };
+        match serde_json::to_string_pretty(&file) {
+            Ok(json) => {
+                if let Err(e) = std::fs::write(SETTINGS_FILE, json) {
+                    eprintln!("⚠️ failed to persist settings: {e}");
+                }
             }
+            Err(e) => eprintln!("⚠️ failed to serialize settings: {e}"),
         }
-        Err(e) => eprintln!("⚠️ failed to serialize settings: {e}"),
     }
 }
 
@@ -1798,6 +1815,361 @@ fn load_settings_file() {
         s.adaptive_prewarm.store(v, Ordering::Relaxed);
     }
     println!("🎛️  Loaded runtime settings from {SETTINGS_FILE}");
+}
+
+// ---- Dynamic data-plane listeners -----------------------------------------
+//
+// Extra HTTP/HTTPS ports beyond the env-configured ones, managed at runtime
+// from the admin panel. Each listener is a central acceptor thread that hands
+// connections to the SAME per-shard mailboxes the static listeners use
+// (handoff_plain()/handoff_tls()), so shards need zero new state: backpressure,
+// forecast steering and telemetry apply unchanged. kernel-reuseport shards
+// cannot add listeners at runtime (their accept loops are fixed at boot) —
+// the API answers 409 there.
+//
+// Rebinding a port = remove + add in one POST (bind is only taken after the
+// old listener's socket is closed, so the same port can be re-bound to a
+// different kind).
+
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+enum ListenerKind {
+    Plain,
+    Tls,
+}
+
+impl ListenerKind {
+    fn as_str(self) -> &'static str {
+        match self {
+            ListenerKind::Plain => "http",
+            ListenerKind::Tls => "https",
+        }
+    }
+    fn handoff(self) -> HandoffKind {
+        match self {
+            ListenerKind::Plain => HandoffKind::Plain,
+            ListenerKind::Tls => HandoffKind::Tls,
+        }
+    }
+    fn from_str(s: &str) -> Option<Self> {
+        match s.to_ascii_lowercase().as_str() {
+            "http" | "plain" => Some(ListenerKind::Plain),
+            "https" | "tls" | "ssl" => Some(ListenerKind::Tls),
+            _ => None,
+        }
+    }
+}
+
+struct DynListener {
+    addr: SocketAddr,
+    kind: ListenerKind,
+    /// Signals the acceptor thread to exit, which closes the listener socket
+    /// and frees the port.
+    shutdown: Option<tokio::sync::oneshot::Sender<()>>,
+}
+
+static DYN_LISTENERS: OnceLock<std::sync::RwLock<Vec<DynListener>>> = OnceLock::new();
+
+fn dyn_listeners() -> &'static std::sync::RwLock<Vec<DynListener>> {
+    DYN_LISTENERS.get_or_init(|| std::sync::RwLock::new(Vec::new()))
+}
+
+/// (addr, kind) view for checks and persistence.
+fn dyn_listeners_snapshot() -> Vec<(SocketAddr, ListenerKind)> {
+    dyn_listeners()
+        .read()
+        .unwrap()
+        .iter()
+        .map(|l| (l.addr, l.kind))
+        .collect()
+}
+
+/// Ports that must never be taken by a dynamic data-plane listener: the
+/// control plane (admin/gRPC) and the boot listeners from env. Overlap would
+/// make this server fight itself (or unbind its own admin UI).
+fn reserved_listener_addrs() -> Vec<SocketAddr> {
+    let mut v = Vec::new();
+    let mut push = |s: &str| {
+        if let Ok(a) = s.parse::<SocketAddr>() {
+            v.push(a);
+        }
+    };
+    push(&std::env::var("JUGGLER_ADMIN_ADDR").unwrap_or_else(|_| "127.0.0.1:9090".into()));
+    push(&std::env::var("JUGGLER_GRPC_ADDR").unwrap_or_else(|_| "127.0.0.1:50051".into()));
+    if let Ok(s) = std::env::var("JUGGLER_HTTP_ADDR") {
+        push(&s);
+    }
+    if let Ok(s) = std::env::var("JUGGLER_PLAIN_HTTP_ADDR") {
+        push(&s);
+    }
+    if let Ok(s) = std::env::var("JUGGLER_REDIRECT_HTTP") {
+        push(&s);
+    }
+    v
+}
+
+fn validate_listener(addr: SocketAddr) -> Result<(), String> {
+    // Shards only drain hand-off mailboxes in HandOff mode; a dynamic
+    // acceptor in kernel-reuseport mode would queue connections forever.
+    if accept_mode() != AcceptMode::HandOff {
+        return Err("runtime listeners need accept_mode=handoff (JUGGLER_ACCEPT_MODE)".to_string());
+    }
+    // TLS material is always available (the boot path falls back to a
+    // generated self-signed pair), so HTTPS needs no extra configuration.
+    // Duplicate-addr checks live under the registry lock in dyn_listeners_post
+    // (here they would wrongly reject `replace`, which rebinds a known addr).
+    if reserved_listener_addrs().contains(&addr) {
+        return Err(format!(
+            "{addr} is in use by a control-plane/boot listener; pick another port"
+        ));
+    }
+    Ok(())
+}
+
+/// One central acceptor for a runtime-added listener. Same loop and hand-off
+/// semantics as the boot acceptors (see spawn_acceptor): backpressure pauses
+/// accept, each connection is steered to the least-loaded shard. Returns a
+/// shutdown sender: firing it makes the thread exit and close the socket
+/// (freeing the port) — unlike dropping a duplicate handle, which would not.
+fn spawn_dynamic_acceptor(
+    bind_addr: SocketAddr,
+    kind: ListenerKind,
+) -> Result<(SocketAddr, tokio::sync::oneshot::Sender<()>), String> {
+    let std_listener =
+        try_bind_shard_listener(bind_addr).map_err(|e| format!("bind {bind_addr}: {e}"))?;
+    // Resolve BEFORE the socket moves into the acceptor thread: port 0 must
+    // be recorded as the OS-assigned port, not as ":0".
+    let bound_addr = std_listener
+        .local_addr()
+        .map_err(|e| format!("local_addr {bind_addr}: {e}"))?;
+    let rt = tokio::runtime::Builder::new_current_thread()
+        .enable_all()
+        .build()
+        .map_err(|e| format!("runtime: {e}"))?;
+    let (tx, rx) = tokio::sync::oneshot::channel::<()>();
+    let name = format!("juggler-dyn-{}", kind.as_str());
+    std::thread::Builder::new()
+        .name(name.clone())
+        .spawn(move || {
+            rt.block_on(async move {
+                let listener = match tokio::net::TcpListener::from_std(std_listener) {
+                    Ok(l) => l,
+                    Err(e) => {
+                        eprintln!("❌ {name} listener -> tokio failed: {e}");
+                        return;
+                    }
+                };
+                let mut shutdown = Box::pin(rx);
+                loop {
+                    tokio::select! {
+                        res = listener.accept() => match res {
+                            Ok((stream, peer)) => {
+                                let _ = stream.set_nodelay(true);
+                                let mailboxes = match kind {
+                                    ListenerKind::Plain => handoff_plain(),
+                                    ListenerKind::Tls => handoff_tls(),
+                                };
+                                let target = pick_shard(mailboxes.len(), kind.handoff());
+                                record_steering(target, kind.handoff());
+                                if let Some(m) = mailboxes.get(target) {
+                                    m.push(stream, peer.ip());
+                                }
+                            }
+                            Err(e) => eprintln!("❌ {name} accept error: {e}"),
+                        },
+                        _ = &mut shutdown => return, // socket closes with the thread
+                    }
+                }
+            })
+        })
+        .map_err(|e| format!("spawn: {e}"))?;
+    println!(
+        "🌐 dynamic {} listener on {bound_addr} (hand-off)",
+        kind.as_str()
+    );
+    Ok((bound_addr, tx))
+}
+
+fn dyn_listeners_json() -> String {
+    let list: Vec<serde_json::Value> = dyn_listeners()
+        .read()
+        .unwrap()
+        .iter()
+        .map(|l| {
+            serde_json::json!({
+                "addr": l.addr.to_string(),
+                "port": l.addr.port(),
+                "kind": l.kind.as_str(),
+                "dynamic": true,
+            })
+        })
+        .collect();
+    serde_json::json!({ "listeners": list }).to_string()
+}
+
+/// POST /api/listeners — {action:"add"|"remove"|"replace", addr, kind}.
+/// add binds first and records only on success; remove signals the acceptor
+/// thread to exit (socket closes, port frees; in-flight connections drain);
+/// replace flips http↔https on one port, waiting out the old socket so the
+/// bind never races. Failures leave the registry untouched; the surviving
+/// state persists to settings.json.
+fn dyn_listeners_post(body: &[u8]) -> (u16, String) {
+    #[derive(serde::Deserialize)]
+    struct Req {
+        action: String,
+        addr: String,
+        /// Optional: only add/replace need it; remove keys on the addr alone
+        /// (the UI's delete button omits it).
+        #[serde(default)]
+        kind: String,
+    }
+    let req = match serde_json::from_slice::<Req>(body) {
+        Ok(r) => r,
+        Err(e) => return (400, format!("bad JSON: {e}")),
+    };
+    // kind is only meaningful for add/replace; remove keys on the addr alone
+    // (the UI's delete button sends an empty kind).
+    let kind = match req.action.as_str() {
+        "remove" => ListenerKind::Plain,
+        _ => match ListenerKind::from_str(&req.kind) {
+            Some(k) => k,
+            None => return (400, "kind must be http or https".into()),
+        },
+    };
+    let Ok(addr) = req.addr.parse::<SocketAddr>() else {
+        return (400, "addr must be ip:port, e.g. 0.0.0.0:8000".into());
+    };
+    if !matches!(req.action.as_str(), "add" | "remove" | "replace") {
+        return (
+            400,
+            format!("unknown action: {} (add|remove|replace)", req.action),
+        );
+    }
+    if let Err(e) = validate_listener(addr) {
+        return (409, e);
+    }
+    // Outcome is computed under the registry lock; persistence happens only
+    // AFTER the lock is dropped — persist_settings reads this same registry
+    // and a nested read would deadlock the admin thread (std RwLock is not
+    // reentrant).
+    let outcome = {
+        let mut list = dyn_listeners().write().unwrap();
+        match req.action.as_str() {
+            "add" => {
+                if list.iter().any(|l| l.addr == addr) {
+                    Err((409, format!("{addr} is already a listener")))
+                } else {
+                    match spawn_dynamic_acceptor(addr, kind) {
+                        Ok((bound, shutdown)) => {
+                            list.push(DynListener {
+                                addr: bound,
+                                kind,
+                                shutdown: Some(shutdown),
+                            });
+                            Ok(format!("added {} listener on {bound}", kind.as_str()))
+                        }
+                        Err(e) => Err((400, format!("bind {addr} failed: {e}"))),
+                    }
+                }
+            }
+            "remove" => match list.iter().position(|l| l.addr == addr) {
+                Some(pos) => {
+                    let l = list.remove(pos);
+                    if let Some(tx) = l.shutdown {
+                        let _ = tx.send(());
+                    }
+                    Ok(format!(
+                        "removed listener {addr}; existing connections drain"
+                    ))
+                }
+                None => Err((404, format!("{addr} is not a dynamic listener"))),
+            },
+            "replace" => match list.iter().position(|l| l.addr == addr) {
+                Some(pos) => {
+                    if list[pos].kind == kind {
+                        Err((409, format!("{addr} already serves {}", kind.as_str())))
+                    } else {
+                        let old = list.remove(pos);
+                        if let Some(tx) = old.shutdown {
+                            let _ = tx.send(());
+                        }
+                        // The old acceptor needs a beat to exit and free the
+                        // socket before the same port can be re-bound.
+                        let mut bound = spawn_dynamic_acceptor(addr, kind);
+                        for _ in 0..50 {
+                            if bound.is_ok() {
+                                break;
+                            }
+                            std::thread::sleep(std::time::Duration::from_millis(10));
+                            bound = spawn_dynamic_acceptor(addr, kind);
+                        }
+                        match bound {
+                            Ok((sock, shutdown)) => {
+                                list.push(DynListener {
+                                    addr: sock,
+                                    kind,
+                                    shutdown: Some(shutdown),
+                                });
+                                Ok(format!("{sock} now serves {}", kind.as_str()))
+                            }
+                            Err(e) => Err((
+                                400,
+                                format!("rebind {addr} failed: {e}; the port is now free"),
+                            )),
+                        }
+                    }
+                }
+                None => Err((404, format!("{addr} is not a dynamic listener"))),
+            },
+            // Unreachable: the action allowlist above already returned.
+            _ => Err((400, "unknown action".into())),
+        }
+    };
+    if outcome.is_ok() {
+        persist_listeners();
+    }
+    match outcome {
+        Ok(msg) => (200, msg),
+        Err((status, msg)) => (status, msg),
+    }
+}
+
+fn load_listeners_file(extra: &[serde_json::Value]) {
+    let mut loaded = 0usize;
+    for v in extra {
+        let Some(addr) = v.get("addr").and_then(|a| a.as_str()) else {
+            continue;
+        };
+        let Some(kind) = v
+            .get("kind")
+            .and_then(|k| k.as_str())
+            .and_then(ListenerKind::from_str)
+        else {
+            continue;
+        };
+        let Ok(sock) = addr.parse::<SocketAddr>() else {
+            eprintln!("⚠️ ignoring bad dynamic listener addr: {addr}");
+            continue;
+        };
+        match spawn_dynamic_acceptor(sock, kind) {
+            Ok((bound, shutdown)) => {
+                dyn_listeners().write().unwrap().push(DynListener {
+                    addr: bound,
+                    kind,
+                    shutdown: Some(shutdown),
+                });
+                loaded += 1;
+            }
+            Err(e) => eprintln!("⚠️ dynamic listener {addr} ({kind:?}) failed: {e}"),
+        }
+    }
+    if loaded > 0 {
+        println!("🌐 restored {loaded} dynamic listener(s) from {SETTINGS_FILE}");
+    }
+}
+
+fn persist_listeners() {
+    // persist_settings writes knobs + listeners as one file (single writer).
+    persist_settings();
 }
 
 /// Apply a partial settings update from the admin API. Unknown names are
@@ -3582,8 +3954,18 @@ async fn serve_admin_connection(mut stream: tokio::net::TcpStream) -> std::io::R
             {
                 admin_auth_note_success(peer_ip);
                 AuthMode::Mutating
-            } else {
+            } else if data
+                .windows(b"uthorization:".len())
+                .any(|w| w.eq_ignore_ascii_case(b"uthorization:"))
+            {
+                // A wrong credential was presented: count it as a brute-force
+                // attempt. Bare requests without any Authorization header are
+                // anonymous (the public SPA shell, pre-login polling) and must
+                // not arm the latch — a browser reload of the login screen is
+                // not an attack.
                 admin_auth_note_failure(peer_ip);
+                AuthMode::Denied
+            } else {
                 AuthMode::Denied
             }
         }
@@ -3685,6 +4067,38 @@ async fn serve_admin_connection(mut stream: tokio::net::TcpStream) -> std::io::R
             }
         }
         ("/api/settings", _) => (200, "application/json", settings_json()),
+        ("/api/listeners", _) if method == "GET" => (200, "application/json", dyn_listeners_json()),
+        ("/api/listeners", AuthMode::ReadOnly) if method == "POST" || method == "DELETE" => (
+            403,
+            "text/plain; charset=utf-8",
+            "forbidden: admin is read-only while JUGGLER_ADMIN_TOKEN is unset (fail-closed)".into(),
+        ),
+        ("/api/listeners", AuthMode::Mutating) if method == "POST" => {
+            let body_bytes = &data[head_end..];
+            let (status, msg) = dyn_listeners_post(body_bytes);
+            let ok = status == 200;
+            (
+                status,
+                "application/json",
+                format!("{{\"success\":{ok},\"message\":\"{msg}\"}}"),
+            )
+        }
+        ("/api/listeners", AuthMode::Mutating) if method == "DELETE" => {
+            // DELETE /api/listeners?addr=0.0.0.0:8000
+            let query = path.split_once('?').map(|(_, q)| q).unwrap_or("");
+            let addr = query
+                .split('&')
+                .find_map(|kv| kv.strip_prefix("addr="))
+                .unwrap_or("");
+            let body = format!("{{\"action\":\"remove\",\"addr\":\"{addr}\",\"kind\":\"http\"}}");
+            let (status, msg) = dyn_listeners_post(body.as_bytes());
+            let ok = status == 200;
+            (
+                status,
+                "application/json",
+                format!("{{\"success\":{ok},\"message\":\"{msg}\"}}"),
+            )
+        }
         ("/api/pool/clear", AuthMode::Mutating) if method == "POST" => {
             // Drop every idle keep-alive upstream socket. Cheap and safe:
             // in-flight requests hold their own sockets; the pool refills by
@@ -3738,6 +4152,8 @@ async fn serve_admin_connection(mut stream: tokio::net::TcpStream) -> std::io::R
             "Forbidden"
         } else if status == 400 {
             "Bad Request"
+        } else if status == 409 {
+            "Conflict"
         } else {
             "Not Found"
         },
@@ -4299,6 +4715,25 @@ fn bind_shard_listener(addr: SocketAddr) -> std::net::TcpListener {
         .set_nonblocking(true)
         .expect("listener non-blocking failed");
     std_listener
+}
+
+/// Same as `bind_shard_listener` but returns the OS error instead of
+/// panicking — dynamic listeners added at runtime must answer a failed bind
+/// as a 4xx, never take the process down.
+fn try_bind_shard_listener(addr: SocketAddr) -> std::io::Result<std::net::TcpListener> {
+    let socket = socket2::Socket::new(
+        socket2::Domain::for_address(addr),
+        socket2::Type::STREAM,
+        None,
+    )?;
+    socket.set_reuse_address(true)?;
+    #[cfg(not(windows))]
+    socket.set_reuse_port(true)?;
+    socket.bind(&addr.into())?;
+    socket.listen(LISTEN_BACKLOG)?;
+    let std_listener: std::net::TcpListener = socket.into();
+    std_listener.set_nonblocking(true)?;
+    Ok(std_listener)
 }
 
 /// Connect to an upstream with a timeout. Returns `Err` on timeout/refusal.
@@ -5254,6 +5689,14 @@ fn main() -> Result<()> {
     register_metrics();
     // Restore admin-tuned runtime settings before anything reads a knob.
     load_settings_file();
+    // Runtime-added HTTP/HTTPS listeners from a previous session (admin
+    // panel → POST /api/listeners). Skipped entries are logged, not fatal.
+    let extra_listeners: Vec<serde_json::Value> = std::fs::read_to_string(SETTINGS_FILE)
+        .ok()
+        .and_then(|d| serde_json::from_str::<SettingsFile>(&d).ok())
+        .and_then(|f| f.extra_listeners)
+        .unwrap_or_default();
+    load_listeners_file(&extra_listeners);
 
     let http_addr: SocketAddr = env_or("JUGGLER_HTTP_ADDR", "127.0.0.1:8443").parse()?;
     let grpc_addr: SocketAddr = env_or("JUGGLER_GRPC_ADDR", "127.0.0.1:50051").parse()?;
@@ -8474,6 +8917,66 @@ mod tests {
         // Without the env var the cap is the compiled-in prewarm constant.
         std::env::remove_var("JUGGLER_PREWARM_TARGET_CAP");
         assert_eq!(prewarm_target_cap(), PREWARM_CONNECTIONS);
+    }
+
+    /// The listener registry and accept-mode env are process-global: these
+    /// tests serialize against each other and pin handoff mode.
+    static LISTENER_TEST_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
+    fn listener_test_mode() -> std::sync::MutexGuard<'static, ()> {
+        std::env::set_var("JUGGLER_ACCEPT_MODE", "handoff");
+        LISTENER_TEST_LOCK.lock().unwrap()
+    }
+
+    #[test]
+    fn dyn_listener_kind_parsing() {
+        assert_eq!(ListenerKind::from_str("http"), Some(ListenerKind::Plain));
+        assert_eq!(ListenerKind::from_str("HTTPS"), Some(ListenerKind::Tls));
+        assert_eq!(ListenerKind::from_str("quic"), None);
+        assert_eq!(ListenerKind::Tls.as_str(), "https");
+    }
+
+    #[test]
+    fn dyn_listeners_post_rejects_bad_input_without_side_effects() {
+        let _g = listener_test_mode();
+        // addr parse failure
+        let (st, _) = dyn_listeners_post(br#"{"action":"add","addr":"not-an-addr","kind":"http"}"#);
+        assert_eq!(st, 400);
+        // unknown kind
+        let (st, _) =
+            dyn_listeners_post(br#"{"action":"add","addr":"127.0.0.1:59999","kind":"udp"}"#);
+        assert_eq!(st, 400);
+        // unknown action (parse-valid, must not touch the registry)
+        let (st, _) =
+            dyn_listeners_post(br#"{"action":"destroy","addr":"127.0.0.1:59999","kind":"http"}"#);
+        assert_eq!(st, 400);
+        // remove of an unregistered addr: kind is NOT required for remove
+        let (st, _) =
+            dyn_listeners_post(br#"{"action":"remove","addr":"127.0.0.1:59999","kind":""}"#);
+        assert_eq!(st, 404);
+        assert!(dyn_listeners_snapshot().is_empty(), "registry polluted");
+    }
+
+    #[test]
+    fn dyn_listeners_post_add_remove_and_json_roundtrip() {
+        let _g = listener_test_mode();
+        // port 0: the OS picks a free port for the registry entry, so the
+        // test never races for a fixed port; the bound socket is real.
+        let (st, msg) =
+            dyn_listeners_post(br#"{"action":"add","addr":"127.0.0.1:0","kind":"http"}"#);
+        assert_eq!(st, 200, "add failed: {msg}");
+        let snap = dyn_listeners_snapshot();
+        assert_eq!(snap.len(), 1);
+        assert_ne!(snap[0].0.port(), 0, "OS-assigned port must be recorded");
+        assert_eq!(snap[0].1, ListenerKind::Plain);
+        let json = dyn_listeners_json();
+        assert!(json.contains("\"port\":"), "json: {json}");
+        // remove frees the registry entry
+        let bound = format!("{}", snap[0].0);
+        let body = format!("{{\"action\":\"remove\",\"addr\":\"{bound}\",\"kind\":\"http\"}}");
+        let (st, msg) = dyn_listeners_post(body.as_bytes());
+        assert_eq!(st, 200, "remove failed: {msg}");
+        assert!(dyn_listeners_snapshot().is_empty());
     }
 
     #[test]

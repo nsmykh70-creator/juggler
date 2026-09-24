@@ -356,8 +356,18 @@ footer.pagefoot{margin-top:22px;display:flex;justify-content:space-between;color
             <div id="set-proxy"><div class="empty">загрузка…</div></div>
           </div>
           <div class="card">
-            <h2>Порты и интерфейсы <span class="hint">только чтение — задаётся переменными окружения</span></h2>
+            <h2>Порты и интерфейсы <span class="hint">env-слушатели — только чтение; HTTP/HTTPS-порты добавляются ниже</span></h2>
             <div id="set-ports"><div class="empty">загрузка…</div></div>
+            <div id="dyn-ports" style="margin-top:14px">
+              <div class="set-name" style="margin-bottom:8px"><b>Динамические порты</b><small>слушатели добавляются/меняются на ходу и переживают рестарт сервера</small></div>
+              <div id="dyn-ports-rows"><div class="empty">загрузка…</div></div>
+              <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;align-items:center">
+                <input id="lp-addr" placeholder="порт, напр. 8000" style="width:130px" inputmode="numeric">
+                <select id="lp-kind" style="width:110px"><option value="http">HTTP</option><option value="https">HTTPS</option></select>
+                <button class="btn" id="lp-add">+ Добавить порт</button>
+                <span class="hint">0.0.0.0 слушает на всех интерфейсах; 127.0.0.1 — только локально</span>
+              </div>
+            </div>
           </div>
         </div>
         <div style="margin-top:16px;display:flex;align-items:center;gap:14px;flex-wrap:wrap">
@@ -495,6 +505,7 @@ function pollCurrent(force){
   if (document.hidden && !force) return;
   try{
     if (current==='overview') pollOverview();
+    if (current==='settings') loadDynPorts();
     else if (current==='stats') pollStats();
     else if (current==='logs' && $('log-auto').checked) pollLogs();
     else if (current==='routes') pollRoutes();
@@ -940,7 +951,7 @@ function renderSettings(){
     $(box).innerHTML = h;
     for (const n of names){ const r=$('rng-'+n); if (r) paint(r); }
   }
-  // ports (read-only); also cached for the routes-table "Открыть" button
+  // ports (read-only env listeners); also cached for the routes-table "Открыть" button
   apiJson('/api/components').then(comp=>{
     componentsCache = comp;
     const L = comp.listeners;
@@ -950,6 +961,7 @@ function renderSettings(){
     $('set-ports').innerHTML = rows.map(([n,v])=>
       '<div class="set-row" style="grid-template-columns:1fr 1fr"><div class="set-name">'+n+'</div><code>'+v+'</code></div>').join('');
   }).catch(()=>{});
+  loadDynPorts();
   updateDirty();
 }
 function setRow(name, title, hint, ctrl, num){
@@ -979,6 +991,45 @@ $('settings-save').onclick = async () => {
     if (r.ok){ toast('Применено параметров: '+d.applied); dirty.clear(); loadSettings(); }
     else toast('Ошибка: '+(d.error||await r.text()), true);
   }catch(e){ toast('Ошибка: '+e.message, true); }
+};
+
+/* ---- Динамические HTTP/HTTPS-порты (POST /api/listeners) ------------- */
+function dynRows(dyn){
+  if (!dyn.length) return '<div class="empty">порты не добавлены</div>';
+  return dyn.map(l=>
+    '<div class="set-row" style="grid-template-columns:auto 1fr auto auto">'
+    +'<code>'+esc(l.addr)+'</code>'
+    +'<span class="chip '+(l.kind==='https'?'blue':'ok')+'">'+l.kind.toUpperCase()+'</span>'
+    +'<button class="btn" data-flip="'+esc(l.addr)+'|'+l.kind+'">'+(l.kind==='http'?'→ HTTPS':'→ HTTP')+'</button>'
+    +'<button class="btn danger" data-rm="'+esc(l.addr)+'">Удалить</button></div>').join('');
+}
+async function loadDynPorts(){
+  try{
+    const d = await apiJson('/api/listeners');
+    $('dyn-ports-rows').innerHTML = dynRows(d.listeners||[]);
+    document.querySelectorAll('[data-rm]').forEach(b=>b.onclick=()=>dynPort('remove',b.dataset.rm.split('|')[0],''));
+    document.querySelectorAll('[data-flip]').forEach(b=>b.onclick=()=>{
+      const [addr,kind]=b.dataset.flip.split('|');
+      dynPort('replace',addr,kind==='http'?'https':'http');
+    });
+  }catch(e){ $('dyn-ports-rows').innerHTML='<div class="empty">'+esc(e.message)+'</div>'; }
+}
+async function dynPort(action, addr, kind){
+  if (roBlocked()) return;
+  try{
+    const r = await api('/api/listeners', {method:'POST', body:JSON.stringify({action, addr, kind})});
+    const d = await r.json().catch(()=>({}));
+    toast(d.message || (r.ok?'готово':'ошибка'), !r.ok);
+    loadDynPorts();
+  }catch(e){ toast('Ошибка: '+e.message, true); }
+}
+$('lp-add').onclick = ()=>{
+  if (roBlocked()) return;
+  const port = ($('lp-addr').value||'').trim();
+  if (!/^(\d{1,5})$/.test(port) || +port<1 || +port>65535){ toast('Укажите порт 1–65535', true); return; }
+  const bind = '0.0.0.0:'+port;
+  $('lp-addr').value='';
+  dynPort('add', bind, $('lp-kind').value);
 };
 
 /* ================================================================
