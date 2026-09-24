@@ -1,7 +1,7 @@
 {
   "balancer": 0,
-  "rate_limit_tokens": 10,
-  "rate_limit_refill": 5,
+  "rate_limit_tokens": 30,
+  "rate_limit_refill": 20,
   "pool_cap_per_upstream": 64,
   "max_keepalive_requests": 1000,
   "pool_idle_timeout_secs": 300,
