@@ -23,3 +23,10 @@ www/aicms/admin/cache/
 admin_credentials.json
 build_rel.err
 juggler_live.err
+
+# Production release packages and local tooling
+release/
+tools-local/
+*.tar.gz
+build_linux.cmd
+linux_build.log

@@ -35,6 +35,9 @@ rand = "0.8"
 h2 = "0.4"
 http = "1"
 wasmtime = { version = "44", default-features = false, features = ["runtime", "cranelift", "demangle"] }
+h3 = "0.0.8"
+h3-quinn = "0.0.10"
+quinn = { version = "0.11", default-features = false, features = ["rustls", "ring", "runtime-tokio", "log"] }
 
 [dev-dependencies]
 wat = "1"
