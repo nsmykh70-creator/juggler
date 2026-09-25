@@ -118,7 +118,16 @@ async fn handle_quic_connection(
     peer_addr: SocketAddr,
     config: Arc<ArcSwap<ServerConfig>>,
 ) -> Result<(), HandleError> {
-    let mut h3_conn = h3::server::Connection::new(h3_quinn::Connection::new(conn))
+    let mut h3_conn = h3::server::builder()
+        // Do not send the GREASE SETTINGS / GREASE frames this crate emits by
+        // default (RFC 9114 §7.2.8 allows them, clients MUST ignore them).
+        // aioquic-based clients have a frame-decoding bug: an unknown frame
+        // immediately before FIN swallows the end-of-stream signal, so the
+        // FIRST request on every connection hangs. Browsers tolerate it, but
+        // Python/QUIC clients are common enough to keep the plane interop-
+        // friendly; grease brings no value to a same-version fleet.
+        .send_grease(false)
+        .build(h3_quinn::Connection::new(conn))
         .await
         .map_err(HandleError::Connection)?;
 
