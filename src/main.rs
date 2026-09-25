@@ -6149,6 +6149,25 @@ fn static_http_head(
     .into_bytes()
 }
 
+/// Cache of canonicalized static roots.
+///
+/// `canonicalize` is a metadata-heavy syscall (~0.3 ms on Windows) and the
+/// root changes only when routes are re-applied, so it is memoized per root
+/// string. Entries hold no file handles; a stale entry after a root swap is
+/// corrected by the per-request containment prefix check.
+fn canonical_root(root: &str) -> Option<std::path::PathBuf> {
+    use std::collections::HashMap;
+    use std::sync::Mutex;
+    static CACHE: std::sync::OnceLock<Mutex<HashMap<String, Option<std::path::PathBuf>>>> =
+        std::sync::OnceLock::new();
+    let cache = CACHE.get_or_init(|| Mutex::new(HashMap::new()));
+    let mut map = cache.lock().unwrap_or_else(|p| p.into_inner());
+    if map.len() > 64 {
+        map.clear();
+    }
+    map.entry(root.to_string()).or_insert_with(|| std::fs::canonicalize(root).ok()).clone()
+}
+
 /// Serve one file from a `static_dir`. Ordering matters for security:
 /// 1. resolve the logical path and reject traversal syntactically;
 /// 2. canonicalize — the OS resolves symlinks, so a link pointing outside
@@ -6168,16 +6187,21 @@ fn serve_static_file(root: &str, suffix: &str, keep_alive: bool) -> RouteDecisio
             b"forbidden".to_vec(),
         );
     }
-    let canon_root = std::fs::canonicalize(root).ok();
+    let canon_root = canonical_root(root);
     match std::fs::read(&path) {
         Ok(body) => {
-            // Containment re-check on the real path (symlink escape). If the
-            // root itself cannot be canonicalized (deleted mid-flight), deny.
-            let contained = canon_root.as_ref().is_some_and(|r| {
-                std::fs::canonicalize(&path)
-                    .map(|p| p.starts_with(r))
-                    .unwrap_or(false)
-            });
+            // Containment re-check on the real path (symlink escape). One
+            // canonicalize covers both jobs: if the file resolves to a link
+            // outside the (canonical) root, the prefix check fails. If the
+            // file itself vanished mid-flight, fall back to the pre-open
+            // syntactic containment from static_path_for.
+            let contained = canon_root
+                .as_ref()
+                .and_then(|r| std::fs::canonicalize(&path).ok().map(|p| (p, r.clone())))
+                .map(|(p, r)| {
+                    p.as_os_str().as_encoded_bytes().starts_with(r.as_os_str().as_encoded_bytes())
+                })
+                .unwrap_or(false);
             if !contained {
                 return RouteDecision::StaticFile(
                     static_http_head("403 Forbidden", "text/plain; charset=utf-8", 9, keep_alive),

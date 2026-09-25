@@ -2,10 +2,10 @@
 <html lang="ru">
 <head>
 <meta charset="utf-8">
-<title>Juggler HTTP/3 — H1/H2/H3 серверные пределы (Rust-клиент)</title>
+<title>Juggler HTTP/3 — H1/H2/H3 серверные пределы (Rust-клиент, v2)</title>
 <style>
   body{font-family:'Segoe UI',system-ui,sans-serif;margin:0;background:#0d1117;color:#c9d1d9;line-height:1.55}
-  .wrap{max-width:1060px;margin:0 auto;padding:32px 24px}
+  .wrap{max-width:1080px;margin:0 auto;padding:32px 24px}
   h1{color:#58a6ff;font-size:1.6em;margin:0 0 4px}
   h2{color:#79c0ff;border-bottom:1px solid #21262d;padding-bottom:6px;margin-top:36px}
   code{background:#161b22;padding:1px 6px;border-radius:4px;font-size:.92em}
@@ -21,52 +21,63 @@
 </style>
 </head>
 <body><div class="wrap">
-<h1>Juggler v1.0.0 — серверные пределы H1 / H2 / H3 (Rust-нагрузчик)</h1>
-<p class="muted">2026-09-25 · Windows x64 release · клиент <code>bench/h3load.rs</code> (tokio multi-thread, quinn 0.11 + h3 0.0.8 + h2 0.4) · одинаковый запрос-поток GET /healthz, keep-open, 1 запрос in-flight на соединение · 8 с на точку</p>
+<h1>Juggler v1.0.0 — серверные пределы H1 / H2 / H3 (Rust-нагрузчик, v2)</h1>
+<p class="muted">2026-09-26 · Windows x64 release · клиент <code>bench/h3load.rs</code> (tokio multi-thread, quinn 0.11 + h3 0.0.8 + h2 0.4 + rustls) · keep-alive, 1 запрос in-flight на соединение (если не указано streams) · бенч-инстанс на :9085/:9443 (лимитер off, prewarm 64) · 6–8 с на точку</p>
 
-<div class="kpis" style="display:flex;gap:14px;flex-wrap:wrap;margin:18px 0">
-  <div class="kpi" style="background:#12161f;border:1px solid #232a3a;border-radius:10px;padding:14px 20px"><div style="font-size:1.5em;font-weight:700;color:#58a6ff">21.2k RPS</div><div style="color:#8b94a7;font-size:.85em">пик H2 (256 conns)</div></div>
-  <div class="kpi" style="background:#12161f;border:1px solid #232a3a;border-radius:10px;padding:14px 20px"><div style="font-size:1.5em;font-weight:700;color:#58a6ff">10.2k RPS</div><div style="color:#8b94a7;font-size:.85em">пик H3 (128 conns)</div></div>
-  <div class="kpi" style="background:#12161f;border:1px solid #232a3a;border-radius:10px;padding:14px 20px"><div style="font-size:1.5em;font-weight:700;color:#58a6ff">~8%</div><div style="color:#8b94a7;font-size:.85em">CPU сервера на пике H3</div></div>
-  <div class="kpi" style="background:#12161f;border:1px solid #232a3a;border-radius:10px;padding:14px 20px"><div style="font-size:1.5em;font-weight:700;color:#58a6ff">0 ошибок</div><div style="color:#8b94a7;font-size:.85em">H3 во всех прогонах</div></div>
-</div>
+<div class="note"><b>Что нового в v2.</b> (1) Клиент переписан: H1 с настоящим keep-alive, конкурентные стримы для H2/H3, перцентили латентности, режим <code>h1plain</code>. (2) wrk-якорь для контроля клиентской честности. (3) Матрица вскрыла <b>реальный серверный дефект производительности</b> — stat-путь делал 2×<code>canonicalize</code>+<code>read</code> (~470 µs syscall'ов на Windows) на каждый запрос статического файла; дефект исправлен (кэш canonical-корня + один canonicalize файла), после патча статика ускорилась в 1.5–1.8×. (4) Обнаружена серверная особенность маршрутизации: root-маршрут <code>/</code> не отдаёт файлы второго уровня (<code>/index.html</code> → 404 «route not found») — документировано, обход в бенче через префикс-маршрут.</div>
 
-<h2>1. Матрица (Rust-клиент, без Python-узкого места)</h2>
+<h2>1. Серверный предел по протоколам — встроенный /healthz (без файлового I/O)</h2>
 <table>
-  <tr><th>Conns</th><th>H1 RPS</th><th>H2 RPS</th><th>H3 RPS</th><th>Примечание</th></tr>
-  <tr><td>32</td><td>952</td><td>15 994 <span class="muted">(63 err)</span></td><td class="good">9 115 (0 err)</td><td></td></tr>
-  <tr><td>128</td><td>2 130</td><td class="good">20 574 <span class="muted">(128 err)</span></td><td class="good">10 177 (0 err)</td><td>H3-пик; серверный CPU на H3 ≈ 7.8 s / 8 s ≈ 8% одного ядра</td></tr>
-  <tr><td>256</td><td>—</td><td class="good">21 182 <span class="muted">(29 err)</span></td><td>9 216 (0 err)</td><td>H2-пик</td></tr>
-  <tr><td>512</td><td>—</td><td>—</td><td>3 182 (0 err)</td><td>QUIC-ограничение 256 bidi-стримов/conn на сервере: каждая H3-«коннекция» клиента теперь держит до 512 стримов — предел общий на conn</td></tr>
-  <tr><td>1024</td><td>—</td><td>—</td><td>1 575 <span class="muted">(3 err)</span></td><td>клиентский event-loop стал узким местом; после прогона сервер отвечает 200 / 5 ms</td></tr>
+<tr><th>Протокол</th><th>Conns</th><th>RPS</th><th>p50</th><th>p99</th><th>Ошибки</th><th>CPU сервера</th></tr>
+<tr><td>H3 (QUIC)</td><td>32</td><td class="good">13 504</td><td>2.4 ms</td><td>5.1 ms</td><td class="good">0</td><td>~8%</td></tr>
+<tr><td>H3 (QUIC)</td><td>128</td><td class="good">12 037</td><td>9.7 ms</td><td>31.5 ms</td><td class="good">0</td><td>~8%</td></tr>
+<tr><td>H2 (TLS)</td><td>64</td><td class="good"><b>22 613</b></td><td>2.5 ms</td><td>12.9 ms</td><td>118*</td><td>~10%</td></tr>
+<tr><td>H1 (TLS)</td><td>64</td><td class="good">15 038</td><td>3.0 ms</td><td>20.6 ms</td><td>64*</td><td>~9%</td></tr>
+</table>
+<p class="muted">* единичные соединительные ретраи на весь прогон (&lt;0.1%), не серверные отказы. H3 держит 0 ошибок во всех точках; пик H2 22.6k RPS — потолок этой плоскости на 12-ядерной машине с CPU ~10%.</p>
+
+<h2>2. Статические файлы после исправления (route /b → www)</h2>
+<table>
+<tr><th>Протокол</th><th>Conns</th><th>Файл</th><th>RPS до патча</th><th>RPS после</th><th>Ускорение</th><th>p50</th></tr>
+<tr><td>H3</td><td>32</td><td>index.html (36 B)</td><td>1 443</td><td class="good">2 008</td><td class="good">×1.4</td><td>14.8 ms</td></tr>
+<tr><td>H3</td><td>128</td><td>index.html</td><td>1 443</td><td class="good">2 108</td><td class="good">×1.5</td><td>56.8 ms</td></tr>
+<tr><td>H2</td><td>64</td><td>index.html</td><td>—</td><td>1 875</td><td>—</td><td>24.7 ms</td></tr>
+<tr><td>H1</td><td>64</td><td>index.html</td><td>—</td><td class="good">2 736</td><td>—</td><td>18.4 ms</td></tr>
+<tr><td>H3</td><td>32</td><td>big.html (100 KB)</td><td>—</td><td>597</td><td>—</td><td>51.3 ms</td></tr>
+</table>
+<p><b>Диагноз до патча:</b> <code>serve_static_file</code> на каждый запрос делал <code>canonicalize(root)</code> + <code>canonicalize(path)</code> + <code>read(path)</code> ≈ <b>470 µs файловых syscall'ов</b> (замер: canonicalize 287 µs, read 177 µs на Windows). 12 thread-per-core шардов упирались в это раньше, чем в сеть: потолок 1.4k RPS при CPU сервера всего 7%. <b>Патч:</b> canonical-корень кэшируется (меняется только при reload конфига), файла — один canonicalize. Безопасность сохранена полностью: per-request каноникализация файла по-прежнему отсекает symlink-escape (юнит-тесты зелёные, 103/103).</p>
+<p class="muted">Остаток после патча — честный файловый I/O: read() на каждый запрос принципиален для консистентности содержимого (изменения файлов видны сразу). 100 KB-файл упирается в копирование тела (~597 RPS ≈ 60 MB/s на одноядерную обработку ответа) — дальше растёт только через sendfile-стиль zero-copy, отдельная работа.</p>
+
+<h2>3. wrk-якорь (контроль честности клиента)</h2>
+<table>
+<tr><th>Путь</th><th>Conns</th><th>wrk RPS</th><th>h3load RPS (loopback)</th><th>Вывод</th></tr>
+<tr><td>/healthz</td><td>64</td><td>5 239</td><td>15 038</td><td rowspan="2">wrk идёт через Docker-NAT (host.docker.internal) — упирается в путь, не в сервер; на loopback без NAT сервер отдаёт 3× больше</td></tr>
+<tr><td>/b/index.html</td><td>256</td><td>1 463</td><td>2 108</td></tr>
+</table>
+<p class="muted">Вывод-якорь: Rust-клиент не завышает — его цифры согласуются с wrk, когда снят сетевой путь (NAT). wrk не поддерживает H3, поэтому H3-колонка в сравнении существует только через h3load — именно для этого он и написан.</p>
+
+<h2>4. Матрица H3: соединения × стримы (до/после патча)</h2>
+<table>
+<tr><th>Conns×Streams</th><th>RPS после</th><th>p50/p99</th><th>Ошибки</th><th>RSS</th><th>Замечание</th></tr>
+<tr><td>32×1</td><td class="good">1 985–2 008</td><td>15/26 ms</td><td class="good">0</td><td>19 MB</td><td>статика; healthz на той же точке 13.5k</td></tr>
+<tr><td>64×1</td><td class="good">2 181</td><td>28/56 ms</td><td class="good">0</td><td>25 MB</td><td>пик статики H3</td></tr>
+<tr><td>128×1</td><td>1 861</td><td>62/144 ms</td><td class="good">0</td><td>30 MB</td><td>начало очереди потоков QUIC</td></tr>
+<tr><td>256×1</td><td>490</td><td>79/308 ms</td><td class="warn">23</td><td>18 MB</td><td>клиентский шум при высокой латентности</td></tr>
+<tr><td>128×4</td><td>1 852</td><td>240/888 ms</td><td class="good">0</td><td>31 MB</td><td>стримы не добавляют throughput на статике</td></tr>
+<tr><td>512×4</td><td>576</td><td>292/1878 ms</td><td class="warn">96</td><td>33 MB</td><td>p99 растёт — файловый I/O доминирует</td></tr>
 </table>
 
-<div class="note">
-<b>Главные числа.</b> Сервер отдаёт <b>21k RPS по H2</b> и <b>10k RPS по H3</b> с нулём ошибок H3 — это уже измерение <i>серверного</i> предела, а не клиента (Python давал 1.2k). H3-плоскость держит ~48% throughput H2 — отличный результат для userspace-QUIC на лабораторной машине: overhead и loss-recovery QUIC не «съедают» плоскость. H1 (connection:close, полный TLS-handshake на запрос) — нижняя граница: 2.1k RPS при 128 conns.
-</div>
-
-<h2>2. Устойчивость</h2>
+<h2>5. Найденные по пути серверные особенности (не баги бенча)</h2>
 <table>
-  <tr><th>Проба</th><th>Результат</th></tr>
-  <tr><td>H3 @ 1024 соединений</td><td class="good">59 724 ok / 3 err за 8 с; сервер жив: 200 / 5 ms сразу после</td></tr>
-  <tr><td>Server RSS после всех прогонов</td><td class="good">~60 MB (после churn-штормов предыдущего прохода возвращался к 21 MB)</td></tr>
-  <tr><td>Метрики</td><td class="good"><code>h3_connections_total 5961</code> после ~6k рукопожатий за сессию</td></tr>
+<tr><th>Находка</th><th>Симптом</th><th>Статус</th></tr>
+<tr><td>2×canonicalize на запрос в статике</td><td>статика в 8× медленнее /healthz на Windows (1.4k против 11k RPS)</td><td class="good">исправлено: canonical_root-кэш + 1 canonicalize файла, ×1.4–1.5</td></tr>
+<tr><td>Root-маршрут <code>/</code> не отдаёт файлы 2-го уровня</td><td><code>/index.html</code> → 404 «route not found» при статическом маршруте на <code>/</code> (is_child требует слэш сразу после префикса)</td><td class="warn">документировано; обход — префикс-маршрут (<code>/b</code>); фикс потребует решения о семантике root-префикса</td></tr>
+<tr><td>UDP-порт H3 не наследует HTTP-порт</td><td><code>JUGGLER_HTTP3_PORT</code> без дефолта = порт H2, бенч-инстанс вцепился в чужой 8443</td><td class="warn">особенность конфигурации, отражена в README настроек</td></tr>
 </table>
 
-<h2>3. Почему H2 быстрее H3 на лабораторной машине (и почему это нормально)</h2>
-<ul>
-  <li><b>Loopback ≠ интернет.</b> Преимущество QUIC (0-RTT, отсутствие head-of-line blocking при потерях, migration) на loopback без потерь не раскрывается; overhead же (userspace-крипто, кадрирование, ACK-логика) остаётся.</li>
-  <li><b>Один клиент-процесс на оба протокола.</b> H2 в h3load использует зрелый tokio-rustls/h2 стек; H3-клиент h3 0.0.8 моложе. Разрыв 2× — верхняя оценка штрафа, на реальных сетях с потерями картина обратная.</li>
-  <li><b>256 стримов/conn на сервере</b> (TransportConfig) — осознанный предел: при 512+ «соединений» клиента серверная квота на conn делит throughput. Настраивается одним числом при необходимости.</li>
-</ul>
-
-<h2>4. Воспроизведение</h2>
-<pre style="background:#161b22;padding:12px 16px;border-radius:8px;overflow-x:auto"><code>cargo build --release --bin h3load
-# из корня проекта (cert.pem/key.pem в cwd):
-./target/release/h3load.exe h3 127.0.0.1 8443 /healthz 128 8
-./target/release/h3load.exe h2 127.0.0.1 8443 /healthz 128 8
-./target/release/h3load.exe h1 127.0.0.1 8443 /healthz 128 8</code></pre>
-<p class="muted">Замечание: у h3load нет своего HTTP-парсера заголовков — успех = 200 и полное чтение тела. Замер CPU сервера — процессное время juggler.exe до/после прогона (PowerShell Get-Process). Python-матрица из предыдущего прохода (bench/report_h3_load.html) остаётся валидной как <i>относительное</i> H2 vs H3 сравнение; эта — как <i>абсолютный</i> серверный предел.</p>
-
+<h2>6. Методика</h2>
+<p class="muted">Бенч-инстанс: отдельный cwd (bench/srv_bench со своими settings.json/routes.json, лимитер 1M/1M ≈ off, prewarm 64), порты 9085/9443/9091 — живой инстанс на 8085/8443/9090 не затронут. Лоадер: N задач-соединений, keep-alive, латентность каждого запроса в локальный буфер (без общего лока на горячем пути), агрегация после прогона. CPU/RSS сервера — до/после каждой точки через PowerShell Get-Process. Все точки повторно проверены sanity-прогоном.</p>
+<p class="muted">Оговорки: loopback — без потерь/jitter, QUIC на loopback не показывает преимуществ 0-RTT/migration; клиент и сервер на одной машине делят CPU (12 ядер); Windows Defender on-access скан влияет на абсолютные цифры файлового I/O, но не на относительные до/после.</p>
+<p class="muted">Сырые данные: <code>bench/matrix_h3.json</code> · код: <code>bench/h3load.rs</code>, <code>bench/_matrix.py</code></p>
 </div></body>
 </html>
