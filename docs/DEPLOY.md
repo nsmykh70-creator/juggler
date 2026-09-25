@@ -314,6 +314,22 @@ scrape_configs:
     metrics_path: /metrics
 ```
 
+### Grafana-дашборд
+
+Готовый дашборд: `docs/grafana-dashboard.json` (16 панелей: RPS по протоколам
+h1/h2/h3, латентности p50/p99, микс статусов, rate-limiter, пул upstream'ов,
+failover, шарды active/forecast). Импорт: Grafana → Dashboards → Import →
+файл → выбрать Prometheus-datasource. Переменная datasource задаётся через
+`__inputs` при импорте.
+
+Панели используют только реально экспортируемые серии (см. `# TYPE` в
+`/metrics`): `http_requests_total{path,status,proto}`,
+`http_response_seconds` (histogram), `shard_active_conns` /
+`shard_forecast_conns{shard}`, `upstream_requests_total{upstream,outcome}`,
+`upstream_pool_size`, `upstream_failover_total`, `upstream_health_state`,
+`rate_limit_rejected_total`, `h3_connections_total`,
+`keepalive_connections_total`, `active_upstream_connections`.
+
 ---
 
 ## 8. Чеклист перед запуском в прод

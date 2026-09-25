@@ -1,0 +1,203 @@
+{
+  "__inputs": [
+    {
+      "name": "DS_JUGGLER",
+      "label": "Prometheus (Juggler)",
+      "description": "Prometheus datasource scraping Juggler's /metrics endpoint",
+      "type": "datasource",
+      "pluginId": "prometheus",
+      "pluginName": "Prometheus"
+    }
+  ],
+  "annotations": { "list": [] },
+  "editable": true,
+  "graphTooltip": 1,
+  "links": [],
+  "panels": [
+    {
+      "type": "row",
+      "title": "Overview",
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 0 },
+      "panels": []
+    },
+    {
+      "type": "stat",
+      "title": "Requests / sec (all protocols)",
+      "gridPos": { "h": 5, "w": 6, "x": 0, "y": 1 },
+      "datasource": { "type": "prometheus", "uid": "${DS_JUGGLER}" },
+      "targets": [
+        {
+          "expr": "sum(rate(http_requests_total[1m]))",
+          "legendFormat": "rps",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": { "defaults": { "unit": "reqps", "decimals": 1 }, "overrides": [] }
+    },
+    {
+      "type": "stat",
+      "title": "Error rate (5xx + 429)",
+      "gridPos": { "h": 5, "w": 6, "x": 6, "y": 1 },
+      "datasource": { "type": "prometheus", "uid": "${DS_JUGGLER}" },
+      "targets": [
+        {
+          "expr": "sum(rate(http_requests_total{status=~\"5..|429\"}[5m])) / clamp_min(sum(rate(http_requests_total[5m])), 1e-9)",
+          "legendFormat": "error %",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": { "unit": "percentunit", "thresholds": { "mode": "absolute", "steps": [ { "color": "green", "value": null }, { "color": "yellow", "value": 0.01 }, { "color": "red", "value": 0.05 } ] } },
+        "overrides": []
+      }
+    },
+    {
+      "type": "stat",
+      "title": "Active client connections (shards)",
+      "gridPos": { "h": 5, "w": 6, "x": 12, "y": 1 },
+      "datasource": { "type": "prometheus", "uid": "${DS_JUGGLER}" },
+      "targets": [
+        { "expr": "sum(shard_active_conns)", "legendFormat": "active", "refId": "A" },
+        { "expr": "sum(shard_forecast_conns)", "legendFormat": "forecast (Pythia)", "refId": "B" }
+      ],
+      "fieldConfig": { "defaults": { "unit": "short" }, "overrides": [] }
+    },
+    {
+      "type": "stat",
+      "title": "H3 connections total",
+      "gridPos": { "h": 5, "w": 6, "x": 18, "y": 1 },
+      "datasource": { "type": "prometheus", "uid": "${DS_JUGGLER}" },
+      "targets": [
+        { "expr": "h3_connections_total", "legendFormat": "quic conns", "refId": "A" }
+      ],
+      "fieldConfig": { "defaults": { "unit": "short" }, "overrides": [] }
+    },
+    {
+      "type": "timeseries",
+      "title": "Throughput by protocol (rps)",
+      "gridPos": { "h": 9, "w": 12, "x": 0, "y": 6 },
+      "datasource": { "type": "prometheus", "uid": "${DS_JUGGLER}" },
+      "targets": [
+        { "expr": "sum by (proto) (rate(http_requests_total[1m]))", "legendFormat": "{{proto}}", "refId": "A" }
+      ],
+      "fieldConfig": { "defaults": { "unit": "reqps", "custom": { "fillOpacity": 15, "lineWidth": 2 } }, "overrides": [] }
+    },
+    {
+      "type": "timeseries",
+      "title": "Latency: p50 / p99 per path",
+      "gridPos": { "h": 9, "w": 12, "x": 12, "y": 6 },
+      "datasource": { "type": "prometheus", "uid": "${DS_JUGGLER}" },
+      "targets": [
+        { "expr": "histogram_quantile(0.50, sum(rate(http_response_seconds_bucket[5m])) by (le, path))", "legendFormat": "p50 {{path}}", "refId": "A" },
+        { "expr": "histogram_quantile(0.99, sum(rate(http_response_seconds_bucket[5m])) by (le, path))", "legendFormat": "p99 {{path}}", "refId": "B" }
+      ],
+      "fieldConfig": { "defaults": { "unit": "s", "custom": { "fillOpacity": 10, "lineWidth": 2 } }, "overrides": [] }
+    },
+    {
+      "type": "timeseries",
+      "title": "Response status mix",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 15 },
+      "datasource": { "type": "prometheus", "uid": "${DS_JUGGLER}" },
+      "targets": [
+        { "expr": "sum by (status) (rate(http_requests_total[1m]))", "legendFormat": "{{status}}", "refId": "A" }
+      ],
+      "fieldConfig": {
+        "defaults": { "unit": "reqps", "custom": { "fillOpacity": 20, "lineWidth": 2, "stacking": { "mode": "normal" } } },
+        "overrides": [
+          { "matcher": { "id": "byName", "options": "429" }, "properties": [ { "id": "color", "value": { "fixedColor": "orange", "mode": "fixed" } } ] },
+          { "matcher": { "id": "byName", "options": "502" }, "properties": [ { "id": "color", "value": { "fixedColor": "red", "mode": "fixed" } } ] }
+        ]
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "Rate limiter rejections",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 15 },
+      "datasource": { "type": "prometheus", "uid": "${DS_JUGGLER}" },
+      "targets": [
+        { "expr": "sum(rate(rate_limit_rejected_total[1m]))", "legendFormat": "rejected/s", "refId": "A" }
+      ],
+      "fieldConfig": { "defaults": { "unit": "reqps" }, "overrides": [] }
+    },
+    {
+      "type": "row",
+      "title": "Upstreams",
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 23 },
+      "panels": []
+    },
+    {
+      "type": "timeseries",
+      "title": "Upstream RPS",
+      "gridPos": { "h": 8, "w": 8, "x": 0, "y": 24 },
+      "datasource": { "type": "prometheus", "uid": "${DS_JUGGLER}" },
+      "targets": [
+        { "expr": "sum by (upstream) (rate(upstream_requests_total[1m]))", "legendFormat": "{{upstream}}", "refId": "A" }
+      ],
+      "fieldConfig": { "defaults": { "unit": "reqps" }, "overrides": [] }
+    },
+    {
+      "type": "timeseries",
+      "title": "Upstream pool size / reuses",
+      "gridPos": { "h": 8, "w": 8, "x": 8, "y": 24 },
+      "datasource": { "type": "prometheus", "uid": "${DS_JUGGLER}" },
+      "targets": [
+        { "expr": "sum by (upstream) (upstream_pool_size)", "legendFormat": "size {{upstream}}", "refId": "A" },
+        { "expr": "sum(rate(upstream_pool_reuses_total[1m]))", "legendFormat": "reuses/s", "refId": "B" }
+      ],
+      "fieldConfig": { "defaults": { "unit": "short" }, "overrides": [] }
+    },
+    {
+      "type": "timeseries",
+      "title": "Failovers / stale retries / health",
+      "gridPos": { "h": 8, "w": 8, "x": 16, "y": 24 },
+      "datasource": { "type": "prometheus", "uid": "${DS_JUGGLER}" },
+      "targets": [
+        { "expr": "sum(rate(upstream_failover_total[1m]))", "legendFormat": "failovers/s", "refId": "A" },
+        { "expr": "sum(rate(upstream_stale_retries_total[1m]))", "legendFormat": "stale retries/s", "refId": "B" },
+        { "expr": "upstream_health_state", "legendFormat": "health {{upstream}}", "refId": "C" }
+      ],
+      "fieldConfig": { "defaults": { "unit": "short" }, "overrides": [] }
+    },
+    {
+      "type": "row",
+      "title": "Internal",
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 32 },
+      "panels": []
+    },
+    {
+      "type": "timeseries",
+      "title": "Shard load: active vs forecast",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 33 },
+      "datasource": { "type": "prometheus", "uid": "${DS_JUGGLER}" },
+      "targets": [
+        { "expr": "shard_active_conns", "legendFormat": "shard {{shard}}", "refId": "A" },
+        { "expr": "shard_forecast_conns", "legendFormat": "forecast {{shard}}", "refId": "B" }
+      ],
+      "fieldConfig": { "defaults": { "unit": "short", "custom": { "lineWidth": 2 } }, "overrides": [] }
+    },
+    {
+      "type": "timeseries",
+      "title": "Keep-alive connection acceptance",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 33 },
+      "datasource": { "type": "prometheus", "uid": "${DS_JUGGLER}" },
+      "targets": [
+        { "expr": "sum(rate(keepalive_connections_total[1m]))", "legendFormat": "accepts/s", "refId": "A" },
+        { "expr": "active_upstream_connections", "legendFormat": "upstream conns", "refId": "B" }
+      ],
+      "fieldConfig": { "defaults": { "unit": "short" }, "overrides": [] }
+    }
+  ],
+  "refresh": "10s",
+  "schemaVersion": 39,
+  "tags": ["juggler", "webserver"],
+  "templating": { "list": [] },
+  "time": { "from": "now-30m", "to": "now" },
+  "timepicker": {},
+  "timezone": "browser",
+  "title": "Juggler Web Server",
+  "uid": "juggler-main",
+  "version": 1
+}
