@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<title>Juggler HTTP/3 — устойчивость к потерям, флэпам и миграции</title>
+<style>
+  body{font-family:'Segoe UI',system-ui,sans-serif;margin:0;background:#0d1117;color:#c9d1d9;line-height:1.55}
+  .wrap{max-width:1060px;margin:0 auto;padding:32px 24px}
+  h1{color:#58a6ff;font-size:1.65em;margin:0 0 4px}
+  h2{color:#79c0ff;border-bottom:1px solid #21262d;padding-bottom:6px;margin-top:34px}
+  h3{color:#a5d6ff;margin:20px 0 6px}
+  .sub{color:#8b949e;margin-bottom:8px}
+  table{border-collapse:collapse;width:100%;margin:14px 0;font-size:.94em}
+  th,td{border:1px solid #21262d;padding:7px 10px;text-align:left}
+  th{background:#161b22;color:#79c0ff}
+  tr:nth-child(even) td{background:#0f1319}
+  .good{color:#4ade80;font-weight:600}
+  .warn{color:#fbbf24;font-weight:600}
+  .bad{color:#f87171;font-weight:600}
+  .muted{color:#8b949e}
+  code{background:#161b22;border:1px solid #21262d;border-radius:4px;padding:1px 6px;font-size:.92em;color:#a5d6ff}
+  .box{background:#161b22;border:1px solid #30363d;border-radius:8px;padding:14px 18px;margin:14px 0}
+  .kv{display:flex;gap:26px;flex-wrap:wrap;margin:10px 0}
+  .k{background:#161b22;border:1px solid #30363d;border-radius:8px;padding:10px 16px}
+  .k b{display:block;font-size:1.5em;color:#58a6ff}
+</style>
+</head>
+<body><div class="wrap">
+<h1>HTTP/3 resilience: packet loss · network flaps · connection migration</h1>
+<div class="sub">Juggler v1.0.0 (QUIC :8443) · aioquic 1.3.0 клиенты через повреждённый UDP-прокси · 8 параллельных QUIC-соединений · 2026-09-26</div>
+
+<div class="box">
+<b>Методика.</b> Клиент ходит на <code>127.0.0.1:18443</code> — UDP-прокси с NAT-семантикой (пара серверных сокетов на клиента,
+ответы уходят с того же сокета, что запрос), который режет дейтаграммы по сценарию: случайная потеря в обе стороны,
+полный blackout обеих ног на T секунд, смена серверного порта (NAT rebinding → новые 4-tuple). Таймаут запроса 15s &gt; blackout,
+in-flight стримы обязаны переживать обрыв средствами QUIC-recovery. Серверные свидетельства — <code>h3_connections_total</code> до/после.
+</div>
+
+<h2>1. Матрица потерь пакетов</h2>
+<table>
+<tr><th>Сценарий</th><th>RPS</th><th>p50</th><th>p99</th><th>Таймауты</th><th>Реконнекты</th><th>Дейтаграмм срезано</th><th>Вердикт</th></tr>
+<tr><td>loss 0%</td><td>734</td><td>10.2 ms</td><td>21.9 ms</td><td class="good">0</td><td class="good">0</td><td>0</td><td class="good">PASS</td></tr>
+<tr><td>loss 1%</td><td>770</td><td>10.0 ms</td><td>21.6 ms</td><td class="good">0</td><td class="good">0</td><td>~200</td><td class="good">PASS — невидим</td></tr>
+<tr><td>loss 5%</td><td>532</td><td>7.2 ms</td><td>116.7 ms</td><td class="good">0</td><td class="good">0</td><td>2 237</td><td class="good">PASS</td></tr>
+<tr><td>loss 10%</td><td>334</td><td>6.1 ms</td><td>220.2 ms</td><td class="good">0</td><td class="good">0</td><td>3 427</td><td class="good">PASS</td></tr>
+<tr><td>loss 20%</td><td>78.6</td><td>11.4 ms</td><td>715.5 ms</td><td class="warn">1</td><td class="good">0</td><td>3 621</td><td class="warn">Деградация, но соединения живы</td></tr>
+</table>
+<p><b>Вывод:</b> до 10% потерь QUIC-recovery поглощает ущерб полностью — ни одного таймаута, ни одного разрыва за ~25k запросов на точку.
+Цена — растущий p99 (22 → 220 ms) и падение RPS: PTO-ретрансмиссии съедают окно. При 20% пропускная падает до 79 RPS и впервые
+появляется одиночный таймаут, но <b>ни одно соединение не разорвано и ни одно не переподключено</b> — recovery-механика держит путь.</p>
+
+<h2>2. Флэпы сети (полный blackout обеих ног)</h2>
+<table>
+<tr><th>Blackout</th><th>RPS</th><th>p50</th><th>p99</th><th>Таймауты</th><th>Реконнекты</th><th>Разрывов соединений</th><th>Дейтаграмм срезано</th></tr>
+<tr><td>2 s</td><td>715</td><td>9.9 ms</td><td>20.7 ms</td><td class="good">0</td><td class="good">0</td><td class="good">0</td><td>133</td></tr>
+<tr><td>5 s</td><td>673</td><td>9.6 ms</td><td>18.7 ms</td><td class="good">0</td><td class="good">0</td><td class="good">0</td><td>161</td></tr>
+<tr><td>10 s</td><td>599</td><td>9.6 ms</td><td>19.1 ms</td><td class="warn">1</td><td class="warn">1</td><td class="good">0</td><td>182</td></tr>
+</table>
+<p><b>Вывод:</b> обрыв до 5 секунд переживается <i>бесследно</i> — p99 даже ниже, чем в loss-сценариях: QUIC просто ждёт
+(anti-amplification не даёт серверу слать в закрытую ногу, клиент восстанавливает окно после возврата сети).
+На 10s клиент один раз переподключился (QUIC idle-timeout), при этом пользовательский запрос был обслужен —
+это единственный сценарий, где reconnect вообще случился за весь прогон.</p>
+
+<h2>3. Connection migration (NAT rebinding)</h2>
+<div class="kv">
+<div class="k"><b>0</b>разрывов соединений</div>
+<div class="k"><b>0</b>реконнектов</div>
+<div class="k"><b>+8</b>h3_connections_total<br><span class="muted">ровно 1 handshake на соединение — path validation прошла на сервере</span></div>
+<div class="k"><b>26 215</b>запросов<br><span class="muted">обслужено, 744 RPS, p50 10.1 ms</span></div>
+</div>
+<p>На t=15s прокси пересаживает все 8 соединений на другой серверный порт — Juggler видит новые 4-tuple.
+quinn-сервер выполняет path validation (PathChallenge/PathResponse), соединения продолжают работать
+без единого разрыва: 26 215 запросов до и после переключения. Серверный счётчик подтверждает:
+новых рукопожатий после переключения <b>ноль</b> — это настоящая миграция, а не тихий reconnect.</p>
+
+<h2>4. Состояние сервера после всех штормов</h2>
+<table>
+<tr><th>Проверка</th><th>Результат</th></tr>
+<tr><td>RSS после всех прогонов</td><td class="good">30 MB — возврат к базовому уровню</td></tr>
+<tr><td>H1 plain (:8085)</td><td class="good">200 за 2.3 ms</td></tr>
+<tr><td>H2 TLS (:8443)</td><td class="good">200 за 29 ms (рукопожатие)</td></tr>
+<tr><td>H3 QUIC (:8443)</td><td class="good">200</td></tr>
+<tr><td>h3_connections_total за сессию</td><td>~6 200 рукопожатий (все бенчи), без расхождений с клиентами</td></tr>
+</table>
+
+<h2>5. Дефекты тестового стенда, найденные по пути</h2>
+<table>
+<tr><th>Дефект</th><th>Симптом</th><th>Статус</th></tr>
+<tr><td>Один <code>client_addr</code> на всех в прокси</td><td>при 8 параллельных соединениях ответы доставлялись «последнему» клиенту — таймауты даже при 1% потерь</td><td class="good">исправлен: NAT-пара сокетов на клиента</td></tr>
+<tr><td>Blackout сравнивался с абсолютным <code>time.monotonic()</code></td><td>флэпы не срабатывали вовсе (<code>proxy_dropped=0</code>) — первый прогон флэпов был фикцией</td><td class="good">исправлен: отсчёт от старта теста</td></tr>
+</table>
+
+<h2>Итог</h2>
+<p>Juggler QUIC-плоскость переживает потери до 10% без единого разрыва и таймаута, blackout до 5 с — без следов,
+10-секундный обрыв — с одним корректным переподключением, NAT rebinding — с успешной path validation и нулём
+повторных рукопожатий. Худший измеренный режим (20% потерь) деградирует по throughput (78 RPS), но сохраняет
+все соединения. Уровень сервера: состояние возвращается к базовому (RSS 30 MB) после всех сценариев.</p>
+<p class="muted">Оговорки: loopback + программный прокси — не реальная сеть (нет jitter, изменения MTU, reordered packets);
+aioquic-клиент — один стек из многих; migration проверена для NAT-rebind-сценария, но не для смены сетевого интерфейса.</p>
+<p class="muted">Стенд: <code>bench/h3_loss.py</code> · сырые результаты: <code>bench/loss_results/*.json</code></p>
+</div></body>
+</html>
