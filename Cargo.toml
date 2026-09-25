@@ -9,6 +9,10 @@ license = "MIT OR Apache-2.0"
 name = "juggler"
 path = "src/main.rs"
 
+[[bin]]
+name = "h3load"
+path = "bench/h3load.rs"
+
 [dependencies]
 mimalloc = "0.1"
 crossbeam-queue = "0.3"
