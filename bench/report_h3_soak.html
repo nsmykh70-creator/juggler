@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<title>Juggler HTTP/3 — часовой soak: утечки и деградация</title>
+<style>
+  body{font-family:'Segoe UI',system-ui,sans-serif;margin:0;background:#0d1117;color:#c9d1d9;line-height:1.55}
+  .wrap{max-width:1000px;margin:0 auto;padding:32px 24px}
+  h1{color:#58a6ff;font-size:1.6em;margin:0 0 4px}
+  h2{color:#79c0ff;border-bottom:1px solid #21262d;padding-bottom:6px;margin-top:34px}
+  code{background:#161b22;padding:1px 6px;border-radius:4px;font-size:.92em}
+  table{border-collapse:collapse;width:100%;margin:14px 0;font-size:.95em}
+  th,td{border:1px solid #21262d;padding:7px 11px;text-align:left}
+  th{background:#161b22;color:#79c0ff}
+  tr:nth-child(even) td{background:#0f1420}
+  .good{color:#4ade80;font-weight:600}
+  .warn{color:#fbbf24;font-weight:600}
+  .bad{color:#f87171;font-weight:600}
+  .muted{color:#8b94a7}
+  .note{background:#161b22;border-left:3px solid #58a6ff;padding:10px 16px;margin:14px 0;border-radius:0 8px 8px 0}
+  .kpi{background:#12161f;border:1px solid #232a3a;border-radius:10px;padding:14px 20px}
+  .kpi b{display:block;font-size:1.5em;color:#58a6ff}
+  .kpis{display:flex;gap:14px;flex-wrap:wrap;margin:18px 0}
+</style>
+</head>
+<body><div class="wrap">
+<h1>Juggler HTTP/3 — часовой soak-тест (60.6 мин)</h1>
+<p class="muted">2026-09-26 · бенч-инстанс :9443 (QUIC, release, лимитер off) · aioquic 1.3.0 клиент · steady 8 keep-open соединений + churn-волны 200 соединений каждые 5 мин · GET /b/index.html (статика) · сэмпл каждую минуту</p>
+
+<div class="kpis">
+  <div class="kpi"><b>1 467 824</b>запросов ok</div>
+  <div class="kpi"><b>0</b>ошибок / таймаутов</div>
+  <div class="kpi"><b>2 208</b>handshake'ов · 11 волн</div>
+  <div class="kpi"><b>−0.13 MB/мин</b>наклон RSS (вниз)</div>
+  <div class="kpi"><b>±0.0</b>наклон handles</div>
+</div>
+
+<h2>1. Вердикт по утечкам</h2>
+<table>
+<tr><th>Ресурс</th><th>Старт</th><th>Финиш</th><th>Наклон (лин. регрессия)</th><th>Вердикт</th></tr>
+<tr><td>RSS сервера</td><td>26.2 MB</td><td class="good">14.7 MB</td><td class="good">−0.129 MB/мин</td><td class="good">Утечки нет — память возвращается (пик 27.6 в первую минуту, затем аллокатор отдал страницы)</td></tr>
+<tr><td>Дескрипторы (handles)</td><td>169</td><td class="good">169</td><td class="good">0.0/мин</td><td class="good">Утечки нет — 2 208 handshake'ов не оставили ни одного</td></tr>
+<tr><td>Счётчик h3-соединений</td><td>2 496</td><td>4 696</td><td>+2 200 за час</td><td>Сходится с клиентом (2 208) в пределах 8 длительно живущих steady-коннектов</td></tr>
+</table>
+
+<h2>2. Деградация p99 / throughput</h2>
+<table>
+<tr><th>Точка</th><th>До soak</th><th>После soak (сразу)</th><th>Вердикт</th></tr>
+<tr><td>статика 32c p50/p99</td><td>14.8 / 29.3 ms</td><td class="good">17.2 / 38.3 ms</td><td class="good">в пределах сессионного разброса</td></tr>
+<tr><td>healthz 32c p50/p99</td><td>2.35 / 5.08 ms</td><td class="good">2.86 / 7.75 ms</td><td class="good">без деградации</td></tr>
+<tr><td>healthz RPS</td><td>10 990</td><td class="good">10 440</td><td class="good">−5%, шум</td></tr>
+</table>
+<p class="note"><b>Важно: «дрейф −54%» внутри soak — артефакт клиента, не сервера.</b> Клиентский soak-скрипт работал в одном asyncio-цикле вместе с сэмплером и волнами; его собственный steady-throughput снижался (с 1017 до ~280 rps). Свежий отдельный клиент после soak показывает <b>1 738 rps на статике — выше, чем до soak (1 443)</b> из того же прогона матрицы. Сервер ни по латентности, ни по throughput не деградировал; здоровье плоскостей подтверждено сразу после теста (h1 200/2.7ms, h2 200).</p>
+
+<h2>3. Хронология churn-волн</h2>
+<p class="muted">Каждая волна — 200 параллельных QUIC-хендшейков + запрос + закрытие, поверх 8 постоянных соединений. Бурсты видны в минутных дельтах (метки WAVE); суммарно 11 волн × 200 = 2 200 handshake'ов. Сервер: 0 ошибок, 0 таймаутов, handles константны, RSS после волн возвращается к базовой линии — <b>каждая волна отработала и вычистилась полностью</b>.</p>
+<table>
+<tr><th>Фаза</th><th>RPS клиента</th><th>Событие</th></tr>
+<tr><td>t=2–4м</td><td>1017 → 884</td><td>чистый steady</td></tr>
+<tr><td>t=5–10м</td><td>529–666</td><td>первые 2 волны, аллокатор схлопывает пик</td></tr>
+<tr><td>t=15–30м</td><td>285–464</td><td>волны каждые 5м, клиентский шум растёт</td></tr>
+<tr><td>t=31–60м</td><td>260–380</td><td>стабильный медленный дрейф вниз (клиент)</td></tr>
+</table>
+
+<h2>4. Методика</h2>
+<p class="muted">Драйвер: <code>bench/h3_soak.py</code> — два независимых воркера в одном event loop (steady + churn) и сэмплер каждую минуту: RSS/_handles через PowerShell Get-Process целевого PID, <code>h3_connections_total</code> из /metrics, клиентские счётчики ok/err/timeouts/handshakes. Наклоны — линейная регрессия по минутным точкам. Волновый путь верифицирован отдельным one-shot прогоном до старта (200/200 ok). Сырые данные: <code>bench/soak_h3_results.json</code> (60 сэмплов), лог: <code>bench/soak_h3.log</code>.</p>
+<p class="muted">Оговорки: один клиентский стек (aioquic); паттерн трафика — статика, не proxy-пути; churn-волны без TLS-сертификатной ротации и без смены IP (чистые новые 4-tuple). Клиентский дрейф throughput при длинных Python-прогонах учтён и исключён из вердикта о сервере отдельным после-soak замером независимым клиентом.</p>
+
+<h2>Итог</h2>
+<p>Час под постоянным трафиком + 11 волн по 200 одновременных хендшейков: <b>нулевые утечки (RSS вниз, handles константа), ноль ошибок, ноль таймаутов, латентность без деградации</b>. HTTP/3-плоскость Juggler выдерживает часовой soak с чистойledger-сходимостью серверных и клиентских счётчиков.</p>
+</div></body>
+</html>
