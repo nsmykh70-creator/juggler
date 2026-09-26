@@ -316,11 +316,28 @@ scrape_configs:
 
 ### Grafana-дашборд
 
-Готовый дашборд: `docs/grafana-dashboard.json` (16 панелей: RPS по протоколам
-h1/h2/h3, латентности p50/p99, микс статусов, rate-limiter, пул upstream'ов,
-failover, шарды active/forecast). Импорт: Grafana → Dashboards → Import →
-файл → выбрать Prometheus-datasource. Переменная datasource задаётся через
-`__inputs` при импорте.
+Готовый дашборд: `docs/grafana-dashboard.json` (16 панелей в 4 рядах:
+Overview → Traffic → Upstreams → Internal). Покрытие: RPS по протоколам
+h1/h2/h3, латентности p50/p99, микс статусов с подсветкой 429/5xx,
+rate-limiter, пул upstream'ов (размер/reuse), failover/stale-retries/
+health-state, шарды active vs Pythia-forecast, keep-alive acceptance,
+кумулятивный счётчик QUIC-соединений (`h3_connections_total`).
+
+Импорт: Grafana → Dashboards → New → Import → загрузить файл → выбрать
+Prometheus-datasource (переменная `DS_JUGGLER` задаётся через `__inputs`
+при импорте) → Load. Дашборд ссылается только на реально экспортируемые
+серии (см. `# TYPE` в `/metrics`); PromQL-выражение error-rate zero-safe
+(`or vector(0)`) — на здоровом сервере панель показывает 0%, а не N/A.
+
+Скрейп-конфиг Prometheus — фрагмент выше (job `juggler`, `metrics_path:
+/metrics`). Проверка связки за 30 секунд:
+
+```bash
+# target должен стать up через ~10 с после старта Prometheus
+curl -s http://127.0.0.1:9090/api/v1/targets | \
+  python3 -c "import json,sys; t=json.load(sys.stdin)['data']['activeTargets'][0]; \
+  print(t['health'], t.get('lastError',''))"
+```
 
 Панели используют только реально экспортируемые серии (см. `# TYPE` в
 `/metrics`): `http_requests_total{path,status,proto}`,

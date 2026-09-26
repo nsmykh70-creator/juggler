@@ -42,7 +42,7 @@
       "datasource": { "type": "prometheus", "uid": "${DS_JUGGLER}" },
       "targets": [
         {
-          "expr": "sum(rate(http_requests_total{status=~\"5..|429\"}[5m])) / clamp_min(sum(rate(http_requests_total[5m])), 1e-9)",
+          "expr": "sum(rate(http_requests_total{status=~\"5..|429\"}[5m])) / clamp_min(sum(rate(http_requests_total[5m])), 1e-9) or vector(0)",
           "legendFormat": "error %",
           "refId": "A"
         }
