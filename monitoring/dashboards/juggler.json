@@ -29,7 +29,7 @@
       },
       "datasource": {
         "type": "prometheus",
-        "uid": "${DS_JUGGLER}"
+        "uid": "juggler-main"
       },
       "targets": [
         {
@@ -57,7 +57,7 @@
       },
       "datasource": {
         "type": "prometheus",
-        "uid": "${DS_JUGGLER}"
+        "uid": "juggler-main"
       },
       "targets": [
         {
@@ -101,7 +101,7 @@
       },
       "datasource": {
         "type": "prometheus",
-        "uid": "${DS_JUGGLER}"
+        "uid": "juggler-main"
       },
       "targets": [
         {
@@ -133,7 +133,7 @@
       },
       "datasource": {
         "type": "prometheus",
-        "uid": "${DS_JUGGLER}"
+        "uid": "juggler-main"
       },
       "targets": [
         {
@@ -160,7 +160,7 @@
       },
       "datasource": {
         "type": "prometheus",
-        "uid": "${DS_JUGGLER}"
+        "uid": "juggler-main"
       },
       "targets": [
         {
@@ -191,7 +191,7 @@
       },
       "datasource": {
         "type": "prometheus",
-        "uid": "${DS_JUGGLER}"
+        "uid": "juggler-main"
       },
       "targets": [
         {
@@ -227,7 +227,7 @@
       },
       "datasource": {
         "type": "prometheus",
-        "uid": "${DS_JUGGLER}"
+        "uid": "juggler-main"
       },
       "targets": [
         {
@@ -292,7 +292,7 @@
       },
       "datasource": {
         "type": "prometheus",
-        "uid": "${DS_JUGGLER}"
+        "uid": "juggler-main"
       },
       "targets": [
         {
@@ -331,7 +331,7 @@
       },
       "datasource": {
         "type": "prometheus",
-        "uid": "${DS_JUGGLER}"
+        "uid": "juggler-main"
       },
       "targets": [
         {
@@ -358,7 +358,7 @@
       },
       "datasource": {
         "type": "prometheus",
-        "uid": "${DS_JUGGLER}"
+        "uid": "juggler-main"
       },
       "targets": [
         {
@@ -390,7 +390,7 @@
       },
       "datasource": {
         "type": "prometheus",
-        "uid": "${DS_JUGGLER}"
+        "uid": "juggler-main"
       },
       "targets": [
         {
@@ -439,7 +439,7 @@
       },
       "datasource": {
         "type": "prometheus",
-        "uid": "${DS_JUGGLER}"
+        "uid": "juggler-main"
       },
       "targets": [
         {
@@ -474,7 +474,7 @@
       },
       "datasource": {
         "type": "prometheus",
-        "uid": "${DS_JUGGLER}"
+        "uid": "juggler-main"
       },
       "targets": [
         {

@@ -25,7 +25,11 @@ DS = {"type": "prometheus", "uid": "juggler-main"}
 def bind(obj):
     if isinstance(obj, dict):
         for k, v in list(obj.items()):
-            if k == "datasource" and (v == "${DS_JUGGLER}" or v is None):
+            if k == "datasource" and (
+                v == "${DS_JUGGLER}"
+                or v is None
+                or (isinstance(v, dict) and v.get("uid") == "${DS_JUGGLER}")
+            ):
                 obj[k] = DS
             else:
                 bind(v)
