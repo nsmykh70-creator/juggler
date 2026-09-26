@@ -18,9 +18,10 @@ use bytes::{Buf, Bytes};
 use http::Response;
 
 use crate::metrics::PROTO_H3;
+use crate::telemetry::record_response_class;
 use crate::{
-    dispatch_to_upstreams, parse_h1_response_head, record_response_class, request_signature_hash,
-    resolve_route, status_label, title_case_header, DispatchError, RouteDecision, ServerConfig,
+    dispatch_to_upstreams, parse_h1_response_head, request_signature_hash, resolve_route,
+    status_label, title_case_header, DispatchError, RouteDecision, ServerConfig,
     H3_CONNECTIONS_TOTAL, HTTP_REQUESTS_TOTAL, HTTP_RESPONSE_SECONDS,
 };
 
