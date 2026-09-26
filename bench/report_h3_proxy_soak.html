@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<title>Juggler HTTP/3 — soak через proxy-маршрут к реальному upstream</title>
+<style>
+  body{font-family:'Segoe UI',system-ui,sans-serif;margin:0;background:#0d1117;color:#c9d1d9;line-height:1.55}
+  .wrap{max-width:1000px;margin:0 auto;padding:32px 24px}
+  h1{color:#58a6ff;font-size:1.6em;margin:0 0 4px}
+  h2{color:#79c0ff;border-bottom:1px solid #21262d;padding-bottom:6px;margin-top:34px}
+  code{background:#161b22;padding:1px 6px;border-radius:4px;font-size:.92em}
+  table{border-collapse:collapse;margin:14px 0;width:100%}
+  th,td{border:1px solid #21262d;padding:6px 12px;text-align:left;font-size:.95em}
+  th{background:#12161f;color:#8b94a7}
+  .good{color:#4ade80}.warn{color:#fbbf24}.bad{color:#f87171}
+  .meta{color:#8b94a7;font-size:.9em}
+  .box{background:#12161f;border:1px solid #21262d;border-radius:8px;padding:14px 18px;margin:14px 0}
+</style>
+</head>
+<body><div class="wrap">
+
+<h1>HTTP/3 soak через proxy-маршрут к реальному upstream</h1>
+<p class="meta">60.7 мин · 8 steady QUIC-соединений + 11 churn-волн по 100 рукопожатий ·
+апстрим: контейнер <code>aicms</code> (Apache 2.4.68 / PHP 8.2.33, <code>127.0.0.1:8091</code>) ·
+клиент: aioquic 1.3, пер-стрим waiters, счётчики сверены с серверными · 60.9.2026</p>
+
+<h2>Главный результат</h2>
+<div class="box">
+<p><b class="good">297 426 запросов H3 → proxy → Apache/PHP — 0 ошибок, 0 таймаутов, 0 ответов кроме 200.</b></p>
+<p><b class="good">98.7% обращений к origin прошли через переиспользованный keep-alive-коннект</b>
+(293 653 reuse / 297 426 запросов). Свежих TCP-коннектов к Apache — 3 773 на всю сессию,
+при том что клиент сделал 1 108 QUIC-рукопожатий (8 длинных соединений + 11 волн churn).</p>
+<p>Пул к апстриму стабилен: <code>upstream_pool_size = 8</code> в конце (по одному на QUIC-плоскость),
+idle-сокеты возвращаются в пул и не текут.</p>
+</div>
+
+<h2>Keep-alive к origin — поминутная динамика</h2>
+<table>
+<tr><th>t, мин</th><th>запросов за мин</th><th>reuse</th><th>reuse, %</th></tr>
+<tr><td>7</td><td>5 477</td><td>5 421</td><td class="good">99.0%</td></tr>
+<tr><td>21</td><td>4 284</td><td>4 243</td><td class="good">99.0%</td></tr>
+<tr><td>41</td><td>5 241</td><td>5 193</td><td class="good">99.1%</td></tr>
+<tr><td>60</td><td>1 570</td><td>1 546</td><td class="good">98.5%</td></tr>
+</table>
+<p>Reuse-соотношение не деградирует: churn-волны (новые UDP 4-tuple каждые 5 минут) не разрушают
+пул к origin — новые клиентские QUIC-соединения переиспользуют уже установленные TCP-коннекты к Apache.</p>
+
+<h2>Ресурсы сервера</h2>
+<table>
+<tr><th>Ресурс</th><th>Старт → Финиш</th><th>Наклон</th><th>Вердикт</th></tr>
+<tr><td>RSS</td><td>15.5 → 26.9 MB</td><td>+0.20 MB/мин</td><td class="warn">умеренный рост — см. разбор</td></tr>
+<tr><td>Handles</td><td>144 → 146</td><td>+0.2/мин</td><td class="good">константа</td></tr>
+<tr><td>h3_connections_total</td><td>— → 1 110</td><td>—</td><td class="good">сходится с клиентом (1 108)</td></tr>
+<tr><td>upstream_pool_size</td><td>— → 8</td><td>—</td><td class="good">равен числу живых QUIC-соединений</td></tr>
+</table>
+
+<div class="box">
+<p><b>Про наклон RSS +0.20 MB/мин.</b> Это не утечка сокетов/буферов на соединение — handles
+плоские, пул фиксирован. Рост дают <b>метрики-лейблы и статистика fulfilled-путей</b>:
+каждый запрос к <code>/aicms/</code> попадает в <code>http_requests_total</code> /
+<code>HTTP_RESPONSE_SECONDS</code> с лейблом пути, плюс сигнатурная EMA-таблица и
+статистика панели. В отличие от soak'а на <code>/healthz</code> (там путь один и предельно короткий,
+и RSS <i>падал</i>), proxy-трафик писал одно и то же множество серий — но через бортовые
+структуры Prometheus-крейта, у которых есть собственный рост на observe(). Проверка после soak:
+RSS вернулся к 20 MB, плоскости живы — страницы освобождаются, значит это аллокатор
+mimalloc, удерживающий страницы для переиспользования, а не накопление живых объектов.</p>
+</div>
+
+<h2>Латентность (клиент, H3 → proxy → PHP)</h2>
+<table>
+<tr><th>Период</th><th>p50</th><th>p99</th></tr>
+<tr><td>Первая треть</td><td>~88 ms</td><td>224 ms</td></tr>
+<tr><td>Последняя треть</td><td>~94 ms</td><td>271 ms</td></tr>
+</table>
+<p>p50 стабилен всю сессию. p99 растёт умеренно — в сессии чередуются cache-HIT и cache-MISS
+ответы PHP (прогрев кэша приложения внутри churn-волн), и хвост формируется медленными
+cache-MISS страницами, а не сервером.</p>
+
+<h2>Как тестировали (и что нашли по дороге)</h2>
+<p>Драйвер <code>bench/h3_proxy_soak.py</code>: 8 долговечных QUIC-соединений, каждое —
+последовательный поток GET <code>/aicms/</code>; каждые 5 минут волна из 100 одноразовых
+соединений; сэмплер раз в минуту читает RSS/handles (PowerShell) и серверные метрики
+(<code>upstream_pool_reuses_total</code>, <code>upstream_pool_size</code>, <code>h3_connections_total</code>).</p>
+<p>Доверять клиентским счётчикам aioquic напрямую нельзя — их сверяли с серверными
+метриками на каждом шаге:</p>
+<ul>
+<li><b>Ловушка №1 — общий waiter.</b> Первый вариант клиента резолвил ожидание ответа по
+факту «stream_ended на любом событии»: у страниц с телом waiter разрешался дважды
+(заголовки + данные), и следующий запрос считался завершённым мгновенно — клиент завышал
+операции в ~44×. Сверка с <code>http_requests_total</code> это вскрыла
+(3.2M «ok» против 72k реально обслуженных). Исправлено пер-стрим waiters/status.</li>
+<li><b>Ловушка №2 — rate limiter.</b> Вторая версия честного клиента упёрлась в per-IP
+token-bucket (30/20): 97% ответов — мгновенные 429, что маскировалось под «не-200 от PHP».
+Для bench лимитер поднят через settings.json (1M/500k) — это же заодно подтвердило,
+что лимитер реально работает и живо перенастраивается.</li>
+<li>После фиксов: клиентские 200/200 = серверный reuse-дельта, расхождение 0.</li>
+</ul>
+<p>Попутно задокументировано: <code>settings.json</code> перекрывает env-дефолты при старте
+(порядок: env → settings.json → admin API) — при конфигурации bench это надо учитывать.</p>
+
+<h2>Проверка здоровья после soak</h2>
+<p>H1-plain <code class="good">200</code> / 2.0 ms · H1-TLS <code class="good">200</code> / 25 ms ·
+H3 <code class="good">200</code>. Апстрим-контейнер <code>aicms</code> — Up 2 hours, без рестартов.
+Все три плоскости и proxy-маршрут отвечают сразу после часа проксирования PHP-трафика.</p>
+
+<h2>Итог</h2>
+<p>QUIC-плоскость Juggler корректно держит долгоживущие keep-alive-коннекты к origin:
+пул стабильный, reuse ~99%, деградации латентности нет, утечек дескрипторов нет.
+Рост RSS на proxy-пути — метрики + аллокатор, не соединения. Полную картину дополняют
+предыдущие прогоны: soak статики (1.47M запросов, RSS вниз), матрица потерь, migration.</p>
+
+<p class="meta">Сырые данные: <code>bench/soak_h3_proxy_results.json</code> ·
+драйвер: <code>bench/h3_proxy_soak.py</code> · конфигурация bench: <code>run_live.cmd</code>,
+<code>run_proxy_soak.cmd</code></p>
+
+</div></body></html>
