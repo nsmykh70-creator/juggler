@@ -3620,6 +3620,20 @@ fn admin_overview_json(mutating: bool) -> String {
 }
 
 /// /api/history — the RPS/status/latency chart series (PanelSample ring).
+/// Unit-testable admin-plane routing for the Prometheus endpoint: reachable
+/// in every auth mode (read-only default, denied, mutating) — the exposition
+/// is public data, authentication must not be a prerequisite for scraping.
+fn admin_route_metrics() -> (u16, &'static str, String) {
+    let encoder = TextEncoder::new();
+    let mut buf = Vec::new();
+    encoder.encode(&REGISTRY.gather(), &mut buf).unwrap();
+    (
+        200,
+        "text/plain; version=0.0.4",
+        String::from_utf8(buf).unwrap(),
+    )
+}
+
 fn admin_history_json() -> String {
     let hist = panel_history_snapshot();
     let step = SHARD_SAMPLE_INTERVAL.as_secs();
@@ -4302,6 +4316,10 @@ async fn serve_admin_connection(mut stream: tokio::net::TcpStream) -> std::io::R
     }
 
     let (status, ctype, body): (u16, &str, String) = match (path_only, auth_mode) {
+        // Prometheus exposition on the admin plane too: a scrape config can
+        // then point at the admin listener (plain HTTP, loopback by default)
+        // instead of the TLS data plane. Same registry as data-plane /metrics.
+        ("/api/metrics", _) => admin_route_metrics(),
         // The SPA shell itself is public: the login screen lives inside it
         // and every data call it makes hits /api/*, which stays token-gated.
         // Without this, a viewer without the token would see a plain 401
@@ -8132,6 +8150,21 @@ mod tests {
     use std::time::Duration;
 
     // ---- Admin credentials / sessions ----
+
+    #[test]
+    fn admin_metrics_endpoint_exposes_prometheus_text() {
+        // The admin-plane Prometheus endpoint must return HTTP 200 with
+        // exposition text (scraping is unauthenticated on the admin plane).
+        // register_metrics() only runs in main(), so register + touch here.
+        let _ = REGISTRY.register(Box::new(HTTP_REQUESTS_TOTAL.clone()));
+        HTTP_REQUESTS_TOTAL
+            .with_label_values(&["test", "200", "test"])
+            .inc_by(0);
+        let (status, ctype, body) = admin_route_metrics();
+        assert_eq!(status, 200);
+        assert!(ctype.starts_with("text/plain"), "ctype={ctype}");
+        assert!(body.contains("http_requests_total"));
+    }
 
     #[test]
     fn credentials_roundtrip_and_change() {

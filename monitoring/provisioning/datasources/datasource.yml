@@ -1,0 +1,12 @@
+# Provisioned Grafana datasource. The dashboard (monitoring/dashboards and
+# docs/grafana-dashboard.json) references this datasource by UID juggler-main.
+apiVersion: 1
+
+datasources:
+  - name: Juggler
+    uid: juggler-main
+    type: prometheus
+    access: proxy
+    url: http://prometheus:9090
+    isDefault: true
+    editable: false

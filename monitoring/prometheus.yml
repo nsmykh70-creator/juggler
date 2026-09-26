@@ -1,0 +1,23 @@
+# Prometheus config for the Juggler monitoring stack.
+#
+# Target is Juggler's admin plane via GET /api/metrics (plain HTTP, same
+# registry as data-plane /metrics, unauthenticated by design). "up" resolves
+# via docker-compose extra_hosts -> host-gateway on Docker Desktop; on Linux
+# edit this to the host IP (e.g. 172.17.0.1:9090). Alternative: scrape the
+# TLS data plane's /metrics with scheme https + insecure_skip_verify.
+#
+# NOTE: file-provisioned config has no env substitution; edit the target
+# below rather than relying on environment variables.
+
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+rule_files:
+  - /etc/prometheus/alerts.yml
+
+scrape_configs:
+  - job_name: juggler
+    metrics_path: /api/metrics
+    static_configs:
+      - targets: ["host.docker.internal:9090"]

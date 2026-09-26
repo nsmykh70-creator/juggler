@@ -1,0 +1,32 @@
+# Alert rules for the Juggler monitoring stack (from docs/DEPLOY.md checklist:
+# "alerts on up==0 and 5xx growth"). Firing alerts appear in the Grafana
+# "Alerts" panel of the provisioned dashboard.
+
+groups:
+  - name: juggler
+    rules:
+      - alert: JugglerTargetDown
+        expr: up{job="juggler"} == 0
+        for: 1m
+        labels: {severity: critical}
+        annotations:
+          summary: "Juggler /metrics unreachable"
+          description: 'Prometheus cannot scrape {{ $labels.instance }} for 1m.'
+
+      - alert: JugglerHigh5xx
+        expr: |
+          (sum(rate(http_requests_total{status=~"5.."}[5m]))
+            / clamp_min(sum(rate(http_requests_total[5m])), 1e-9)) > 0.01
+        for: 5m
+        labels: {severity: warning}
+        annotations:
+          summary: "5xx rate above 1% for 5m"
+          description: '{{ $value | humanizePercentage }} of responses are 5xx.'
+
+      - alert: JugglerRateLimitStorm
+        expr: rate(rate_limit_rejected_total[5m]) > 100
+        for: 5m
+        labels: {severity: info}
+        annotations:
+          summary: "Rate limiter rejecting >100 req/s for 5m"
+          description: 'Sustained 429 storm: {{ $value | humanize }} req/s rejected.'

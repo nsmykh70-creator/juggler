@@ -30,3 +30,6 @@ tools-local/
 *.tar.gz
 build_linux.cmd
 linux_build.log
+bench/srv_bench/
+run_live.cmd
+run_soak.cmd
