@@ -19,10 +19,11 @@ use http::Response;
 
 use crate::metrics::PROTO_H3;
 use crate::telemetry::record_response_class;
+use crate::wire::title_case_header;
 use crate::{
     dispatch_to_upstreams, parse_h1_response_head, request_signature_hash, resolve_route,
-    status_label, title_case_header, DispatchError, RouteDecision, ServerConfig,
-    H3_CONNECTIONS_TOTAL, HTTP_REQUESTS_TOTAL, HTTP_RESPONSE_SECONDS,
+    status_label, DispatchError, RouteDecision, ServerConfig, H3_CONNECTIONS_TOTAL,
+    HTTP_REQUESTS_TOTAL, HTTP_RESPONSE_SECONDS,
 };
 
 /// UDP payload / QUIC settings for a local reverse proxy: moderate buffers,
