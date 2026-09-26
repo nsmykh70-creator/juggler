@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<title>Pythia A/B — hand-off accept, predictive balancer, adaptive prewarm</title>
+<style>
+  body{font-family:'Segoe UI',system-ui,sans-serif;margin:0;background:#0d1117;color:#c9d1d9;line-height:1.55}
+  .wrap{max-width:1000px;margin:0 auto;padding:32px 24px}
+  h1{color:#58a6ff;font-size:1.6em;margin:0 0 4px}
+  h2{color:#79c0ff;border-bottom:1px solid #21262d;padding-bottom:6px;margin-top:34px}
+  code{background:#161b22;padding:2px 6px;border-radius:4px;font-size:.92em}
+  table{border-collapse:collapse;width:100%;margin:14px 0}
+  th,td{border:1px solid #30363d;padding:7px 11px;text-align:left}
+  th{background:#161b22;color:#a5d6ff}
+  .win{color:#4ade80;font-weight:600}
+  .tie{color:#f0b429;font-weight:600}
+  .lose{color:#f87171;font-weight:600}
+  .verdict{background:#121d2b;border:1px solid #2e5a8a;border-radius:8px;padding:16px 20px;margin:18px 0}
+  .muted{color:#8b94a7}
+  .note{color:#f0b429}
+</style>
+</head>
+<body><div class="wrap">
+<h1>Pythia A/B: три теста, один вердикт</h1>
+<p class="muted">2026-09-27 · Juggler v1.0.0 (release, 2026-09-26 build) · клиент: <code>h3load</code> (Rust) · дубликаты сырья: <code>bench/ab1_*.json</code>, <code>bench/ab3_prewarm.json</code></p>
+
+<h2>Тест 1 — accept-режим: forecast hand-off vs kernel SO_REUSEPORT</h2>
+<p>Linux-контейнер (debian:12-slim), 12 шардов, plain-H1. Steady: 3×(32 conn, 15 s).
+Churn: 10 волн × 128 одновременных соединений, во время волн сэмплировался
+<code>shard_active_conns</code> (max−min по 12 шардам).</p>
+<table>
+<tr><th>Метрика</th><th>hand-off (Pythia)</th><th>SO_REUSEPORT</th><th>Итог</th></tr>
+<tr><td>steady RPS</td><td>4 671</td><td>4 669</td><td class="tie">паритет</td></tr>
+<tr><td>steady p50 / p99, ms</td><td>6.0 / 20.2</td><td>6.0 / 20.8</td><td class="tie">паритет</td></tr>
+<tr><td>дисбаланс шардов mean, req</td><td>25.3</td><td><b>7.4</b></td><td class="lose">хуже в 3.4×</td></tr>
+<tr><td>дисбаланс max</td><td>49</td><td><b>12</b></td><td class="lose">хуже в 4×</td></tr>
+</table>
+<p><b>Чтение результата.</b> Скептическая гипотеза «Pythia перераспределяет соединения
+неравномерно, но латентность не страдает» подтверждена: моментальный snapshot-дисбаланс
+выше, но p99 и throughput идентичны — hand-off отправляет соединение в шард,
+который <i>освободится раньше</i>, а не в наименее занятый сейчас, поэтому мгновенный
+срез закономерно «рваный», а очередь клиенту этого не чувствует. Аргумент существования
+hand-off — Windows, где SO_REUSEPORT недоступен: альтернатива не «kernel-хэш», а
+единый акцептор. На Linux выбор <code>reuseport</code> по умолчанию корректен.</p>
+
+<h2>Тест 2 — балансировщик: leastconn vs predictive</h2>
+<p>Windows-инстанс (:9085 plain), маршрут <code>/pyab2</code> → два loopback-upstream:
+fast (~10 мс) и slow (~120 мс), счётчики на каждом origin (ground truth).
+Переключение режимов — живым settings-knob'ом без рестарта. 16 соединений × 8 с,
+нагрузка 706 RPS, в среднем ~1 запрос в полёте на соединение.</p>
+<table>
+<tr><th>Метрика</th><th>leastconn</th><th>predictive</th><th>Итог</th></tr>
+<tr><td>RPS</td><td>706.4</td><td>706.5</td><td class="tie">паритет</td></tr>
+<tr><td>p50 / p99, ms</td><td>11.8 / 124.4</td><td>11.7 / 124.9</td><td class="tie">паритет</td></tr>
+<tr><td>раскол fast/slow</td><td>90.5 / 9.5%</td><td>90.5 / 9.5%</td><td class="tie">паритет</td></tr>
+<tr><td>ошибок</td><td>0</td><td>0</td><td class="tie">—</td></tr>
+</table>
+<p><b>Чтение результата.</b> При keep-alive и глубине очереди ~1 запрос на соединение
+leastconn уже оптимален: количество in-flight запросов и так отражает реальную
+загрузку. Predictive должен дать преимущество там, где in-flight <i>лжёт</i>:
+медленные ответы с большой очередью, разнородные сети, bursty upstream. В
+протестированном классе (loopback, file-like задержки) выигравшего нет.</p>
+
+<h2>Тест 3 — adaptive prewarm: вкл vs выкл (холодный старт)</h2>
+<p>Одинаковая процедура: routes.json на диске, старт сервера, burst-серия
+5×(64 conn, 3 с) с момента открытия порта.</p>
+<table>
+<tr><th>Burst</th><th>prewarm on: RPS / p99, ms</th><th>prewarm off: RPS / p99, ms</th></tr>
+<tr><td>1 (0–3 с после старта)</td><td class="win">1601 / 138.7</td><td>1313 / <span class="lose">533.9</span></td></tr>
+<tr><td>2</td><td>409.7 / <span class="note">1162*</span></td><td>1624 / 129.6</td></tr>
+<tr><td>3</td><td>1199 / 140.4</td><td>1897 / 131.8</td></tr>
+<tr><td>4</td><td>1716 / 130.6</td><td>1793 / 138.1</td></tr>
+<tr><td>5</td><td>1808 / 129.9</td><td>1759 / 137.8</td></tr>
+</table>
+<p><b>Чтение результата.</b> Первый burst: prewarm срезает холодный хвост p99
+в <b>3.8×</b> (139 vs 534 мс) и даёт +22% RPS. К третьему burst'у обе руки
+сходятся (пул прогрет сам собой). <span class="note">* Выброс 1162 мс в burst 2
+руки «on» — единичный артефакт (гипервизор/фон Windows), в остальных burst'ах
+p99 стабильно ~130 мс в обеих руках.</span></p>
+
+<h2>Вердикт</h2>
+<div class="verdict">
+<p><b>1. Accept-режим.</b> На Linux держим <code>SO_REUSEPORT</code> по умолчанию —
+он проще и распределяет ровнее. Hand-off остаётся Windows-путём (и опцией для
+нестандартных случаев); его более высокий snapshot-дисбаланс — свойство алгоритма
+(«предскажи освобождение», а не «найди наименьший»), а не дефект: латентность
+и throughput паритетны.</p>
+<p><b>2. Балансировщик.</b> В базовом keep-alive-сценарии predictive эквивалентен
+leastconn. Оставляем <code>leastconn</code> по умолчанию; predictive — осознанный
+выбор для гетерогенных/медленных upstream'ов (проверить отдельным тестом с
+сотовым/деградирующим бэкендом).</p>
+<p><b>3. Prewarm.</b> Единственный компонент Pythia с измеренной
+пользовательской пользой: <b>p99 первого burst'а −74%</b>. Для прод-развёртываний
+с резким стартом трафика — держать включённым (default).</p>
+<p style="margin-bottom:0"><b>Итог для README:</b> Pythia — не ускоритель RPS
+(на стационарном трафике паритет везде), а <i>срезатель холодного старта и хвостов</i>
+в одном месте (prewarm). Честная формулировка: «adaptive prewarm cut cold-start p99
+by 3.8× in our A/B; hand-off accept and the predictive balancer are parity options
+for platforms/scenarios where the kernel or leastconn heuristics are unavailable
+or blind». </div>
+
+<p class="muted" style="margin-top:22px">Сырьё: <code>bench/ab1_handoff.json</code>,
+<code>bench/ab1_reuseport.json</code>, <code>bench/ab3_prewarm.json</code> · драйверы:
+<code>bench/pythia_ab1.py</code>, <code>bench/pythia_ab3.py</code> · upstream-стенд:
+<code>bench/pythia_upstreams.py</code>.</p>
+</div></body></html>

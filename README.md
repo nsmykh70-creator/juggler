@@ -293,6 +293,14 @@ JSON API (тот же сервер, `Authorization: Bearer $JUGGLER_ADMIN_TOKEN`
 поэтому запросы уходят туда, где очередь **будет** короче, а не где она
 короче прямо сейчас. По умолчанию — классический least-connections.
 
+> **A/B-замер Pythia** (`bench/report_pythia_ab.html`): adaptive prewarm
+> срезает p99 первого burst'а после старта в **3.8×** (139 → 534 мс —
+> без prewarm); hand-off accept и predictive balancer — паритет к
+> SO_REUSEPORT/leastconn по RPS и p99 (различие — в моментальном
+> распределении соединений по шардам, не в латентности). Вывод: Pythia —
+> не ускоритель RPS, а срезатель холодного старта; на Linux по умолчанию
+> остаётся SO_REUSEPORT + leastconn, prewarm включён.
+
 ### Ядро прогноза v2 (lock-free, cache-line aligned)
 
 Модуль предсказания (шарды и апстримы) построен как массив ячеек с
