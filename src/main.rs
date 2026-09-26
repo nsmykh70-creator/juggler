@@ -31,7 +31,6 @@ use bytes::{BufMut, Bytes, BytesMut};
 use core_affinity::CoreId;
 use h2::server::SendResponse;
 use h2::RecvStream;
-use http::HeaderMap;
 use lazy_static::lazy_static;
 use prometheus::{Encoder, TextEncoder};
 use serde::{Deserialize, Serialize};
@@ -77,20 +76,16 @@ use metrics::{
     WASM_PLUGIN_SECONDS,
 };
 use wire::{
-    alt_svc_header, build_h1_request_from_parts, http_response, normalize_response_for_client,
-    normalize_response_in_place, patch_connection_header, title_case_header, with_alt_svc,
-    with_security_headers,
+    alt_svc_header, build_h1_request_from_parts, http_response, normalize_response_in_place,
+    patch_connection_header, title_case_header, with_alt_svc, with_security_headers,
 };
 use staticfiles::{
-    default_static_root, ensure_www_layout, is_script_source, merge_static_routes,
-    mime_type_of, serve_static_file, static_path_for,
+    default_static_root, ensure_www_layout, merge_static_routes, serve_static_file,
 };
 use balancer::{
     balancer_mode, request_signature_hash, sig_predict, sig_record, BALANCER,
-    LeastConnectionsBalancer,
 };
 use telemetry::{
-    holt_forecast, shard_holt_state,
     LOG_RING_CAP, FORECAST_HISTORY_CAP, STAGE_COUNT, STAGE_NAMES, NUM_SHARDS,
     history_snapshot, init_shard_counters, panel_history_snapshot, panel_log, process_cpu_permille,
     process_rss_kib, record_response_class, record_stage, shard_counters, shard_fc,
@@ -6353,7 +6348,12 @@ async fn handle_h2_request(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use balancer::LeastConnectionsBalancer;
+    use http::HeaderMap;
     use std::time::Duration;
+    use telemetry::{holt_forecast, shard_holt_state};
+    use wire::normalize_response_for_client;
+    use staticfiles::{is_script_source, mime_type_of, static_path_for};
 
     // ---- Admin credentials / sessions ----
 
