@@ -17,10 +17,11 @@ use arc_swap::ArcSwap;
 use bytes::{Buf, Bytes};
 use http::Response;
 
+use crate::metrics::PROTO_H3;
 use crate::{
     dispatch_to_upstreams, parse_h1_response_head, record_response_class, request_signature_hash,
     resolve_route, status_label, title_case_header, DispatchError, RouteDecision, ServerConfig,
-    H3_CONNECTIONS_TOTAL, HTTP_REQUESTS_TOTAL, HTTP_RESPONSE_SECONDS, PROTO_H3,
+    H3_CONNECTIONS_TOTAL, HTTP_REQUESTS_TOTAL, HTTP_RESPONSE_SECONDS,
 };
 
 /// UDP payload / QUIC settings for a local reverse proxy: moderate buffers,
