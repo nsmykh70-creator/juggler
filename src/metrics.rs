@@ -352,6 +352,13 @@ mod tests {
             "{repo}/monitoring/dashboards/juggler.json"
         ))
         .expect("provisioned dashboard present");
+        let dash = format!(
+            "{dash}\n{}",
+            std::fs::read_to_string(format!(
+                "{repo}/monitoring/dashboards/juggler-ab-accept.json"
+            ))
+            .expect("A/B dashboard present")
+        );
         let alerts =
             std::fs::read_to_string(format!("{repo}/monitoring/alerts.yml"))
                 .expect("alert rules present");
@@ -366,7 +373,10 @@ mod tests {
             while i < bytes.len() {
                 if bytes[i].is_ascii_lowercase() {
                     let s = i;
-                    while i < bytes.len() && (bytes[i].is_ascii_lowercase() || bytes[i] == b'_')
+                    while i < bytes.len()
+                        && (bytes[i].is_ascii_lowercase()
+                            || bytes[i] == b'_'
+                            || bytes[i].is_ascii_digit())
                     {
                         i += 1;
                     }

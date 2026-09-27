@@ -33,7 +33,7 @@
       },
       "targets": [
         {
-          "expr": "sum(rate(http_requests_total[1m]))",
+          "expr": "sum(rate(http_requests_total{job!~\"juggler_(handoff|reuseport)\"}[1m]))",
           "legendFormat": "rps",
           "refId": "A"
         }
@@ -61,7 +61,7 @@
       },
       "targets": [
         {
-          "expr": "sum(rate(http_requests_total{status=~\"5..|429\"}[5m])) / clamp_min(sum(rate(http_requests_total[5m])), 1e-9) or vector(0)",
+          "expr": "sum(rate(http_requests_total{status=~\"5..|429\", job!~\"juggler_(handoff|reuseport)\"}[5m])) / clamp_min(sum(rate(http_requests_total{job!~\"juggler_(handoff|reuseport)\"}[5m])), 1e-9) or vector(0)",
           "legendFormat": "error %",
           "refId": "A"
         }
@@ -105,12 +105,12 @@
       },
       "targets": [
         {
-          "expr": "sum(shard_active_conns)",
+          "expr": "sum(shard_active_conns{job!~\"juggler_(handoff|reuseport)\"})",
           "legendFormat": "active",
           "refId": "A"
         },
         {
-          "expr": "sum(shard_forecast_conns)",
+          "expr": "sum(shard_forecast_conns{job!~\"juggler_(handoff|reuseport)\"})",
           "legendFormat": "forecast (Pythia)",
           "refId": "B"
         }
@@ -137,7 +137,7 @@
       },
       "targets": [
         {
-          "expr": "h3_connections_total",
+          "expr": "h3_connections_total{job!~\"juggler_(handoff|reuseport)\"}",
           "legendFormat": "quic conns",
           "refId": "A"
         }
@@ -164,7 +164,7 @@
       },
       "targets": [
         {
-          "expr": "sum by (proto) (rate(http_requests_total[1m]))",
+          "expr": "sum by (proto) (rate(http_requests_total{job!~\"juggler_(handoff|reuseport)\"}[1m]))",
           "legendFormat": "{{proto}}",
           "refId": "A"
         }
@@ -195,12 +195,12 @@
       },
       "targets": [
         {
-          "expr": "histogram_quantile(0.50, sum(rate(http_response_seconds_bucket[5m])) by (le, path))",
+          "expr": "histogram_quantile(0.50, sum(rate(http_response_seconds_bucket{job!~\"juggler_(handoff|reuseport)\"}[5m])) by (le, path))",
           "legendFormat": "p50 {{path}}",
           "refId": "A"
         },
         {
-          "expr": "histogram_quantile(0.99, sum(rate(http_response_seconds_bucket[5m])) by (le, path))",
+          "expr": "histogram_quantile(0.99, sum(rate(http_response_seconds_bucket{job!~\"juggler_(handoff|reuseport)\"}[5m])) by (le, path))",
           "legendFormat": "p99 {{path}}",
           "refId": "B"
         }
@@ -231,7 +231,7 @@
       },
       "targets": [
         {
-          "expr": "sum by (status) (rate(http_requests_total[1m]))",
+          "expr": "sum by (status) (rate(http_requests_total{job!~\"juggler_(handoff|reuseport)\"}[1m]))",
           "legendFormat": "{{status}}",
           "refId": "A"
         }
@@ -296,7 +296,7 @@
       },
       "targets": [
         {
-          "expr": "sum(rate(rate_limit_rejected_total[1m]))",
+          "expr": "sum(rate(rate_limit_rejected_total{job!~\"juggler_(handoff|reuseport)\"}[1m]))",
           "legendFormat": "rejected/s",
           "refId": "A"
         }
@@ -335,7 +335,7 @@
       },
       "targets": [
         {
-          "expr": "sum by (upstream) (rate(upstream_requests_total[1m]))",
+          "expr": "sum by (upstream) (rate(upstream_requests_total{job!~\"juggler_(handoff|reuseport)\"}[1m]))",
           "legendFormat": "{{upstream}}",
           "refId": "A"
         }
@@ -362,12 +362,12 @@
       },
       "targets": [
         {
-          "expr": "sum by (upstream) (upstream_pool_size)",
+          "expr": "sum by (upstream) (upstream_pool_size{job!~\"juggler_(handoff|reuseport)\"})",
           "legendFormat": "size {{upstream}}",
           "refId": "A"
         },
         {
-          "expr": "sum(rate(upstream_pool_reuses_total[1m]))",
+          "expr": "sum(rate(upstream_pool_reuses_total{job!~\"juggler_(handoff|reuseport)\"}[1m]))",
           "legendFormat": "reuses/s",
           "refId": "B"
         }
@@ -394,17 +394,17 @@
       },
       "targets": [
         {
-          "expr": "sum(rate(upstream_failover_total[1m]))",
+          "expr": "sum(rate(upstream_failover_total{job!~\"juggler_(handoff|reuseport)\"}[1m]))",
           "legendFormat": "failovers/s",
           "refId": "A"
         },
         {
-          "expr": "sum(rate(upstream_stale_retries_total[1m]))",
+          "expr": "sum(rate(upstream_stale_retries_total{job!~\"juggler_(handoff|reuseport)\"}[1m]))",
           "legendFormat": "stale retries/s",
           "refId": "B"
         },
         {
-          "expr": "upstream_health_state",
+          "expr": "upstream_health_state{job!~\"juggler_(handoff|reuseport)\"}",
           "legendFormat": "health {{upstream}}",
           "refId": "C"
         }
@@ -443,12 +443,12 @@
       },
       "targets": [
         {
-          "expr": "shard_active_conns",
+          "expr": "shard_active_conns{job!~\"juggler_(handoff|reuseport)\"}",
           "legendFormat": "shard {{shard}}",
           "refId": "A"
         },
         {
-          "expr": "shard_forecast_conns",
+          "expr": "shard_forecast_conns{job!~\"juggler_(handoff|reuseport)\"}",
           "legendFormat": "forecast {{shard}}",
           "refId": "B"
         }
@@ -478,12 +478,12 @@
       },
       "targets": [
         {
-          "expr": "sum(rate(keepalive_connections_total[1m]))",
+          "expr": "sum(rate(keepalive_connections_total{job!~\"juggler_(handoff|reuseport)\"}[1m]))",
           "legendFormat": "accepts/s",
           "refId": "A"
         },
         {
-          "expr": "active_upstream_connections",
+          "expr": "active_upstream_connections{job!~\"juggler_(handoff|reuseport)\"}",
           "legendFormat": "upstream conns",
           "refId": "B"
         }
@@ -494,145 +494,6 @@
         },
         "overrides": []
       }
-    },
-    {
-      "id": 1,
-      "type": "row",
-      "title": "A/B: accept mode (handoff vs reuseport)",
-      "gridPos": {
-        "h": 1,
-        "w": 24,
-        "x": 0,
-        "y": 41
-      }
-    },
-    {
-      "id": 2,
-      "type": "timeseries",
-      "title": "Per-shard active conns (A/B)",
-      "datasource": {
-        "type": "prometheus",
-        "uid": "juggler-main"
-      },
-      "gridPos": {
-        "h": 8,
-        "w": 24,
-        "x": 0,
-        "y": 42
-      },
-      "fieldConfig": {
-        "defaults": {
-          "unit": "short"
-        },
-        "overrides": []
-      },
-      "options": {},
-      "targets": [
-        {
-          "refId": "A",
-          "expr": "shard_active_conns{accept_mode=\"handoff\"}",
-          "legendFormat": "handoff s{{shard}}",
-          "datasource": {
-            "type": "prometheus",
-            "uid": "juggler-main"
-          }
-        },
-        {
-          "refId": "B",
-          "expr": "shard_active_conns{accept_mode=\"reuseport\"}",
-          "legendFormat": "reuseport s{{shard}}",
-          "datasource": {
-            "type": "prometheus",
-            "uid": "juggler-main"
-          }
-        }
-      ],
-      "description": "Live per-shard connection load for both accept modes. handoff (event-time Pythia steering) vs kernel SO_REUSEPORT."
-    },
-    {
-      "id": 3,
-      "type": "timeseries",
-      "title": "Shard imbalance max/mean (A/B)",
-      "datasource": {
-        "type": "prometheus",
-        "uid": "juggler-main"
-      },
-      "gridPos": {
-        "h": 7,
-        "w": 12,
-        "x": 0,
-        "y": 50
-      },
-      "fieldConfig": {
-        "defaults": {
-          "unit": "short"
-        },
-        "overrides": []
-      },
-      "options": {},
-      "targets": [
-        {
-          "refId": "A",
-          "expr": "max without (shard) (shard_active_conns{accept_mode=\"handoff\"}) / clamp_min(avg without (shard) (shard_active_conns{accept_mode=\"handoff\"}), 1e-9)",
-          "legendFormat": "handoff",
-          "datasource": {
-            "type": "prometheus",
-            "uid": "juggler-main"
-          }
-        },
-        {
-          "refId": "B",
-          "expr": "max without (shard) (shard_active_conns{accept_mode=\"reuseport\"}) / clamp_min(avg without (shard) (shard_active_conns{accept_mode=\"reuseport\"}), 1e-9)",
-          "legendFormat": "reuseport",
-          "datasource": {
-            "type": "prometheus",
-            "uid": "juggler-main"
-          }
-        }
-      ],
-      "description": "Ratio of the busiest shard to the mean, per mode. 1.0 = perfectly even; higher = lopsided distribution."
-    },
-    {
-      "id": 4,
-      "type": "timeseries",
-      "title": "Total connections (A/B)",
-      "datasource": {
-        "type": "prometheus",
-        "uid": "juggler-main"
-      },
-      "gridPos": {
-        "h": 7,
-        "w": 12,
-        "x": 12,
-        "y": 50
-      },
-      "fieldConfig": {
-        "defaults": {
-          "unit": "short"
-        },
-        "overrides": []
-      },
-      "options": {},
-      "targets": [
-        {
-          "refId": "A",
-          "expr": "sum(shard_active_conns{accept_mode=\"handoff\"})",
-          "legendFormat": "handoff",
-          "datasource": {
-            "type": "prometheus",
-            "uid": "juggler-main"
-          }
-        },
-        {
-          "refId": "B",
-          "expr": "sum(shard_active_conns{accept_mode=\"reuseport\"})",
-          "legendFormat": "reuseport",
-          "datasource": {
-            "type": "prometheus",
-            "uid": "juggler-main"
-          }
-        }
-      ]
     }
   ],
   "refresh": "10s",
