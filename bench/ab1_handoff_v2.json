@@ -1,0 +1,10 @@
+{
+  "mode": "h1plain",
+  "steady_rps": 4965.966666666666,
+  "steady_p50": 5.613333333333333,
+  "steady_p99": 20.39666666666667,
+  "steady_err": 192,
+  "imbalance_mean": 51.00903614457831,
+  "imbalance_max": 85,
+  "waves": 10
+}

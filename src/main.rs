@@ -5046,15 +5046,28 @@ fn handoff_redir() -> &'static [ShardMailbox] {
     HANDOFF_REDIR.get().map(|v| v.as_slice()).unwrap_or(&[])
 }
 
-/// Pick the least-loaded shard for a new connection: forecast-first (the
-/// v2 core's one-step-ahead prediction sees a ramp before raw counters
-/// do), then queue depth, then live active conns; strictly better than
-/// pure round-robin under bursty keep-alive traffic (one client opening
-/// 50 connections would otherwise pin one shard for their lifetime).
+/// Pick the shard that will serve a new connection soonest — an event-time
+/// model, not a load snapshot. For each shard estimate the waiting time:
+///
+///   t_shard = (queued + trend_penalty) / service_rate
+///
+/// where `queued` is the mailbox depth (connections ahead of ours in that
+/// shard's accept queue — each costs one handshake slot), and the service
+/// rate is inverse to the shard's projected load: a shard whose Holt
+/// forecast is ABOVE its current active count is gaining work (queue drains
+/// slower), a shard below is draining faster. Connections already active on
+/// the shard compete for its single core, so the effective service rate is
+/// scaled down as `1 + act/K` (K = soft saturation point; empirical: the
+/// h2/h3 handshake burst saturates a core around ~128 concurrent tasks).
+/// Strictly better than a pure load snapshot: two shards with equal active
+/// counts are NOT equal — the one with an empty queue serves our conn
+/// immediately, the one with 10 queued makes us wait 10 handshake slots.
 fn pick_shard(n: usize, kind: HandoffKind) -> usize {
     if n == 0 {
         return 0;
     }
+    const SATURATION_CONNS: f64 = 128.0;
+    const TREND_WINDOW: f64 = 2.0; // forecast horizon: one sampler interval
     let fc = shard_fc();
     let (depth, active) = match kind {
         HandoffKind::Tls => (handoff_tls(), shard_counters()),
@@ -5062,17 +5075,31 @@ fn pick_shard(n: usize, kind: HandoffKind) -> usize {
         HandoffKind::Redir => (handoff_redir(), shard_counters()),
     };
     let mut best = 0usize;
-    let mut best_cost = f64::INFINITY;
+    let mut best_time = f64::INFINITY;
     for i in 0..n {
-        let fcst = fc.cell(i).map(|c| c.forecast()).unwrap_or(0.0);
+        let cell = fc.cell(i);
+        let level = cell.map(|c| c.level_f()).unwrap_or(0.0);
+        let trend = cell.map(|c| c.trend_f()).unwrap_or(0.0);
         let qd = depth.get(i).map(|m| m.len_approx()).unwrap_or(0) as f64;
         let act = active
             .get(i)
             .map(|c| c.active_conns.load(Ordering::Relaxed))
             .unwrap_or(0) as f64;
-        let cost = fcst * 2.0 + qd * 4.0 + act;
-        if cost < best_cost {
-            best_cost = cost;
+
+        // Projected concurrent work one interval out: level + trend*horizon,
+        // floored at the live counter (forecast must never claim LESS work
+        // than exists right now).
+        let projected = (level + trend * TREND_WINDOW).max(act);
+        // Effective service rate: degrades with the concurrent work already
+        // sitting on the shard's core.
+        let service_rate = 1.0 + act / SATURATION_CONNS;
+        // Time before OUR connection gets its handshake slot: queued conns
+        // ahead of us each cost one slot; the projected growth adds the
+        // arrivals we must outrun.
+        let wait = (qd + (projected - act).max(0.0)) / service_rate;
+
+        if wait < best_time {
+            best_time = wait;
             best = i;
         }
     }
@@ -6563,6 +6590,47 @@ mod tests {
         assert_eq!(
             picked_rising, 0,
             "oracle steered to a shard whose forecast is rising"
+        );
+    }
+
+    #[test]
+    fn pick_shard_prefers_idle_shard_over_equal_load_with_queue() {
+        // Event-time semantics: two shards with EQUAL active conns and
+        // EQUAL forecasts are NOT equal once one has a deep mailbox —
+        // the queued connections cost handshake slots that our conn
+        // would wait behind. The empty-queue shard must always win.
+        init_shard_counters(2);
+        NUM_SHARDS.store(2, Ordering::Relaxed);
+        init_handoff_mailboxes(2);
+        let fc = shard_fc();
+        for i in 0..2 {
+            if let Some(cell) = fc.cell(i) {
+                cell.fold(4.0, 6.0);
+                cell.fold(4.0, 6.0);
+            }
+        }
+        if let Some(c) = shard_counters().first() {
+            c.active_conns.store(4, Ordering::Relaxed);
+        }
+        if let Some(c) = shard_counters().get(1) {
+            c.active_conns.store(4, Ordering::Relaxed);
+        }
+        // Queue 8 connections on shard 1's TLS mailbox (shard 0 stays empty).
+        let m1 = handoff_tls().get(1).expect("mailbox 1");
+        let before = m1.len_approx();
+        for _ in 0..8 {
+            m1.depth.fetch_add(1, Ordering::Relaxed);
+        }
+        let mut picked_queued = 0;
+        for _ in 0..50 {
+            if pick_shard(2, HandoffKind::Tls) == 1 {
+                picked_queued += 1;
+            }
+        }
+        m1.depth.store(before, Ordering::Relaxed);
+        assert_eq!(
+            picked_queued, 0,
+            "oracle steered into a shard with a deep accept queue"
         );
     }
 
