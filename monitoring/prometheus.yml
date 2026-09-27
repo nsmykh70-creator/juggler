@@ -21,3 +21,19 @@ scrape_configs:
     metrics_path: /api/metrics
     static_configs:
       - targets: ["host.docker.internal:9090"]
+
+  # Accept-mode A/B pair (bench containers). The accept_mode label is
+  # attached at scrape time so dashboards can split per-shard series by mode.
+  # In PromQL accept_mode="" matches the unlabeled reuseport series.
+  - job_name: juggler_handoff
+    metrics_path: /api/metrics
+    static_configs:
+      - targets: ["host.docker.internal:19091"]
+        labels:
+          accept_mode: handoff
+  - job_name: juggler_reuseport
+    metrics_path: /api/metrics
+    static_configs:
+      - targets: ["host.docker.internal:19090"]
+        labels:
+          accept_mode: reuseport

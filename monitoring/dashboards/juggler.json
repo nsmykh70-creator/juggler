@@ -494,6 +494,145 @@
         },
         "overrides": []
       }
+    },
+    {
+      "id": 1,
+      "type": "row",
+      "title": "A/B: accept mode (handoff vs reuseport)",
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 41
+      }
+    },
+    {
+      "id": 2,
+      "type": "timeseries",
+      "title": "Per-shard active conns (A/B)",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "juggler-main"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 24,
+        "x": 0,
+        "y": 42
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "options": {},
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "shard_active_conns{accept_mode=\"handoff\"}",
+          "legendFormat": "handoff s{{shard}}",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "juggler-main"
+          }
+        },
+        {
+          "refId": "B",
+          "expr": "shard_active_conns{accept_mode=\"reuseport\"}",
+          "legendFormat": "reuseport s{{shard}}",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "juggler-main"
+          }
+        }
+      ],
+      "description": "Live per-shard connection load for both accept modes. handoff (event-time Pythia steering) vs kernel SO_REUSEPORT."
+    },
+    {
+      "id": 3,
+      "type": "timeseries",
+      "title": "Shard imbalance max/mean (A/B)",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "juggler-main"
+      },
+      "gridPos": {
+        "h": 7,
+        "w": 12,
+        "x": 0,
+        "y": 50
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "options": {},
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "max without (shard) (shard_active_conns{accept_mode=\"handoff\"}) / clamp_min(avg without (shard) (shard_active_conns{accept_mode=\"handoff\"}), 1e-9)",
+          "legendFormat": "handoff",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "juggler-main"
+          }
+        },
+        {
+          "refId": "B",
+          "expr": "max without (shard) (shard_active_conns{accept_mode=\"reuseport\"}) / clamp_min(avg without (shard) (shard_active_conns{accept_mode=\"reuseport\"}), 1e-9)",
+          "legendFormat": "reuseport",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "juggler-main"
+          }
+        }
+      ],
+      "description": "Ratio of the busiest shard to the mean, per mode. 1.0 = perfectly even; higher = lopsided distribution."
+    },
+    {
+      "id": 4,
+      "type": "timeseries",
+      "title": "Total connections (A/B)",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "juggler-main"
+      },
+      "gridPos": {
+        "h": 7,
+        "w": 12,
+        "x": 12,
+        "y": 50
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "options": {},
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum(shard_active_conns{accept_mode=\"handoff\"})",
+          "legendFormat": "handoff",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "juggler-main"
+          }
+        },
+        {
+          "refId": "B",
+          "expr": "sum(shard_active_conns{accept_mode=\"reuseport\"})",
+          "legendFormat": "reuseport",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "juggler-main"
+          }
+        }
+      ]
     }
   ],
   "refresh": "10s",
