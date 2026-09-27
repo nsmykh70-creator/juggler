@@ -103,4 +103,29 @@ or blind». </div>
 <code>bench/ab1_reuseport.json</code>, <code>bench/ab3_prewarm.json</code> · драйверы:
 <code>bench/pythia_ab1.py</code>, <code>bench/pythia_ab3.py</code> · upstream-стенд:
 <code>bench/pythia_upstreams.py</code>.</p>
-</div></body></html>
+</div>
+<h2>Test 2b: saturation regime — deep queues &amp; timeouts (2026-09-28)</h2>
+<p>Тот же стенд, что Test 2, но upstream'ы переведены в режим насыщения:
+fast origin — 8 одновременных обработчиков по ~10 мс (~800 rps ёмкости),
+slow — 3 обработчика по ~120 мс (~25 rps). Очередь копится <em>на origin</em>,
+Juggler держит 512 keep-alive соединений, read-timeout upstream 6 с.
+Три прогона (основной, повтор, обратный порядок рук):</p>
+<table>
+<tr><th>Прогон</th><th>Балансер</th><th>RPS</th><th>p50, мс</th><th>p99, мс</th><th>ошибки</th><th>fast</th><th>slow</th></tr>
+<tr><td rowspan="2">512×90 c (осн.)</td><td>leastconn</td><td>844.7</td><td>408.9</td><td>6334</td><td><b>70</b></td><td>84 958</td><td>3 424</td></tr>
+<tr><td>predictive</td><td><b>997.0</b></td><td>422.8</td><td>6346</td><td><b>0</b></td><td>90 435</td><td>3 121</td></tr>
+<tr><td rowspan="2">512×60 c (повтор)</td><td>leastconn</td><td>961.7</td><td>422.0</td><td>6333</td><td>4</td><td>57 566</td><td>1 950</td></tr>
+<tr><td>predictive</td><td>878.9</td><td>411.3</td><td>6327</td><td>0</td><td>56 678</td><td>2 088</td></tr>
+<tr><td rowspan="2">512×60 c (обратный порядок)</td><td>predictive</td><td>895.1</td><td>409.2</td><td>6332</td><td>0</td><td>56 882</td><td>2 090</td></tr>
+<tr><td>leastconn</td><td>882.4</td><td>409.2</td><td>6315</td><td>0</td><td>56 731</td><td>2 094</td></tr>
+</table>
+<p><b>Вердикт:</b> при глубокой очереди throughput и p99 у стратегий <b>паритетны</b>
+(очередь на origin выравнивает обоих: решение принимается раз на соединение,
+дальше запрос ждёт в общем пуле). Различие — в хвосте надёжности: в основном
+прогоне leastconn дал 70 ошибок против 0 у predictive; в повторах с прогретым
+стендом обе руки чисты. Ошибки — os error 10054/10061 на slow-origin (accept-очередь
+origin рвёт соединения), predictive реже выбирает переполненный slow в момент всплеска.
+Итог: predictive = <em>равный</em> throughput + чуть более устойчивый хвост при
+всплесках на насыщенном origin; решающее преимущество не подтверждено.</p>
+
+</body></html>

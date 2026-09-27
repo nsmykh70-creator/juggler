@@ -3623,7 +3623,17 @@ fn spawn_admin_server(cfg: Arc<ArcSwap<ServerConfig>>, routes_file: String) {
 
 
 const MAX_UPSTREAM_RESPONSE: usize = 64 * 1024 * 1024;
-const UPSTREAM_READ_TIMEOUT: Duration = Duration::from_secs(30);
+fn upstream_read_timeout() -> Duration {
+    static T: OnceLock<Duration> = OnceLock::new();
+    *T.get_or_init(|| {
+        Duration::from_secs(
+            std::env::var("JUGGLER_UPSTREAM_READ_TIMEOUT")
+                .ok()
+                .and_then(|v| v.parse().ok())
+                .unwrap_or(30),
+        )
+    })
+}
 const UPSTREAM_CONNECT_TIMEOUT: Duration = Duration::from_secs(3);
 /// Writes to an upstream share the read budget: a never-writable socket
 /// (zero-window backend, black-holed peer) must not park the dispatch
@@ -4069,7 +4079,7 @@ async fn read_upstream_response_reusable(
         if response.len() > MAX_UPSTREAM_RESPONSE {
             anyhow::bail!("upstream response exceeds {} bytes", MAX_UPSTREAM_RESPONSE);
         }
-        let n = tokio::time::timeout(UPSTREAM_READ_TIMEOUT, upstream.read(&mut chunk)).await??;
+        let n = tokio::time::timeout(upstream_read_timeout(), upstream.read(&mut chunk)).await??;
         if n == 0 {
             return Ok((response, false)); // EOF -> server closed: not reusable
         }
