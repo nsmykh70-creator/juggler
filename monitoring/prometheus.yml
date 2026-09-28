@@ -3,7 +3,7 @@
 # Target is Juggler's admin plane via GET /api/metrics (plain HTTP, same
 # registry as data-plane /metrics, unauthenticated by design). "up" resolves
 # via docker-compose extra_hosts -> host-gateway on Docker Desktop; on Linux
-# edit this to the host IP (e.g. 172.17.0.1:9090). Alternative: scrape the
+# edit this to the host IP (e.g. 172.17.0.1:9091). Alternative: scrape the
 # TLS data plane's /metrics with scheme https + insecure_skip_verify.
 #
 # NOTE: file-provisioned config has no env substitution; edit the target
@@ -20,7 +20,7 @@ scrape_configs:
   - job_name: juggler
     metrics_path: /api/metrics
     static_configs:
-      - targets: ["host.docker.internal:9090"]
+      - targets: ["host.docker.internal:9091"]
 
   # Accept-mode A/B pair (bench containers). The accept_mode label is
   # attached at scrape time so dashboards can split per-shard series by mode.
