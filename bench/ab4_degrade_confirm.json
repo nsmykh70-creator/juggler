@@ -1,0 +1,26 @@
+{
+ "leastconn": {
+  "rps": 1503.5,
+  "p50_ms": 60.95,
+  "p99_ms": 1784.07,
+  "ok": 135426,
+  "err": 0,
+  "balancer": "leastconn",
+  "conns": 256,
+  "duration_s": 90,
+  "fast_served": 106999,
+  "degrading_served": 28648
+ },
+ "predictive": {
+  "rps": 1467.6,
+  "p50_ms": 62.27,
+  "p99_ms": 1583.71,
+  "ok": 132248,
+  "err": 1,
+  "balancer": "predictive",
+  "conns": 256,
+  "duration_s": 90,
+  "fast_served": 106009,
+  "degrading_served": 26239
+ }
+}

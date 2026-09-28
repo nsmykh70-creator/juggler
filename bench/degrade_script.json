@@ -1,0 +1,8 @@
+[
+  {"phase": "healthy",  "s": 20},
+  {"phase": "saturate", "s": 12},
+  {"phase": "healthy",  "s": 15},
+  {"phase": "spike",    "s": 12},
+  {"phase": "healthy",  "s": 15},
+  {"phase": "drop",     "s": 10}
+]
