@@ -320,9 +320,86 @@ pub struct RouteConfig {
     pub preserve_prefix: bool,
 }
 
-#[derive(Clone, Serialize, Deserialize, Debug, Default, PartialEq)]
+#[derive(Clone, Serialize, Deserialize, Debug, Default)]
 pub struct ServerConfig {
     pub routes: HashMap<String, RouteConfig>,
+    /// Per-request lookup structures derived from `routes`: presorted
+    /// longest-prefix candidates, lowercased deny patterns, CMS fallbacks.
+    /// Rebuilt on every config swap (`ServerConfig::build`); `resolve_route`
+    /// reads only this, so no per-request sorting or allocation happens.
+    #[serde(skip)]
+    pub table: RouteTable,
+}
+
+/// Equality is defined on the persisted config (`routes`) only: the table is
+/// a pure function of `routes`, so comparing it would double the cost.
+impl PartialEq for ServerConfig {
+    fn eq(&self, other: &Self) -> bool {
+        self.routes == other.routes
+    }
+}
+
+impl ServerConfig {
+    /// The single constructor used everywhere a config is assembled
+    /// (boot load, admin POST /api/rules, gRPC update, tests). Keeps the
+    /// derived lookup table in sync with `routes` by construction.
+    pub fn build(routes: HashMap<String, RouteConfig>) -> Self {
+        let mut static_sorted: Vec<(String, Arc<RouteConfig>)> = routes
+            .iter()
+            .filter(|(_, r)| r.static_dir.is_some())
+            .map(|(k, v)| (k.clone(), Arc::new(v.clone())))
+            .collect();
+        static_sorted.sort_by_key(|(k, _)| std::cmp::Reverse(k.len()));
+        let mut proxy_sorted: Vec<(String, Arc<RouteConfig>)> = routes
+            .iter()
+            .filter(|(_, r)| !r.upstream_addrs.is_empty())
+            .map(|(k, v)| (k.clone(), Arc::new(v.clone())))
+            .collect();
+        proxy_sorted.sort_by_key(|(k, _)| std::cmp::Reverse(k.len()));
+        // Deny patterns apply globally (a hit in any route shadows matching);
+        // lowercase + dedup once here instead of per request.
+        let mut deny_set = std::collections::BTreeSet::new();
+        for r in routes.values() {
+            for d in &r.security.deny_substrings {
+                deny_set.insert(d.to_ascii_lowercase());
+            }
+        }
+        let cms_fallbacks: Vec<(String, Arc<RouteConfig>)> = routes
+            .values()
+            .filter_map(|v| {
+                let f = v.security.cms_fallback_path.as_ref()?;
+                // Resolve the TARGET route now: the fallback forwards to the
+                // route registered at `f` (must have upstreams).
+                routes
+                    .get(f)
+                    .filter(|t| !t.upstream_addrs.is_empty())
+                    .map(|t| (f.clone(), Arc::new(t.clone())))
+            })
+            .collect();
+        Self {
+            routes,
+            table: RouteTable {
+                static_sorted,
+                proxy_sorted,
+                deny_lower: deny_set.into_iter().collect(),
+                cms_fallbacks,
+            },
+        }
+    }
+}
+
+/// Derived per-request routing index (see `ServerConfig::table`).
+#[derive(Debug, Default, Clone)]
+pub struct RouteTable {
+    /// Routes with `static_dir`, longest prefix first.
+    pub static_sorted: Vec<(String, Arc<RouteConfig>)>,
+    /// Proxy routes, longest prefix first.
+    pub proxy_sorted: Vec<(String, Arc<RouteConfig>)>,
+    /// Lowercased deny substrings from every route, deduplicated.
+    pub deny_lower: Vec<String>,
+    /// (fallback target path, declaring route) pairs for the CMS
+    /// front-controller rewrite.
+    pub cms_fallbacks: Vec<(String, Arc<RouteConfig>)>,
 }
 
 /// Persist the config so a restarted server keeps its routes. Best-effort:
@@ -1764,7 +1841,7 @@ impl ControlPlane for MyControlPlane {
         // Pick up any new site directories under the document root without
         // a restart: static routes merge over the Control Plane routes.
         let merged = merge_static_routes(&default_static_root(), new_routes);
-        let new_config = ServerConfig { routes: merged };
+        let new_config = ServerConfig::build(merged);
         // Socket pools of removed upstreams must not linger (their sockets
         // would otherwise keep half-open connections to dead peers).
         for removed in BALANCER.connections.load().keys() {
@@ -3476,9 +3553,7 @@ async fn admin_reload() -> Result<String, String> {
         .map_err(|e| format!("routes file {routes_file}: {e}"))?;
     let loaded: ServerConfig =
         serde_json::from_str(&body).map_err(|e| format!("routes JSON invalid: {e}"))?;
-    let cfg = ServerConfig {
-        routes: merge_static_routes(&default_static_root(), loaded.routes),
-    };
+    let cfg = ServerConfig::build(merge_static_routes(&default_static_root(), loaded.routes));
     // Validate + swap routes (reuses the exact POST /api/rules path).
     let n_routes = cfg.routes.len();
     apply_admin_config(cfg)
@@ -3549,9 +3624,7 @@ async fn apply_admin_config(new_cfg: ServerConfig) -> anyhow::Result<String> {
     // Static docroot routes must survive admin hot-reload exactly like they
     // survive gRPC Control Plane updates: merge over the posted routes.
     let merged_routes = merge_static_routes(&default_static_root(), new_cfg.routes);
-    let new_cfg = ServerConfig {
-        routes: merged_routes,
-    };
+    let new_cfg = ServerConfig::build(merged_routes);
     let cfg = ADMIN_CONFIG.get_or_init(|| Arc::new(ArcSwap::from_pointee(ServerConfig::default())));
     BALANCER.update_registry(&new_cfg.routes);
     HEALTH.retain(
@@ -4443,15 +4516,16 @@ fn resolve_route(
     }
 
     let active = config.load();
+    let table = &active.table;
 
     // Security gate: a route's deny patterns shadow more-specific matching
     // (a request for /wp-admin/../../wp-config.php is normalized before this
-    // point by the parser). Matching is case-insensitive substring.
-    let path_lower = path.to_ascii_lowercase();
-    for route in active.routes.values() {
-        for denied in &route.security.deny_substrings {
-            let d = denied.to_ascii_lowercase();
-            if path_lower.contains(&d) {
+    // point by the parser). Matching is case-insensitive substring; the
+    // lowercased, deduplicated pattern set is precomputed in the table.
+    if !table.deny_lower.is_empty() {
+        let path_lower = path.to_ascii_lowercase();
+        for denied in &table.deny_lower {
+            if path_lower.contains(denied.as_str()) {
                 HTTP_REQUESTS_TOTAL
                     .with_label_values(&[path, "403", proto])
                     .inc();
@@ -4463,13 +4537,7 @@ fn resolve_route(
     // Static routes: longest-prefix match. A request for /site1/img/a.png
     // is served from the static_dir of route /site1 with the remainder as
     // the file path. Exact proxy routes always win over the prefix.
-    let mut static_candidates: Vec<(&String, &RouteConfig)> = active
-        .routes
-        .iter()
-        .filter(|(_, r)| r.static_dir.is_some())
-        .collect();
-    static_candidates.sort_by_key(|(prefix, _)| std::cmp::Reverse(prefix.len()));
-    for (prefix, route) in static_candidates {
+    for (prefix, route) in &table.static_sorted {
         let is_exact = path == prefix.as_str();
         let is_child = path.len() > prefix.len()
             && path.starts_with(prefix.as_str())
@@ -4508,13 +4576,7 @@ fn resolve_route(
             return RouteDecision::Redirect301(format!("{path}/"));
         }
     }
-    let mut proxy_candidates: Vec<(&String, &RouteConfig)> = active
-        .routes
-        .iter()
-        .filter(|(_, r)| !r.upstream_addrs.is_empty())
-        .collect();
-    proxy_candidates.sort_by_key(|(prefix, _)| std::cmp::Reverse(prefix.len()));
-    for (prefix, route) in proxy_candidates {
+    for (prefix, route) in &table.proxy_sorted {
         let is_exact = path == prefix.as_str();
         let is_child = path.len() > prefix.len()
             && path.starts_with(prefix.as_str())
@@ -4542,36 +4604,27 @@ fn resolve_route(
             );
         }
     }
-    {
-        // CMS front-controller fallback: if any route declares a
-        // cms_fallback_path, unknown paths rewrite there (WordPress's
-        // `RewriteRule ^(.*)$ index.php [L]` equivalent).
-        for route in active.routes.values() {
-            if let Some(fallback) = &route.security.cms_fallback_path {
-                if let Some(target) = active.routes.get(fallback) {
-                    if !target.upstream_addrs.is_empty() {
-                        // The original URI is forwarded unchanged: the CMS
-                        // router (WordPress, Laravel...) resolves it from
-                        // REQUEST_URI, exactly as under Apache mod_rewrite.
-                        HTTP_REQUESTS_TOTAL
-                            .with_label_values(&[fallback, "200", proto])
-                            .inc();
-                        return RouteDecision::Proxy(
-                            target.upstream_addrs.clone(),
-                            std::mem::take(body),
-                            Vec::new(),
-                            target.security.response_headers.clone(),
-                            0,
-                        );
-                    }
-                }
-            }
-        }
+    // CMS front-controller fallback: if any route declares a
+    // cms_fallback_path, unknown paths rewrite there (WordPress's
+    // `RewriteRule ^(.*)$ index.php [L]` equivalent). Target routes were
+    // resolved at table-build time; the original URI is forwarded unchanged
+    // (the CMS router resolves it from REQUEST_URI, as under mod_rewrite).
+    if let Some((fallback, target)) = table.cms_fallbacks.first() {
         HTTP_REQUESTS_TOTAL
-            .with_label_values(&[path, "404", proto])
+            .with_label_values(&[fallback, "200", proto])
             .inc();
-        RouteDecision::NotFound
+        return RouteDecision::Proxy(
+            target.upstream_addrs.clone(),
+            std::mem::take(body),
+            Vec::new(),
+            target.security.response_headers.clone(),
+            0,
+        );
     }
+    HTTP_REQUESTS_TOTAL
+        .with_label_values(&[path, "404", proto])
+        .inc();
+    RouteDecision::NotFound
 }
 
 /// Shared builder for exact and prefix proxy decisions: runs the WASM
@@ -4643,9 +4696,7 @@ fn main() -> Result<()> {
     UPSTREAM_POOL.close_all(None);
     let shared_config = Arc::new(ArcSwap::from_pointee({
         let loaded = load_persisted_config(&routes_file).unwrap_or_default();
-        ServerConfig {
-            routes: merge_static_routes(&www_root, loaded.routes),
-        }
+        ServerConfig::build(merge_static_routes(&www_root, loaded.routes))
     }));
     {
         let prune_cfg = shared_config.clone();
@@ -7722,7 +7773,7 @@ mod tests {
         routes.insert("/cms".to_string(), cms);
         route.upstream_addrs.clear(); // an empty route only carries policy
         routes.insert("/policy".to_string(), route);
-        Arc::new(ArcSwap::from_pointee(ServerConfig { routes }))
+        Arc::new(ArcSwap::from_pointee(ServerConfig::build(routes)))
     }
 
     fn sec_resolve(path: &str, body: &mut Vec<u8>) -> RouteDecision {
@@ -7769,14 +7820,14 @@ mod tests {
     fn prefix_proxy_requires_slash_boundary() {
         // /apifoo must NOT match route /api (no '/' boundary after prefix).
         // Config without a cms_fallback so the unmatched path stays NotFound.
-        let cfg = Arc::new(ArcSwap::from_pointee(ServerConfig {
-            routes: sec_config().load().routes.clone(),
-        }));
+        let cfg = Arc::new(ArcSwap::from_pointee(ServerConfig::build(
+            sec_config().load().routes.clone(),
+        )));
         let mut routes = cfg.load().routes.clone();
         for r in routes.values_mut() {
             r.security.cms_fallback_path = None;
         }
-        let swap = Arc::new(ArcSwap::from_pointee(ServerConfig { routes }));
+        let swap = Arc::new(ArcSwap::from_pointee(ServerConfig::build(routes)));
         let mut body = Vec::new();
         match resolve_route(
             "/apifoo",
@@ -7817,7 +7868,7 @@ mod tests {
                 ..Default::default()
             },
         );
-        let swap = Arc::new(ArcSwap::from_pointee(ServerConfig { routes }));
+        let swap = Arc::new(ArcSwap::from_pointee(ServerConfig::build(routes)));
         let mut body = Vec::new();
         match resolve_route(
             "/joomla/administrator/",
@@ -7855,7 +7906,7 @@ mod tests {
                 ..Default::default()
             },
         );
-        let swap = Arc::new(ArcSwap::from_pointee(ServerConfig { routes }));
+        let swap = Arc::new(ArcSwap::from_pointee(ServerConfig::build(routes)));
         let mut body = Vec::new();
         match resolve_route(
             "/api/v2/users",
@@ -7950,9 +8001,7 @@ mod tests {
     fn route_without_fallback_still_404s() {
         // /metrics is builtin; an unknown path on a config WITHOUT a fallback
         // must stay NotFound. Build a minimal config without cms_fallback.
-        let cfg = Arc::new(ArcSwap::from_pointee(ServerConfig {
-            routes: HashMap::new(),
-        }));
+        let cfg = Arc::new(ArcSwap::from_pointee(ServerConfig::build(HashMap::new())));
         let mut body = Vec::new();
         match resolve_route(
             "/nope",
@@ -8446,5 +8495,80 @@ mod rebind_tests {
         };
         assert!(denied("169.254.169.254:80"), "metadata must be denied");
         assert!(denied("127.0.0.1:9000"), "loopback must be denied");
+    }
+}
+
+#[cfg(test)]
+mod route_table_tests {
+    use super::*;
+
+    fn route(upstreams: Vec<&str>, deny: &[&str]) -> RouteConfig {
+        RouteConfig {
+            upstream_addrs: upstreams.iter().map(|s| s.to_string()).collect(),
+            wasm_plugin: None,
+            security: SecurityConfig {
+                deny_substrings: deny.iter().map(|s| s.to_string()).collect(),
+                ..SecurityConfig::default()
+            },
+            static_dir: None,
+            preserve_prefix: false,
+        }
+    }
+
+    /// The presorted table must preserve longest-prefix-first semantics and
+    /// the '/'-boundary child check for 300 generated routes.
+    #[test]
+    fn route_table_presort_matches_old_semantics() {
+        let mut routes = HashMap::new();
+        for i in 0..300 {
+            routes.insert(format!("/svc{i}"), route(vec!["backend:9000"], &[]));
+        }
+        // A longer prefix that must win over /svc1 for /svc1/sub paths.
+        routes.insert("/svc1/deep".to_string(), route(vec!["deep:9000"], &[]));
+        routes.insert(
+            "/svc2".to_string(),
+            route(vec!["backend:9000"], &["SECRET", "NoDir"]),
+        );
+        let cfg = ServerConfig::build(routes);
+        assert_eq!(cfg.table.proxy_sorted.len(), 301);
+        assert_eq!(cfg.table.deny_lower, vec!["nodir", "secret"]);
+        assert_eq!(cfg.table.static_sorted.len(), 0);
+
+        let swap = Arc::new(ArcSwap::from_pointee(cfg));
+        let mut body = Vec::new();
+        // Longest prefix wins for children.
+        match resolve_route(
+            "/svc1/deep/x", &mut body, "127.0.0.1".parse().unwrap(), PROTO_H1, &swap,
+        ) {
+            RouteDecision::Proxy(addrs, _, _, _, strip) => {
+                assert_eq!(addrs, vec!["deep:9000".to_string()]);
+                assert_eq!(strip, "/svc1/deep".len());
+            }
+            other => panic!("expected proxy, got {other:?}"),
+        }
+        // Plain children hit the shorter prefix, path stripped.
+        body.clear();
+        match resolve_route(
+            "/svc7/page", &mut body, "127.0.0.1".parse().unwrap(), PROTO_H1, &swap,
+        ) {
+            RouteDecision::Proxy(_, _, _, _, strip) => assert_eq!(strip, "/svc7".len()),
+            other => panic!("expected proxy, got {other:?}"),
+        }
+        // Deny is case-insensitive even though the pattern is uppercase.
+        body.clear();
+        match resolve_route(
+            "/svc2/GET_SECRET", &mut body, "127.0.0.1".parse().unwrap(), PROTO_H1, &swap,
+        ) {
+            RouteDecision::Builtin(403, _) => {}
+            other => panic!("expected 403, got {other:?}"),
+        }
+        // No '/' boundary => no match => NotFound.
+        body.clear();
+        assert!(matches!(
+            resolve_route(
+                "/svc1extra", &mut body, "127.0.0.1".parse().unwrap(), PROTO_H1, &swap,
+            ),
+            RouteDecision::NotFound
+        ));
     }
 }

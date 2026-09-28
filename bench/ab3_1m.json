@@ -1,0 +1,58 @@
+[
+ {
+  "mode": "h1plain",
+  "conns": 256,
+  "streams": 1,
+  "seconds": 1200.0,
+  "ok": 2523777,
+  "err": 2363,
+  "rps": 2102.9,
+  "p50_ms": 122.91,
+  "p99_ms": 290.29,
+  "arm": "leastconn",
+  "origin_fast": 1433547,
+  "origin_slow": 1090230
+ },
+ {
+  "mode": "h1plain",
+  "conns": 256,
+  "streams": 1,
+  "seconds": 1200.0,
+  "ok": 2497478,
+  "err": 2325,
+  "rps": 2081.0,
+  "p50_ms": 123.25,
+  "p99_ms": 292.81,
+  "arm": "predictive",
+  "origin_fast": 1376669,
+  "origin_slow": 1120809
+ },
+ {
+  "mode": "h1plain",
+  "conns": 256,
+  "streams": 1,
+  "seconds": 1200.0,
+  "ok": 2543258,
+  "err": 2360,
+  "rps": 2119.1,
+  "p50_ms": 123,
+  "p99_ms": 273.64,
+  "arm": "leastconn_echo",
+  "origin_fast": 1390924,
+  "origin_slow": 1152334
+ },
+ {
+  "mode": "h1plain",
+  "conns": 256,
+  "streams": 1,
+  "seconds": 1200.0,
+  "ok": 2683468,
+  "err": 2560,
+  "rps": 2235.9,
+  "p50_ms": 121.98,
+  "p99_ms": 243.5,
+  "arm": "predictive_echo",
+  "origin_fast": 1475325,
+  "origin_slow": 1208143
+ }
+]
