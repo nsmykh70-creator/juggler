@@ -1,6 +1,7 @@
 //! Static file serving (nginx `root` equivalent): safe path mapping,
-//! script-source blocking, symlink containment, MIME table, and the
-//! docroot layout / auto-route merging used at boot and on reload.
+//! script-source blocking, symlink containment, MIME table, in-memory
+//! hot-file cache, and the docroot layout / auto-route merging used at
+//! boot and on reload.
 
 use std::collections::HashMap;
 
@@ -134,11 +135,81 @@ pub(crate) fn canonical_root(root: &str) -> Option<std::path::PathBuf> {
     map.entry(root.to_string()).or_insert_with(|| std::fs::canonicalize(root).ok()).clone()
 }
 
-/// Serve one file from a `static_dir`. Ordering matters for security:
-/// 1. resolve the logical path and reject traversal syntactically;
-/// 2. canonicalize — the OS resolves symlinks, so a link pointing outside
-///    the root also fails the prefix check (nginx open-at()/chroot levels);
-/// 3. prefix-check the canonical path against the canonical root.
+/// In-memory cache of hot static files (nginx `open_file_cache` analogy).
+/// Files up to `CACHE_MAX_FILE` are stored whole; the total is capped and
+/// the map is pruned least-recently-touched first. Validation is stat-based
+/// (one metadata syscall vs a full read): a changed file is picked up
+/// immediately, unchanged hot files skip the disk. `clear_static_cache()`
+/// runs on every config reload as belt-and-braces invalidation.
+pub(crate) struct StaticCacheEntry {
+    pub body: Vec<u8>,
+    pub mtime: std::time::SystemTime,
+}
+
+const CACHE_MAX_FILE: u64 = 1024 * 1024; // files >1MB are not cached
+const CACHE_MAX_BYTES: usize = 64 * 1024 * 1024; // total budget
+
+fn static_cache()
+-> &'static std::sync::Mutex<HashMap<String, (StaticCacheEntry, std::time::Instant)>> {
+    use std::sync::{Mutex, OnceLock};
+    static CACHE: OnceLock<Mutex<HashMap<String, (StaticCacheEntry, std::time::Instant)>>> =
+        OnceLock::new();
+    CACHE.get_or_init(|| Mutex::new(HashMap::new()))
+}
+
+/// Drop every cached file (config reload, admin action).
+pub(crate) fn clear_static_cache() {
+    static_cache().lock().unwrap_or_else(|p| p.into_inner()).clear();
+}
+
+/// Total bytes currently cached (admin panel visibility).
+#[allow(dead_code)]
+pub(crate) fn static_cache_bytes() -> usize {
+    static_cache()
+        .lock()
+        .unwrap_or_else(|p| p.into_inner())
+        .values()
+        .map(|(e, _)| e.body.len())
+        .sum()
+}
+
+/// Look up a file: cache hit only when the on-disk mtime still matches.
+fn static_cache_get(path: &str, mtime: std::time::SystemTime) -> Option<Vec<u8>> {
+    let mut map = static_cache().lock().unwrap_or_else(|p| p.into_inner());
+    if let Some((entry, at)) = map.get_mut(path) {
+        if entry.mtime == mtime {
+            *at = std::time::Instant::now(); // LRU touch
+            return Some(entry.body.clone());
+        }
+        map.remove(path); // stale
+    }
+    None
+}
+
+fn static_cache_put(path: &str, body: Vec<u8>, mtime: std::time::SystemTime) {
+    let body_len = body.len();
+    if body_len as u64 > CACHE_MAX_FILE {
+        return;
+    }
+    let mut map = static_cache().lock().unwrap_or_else(|p| p.into_inner());
+    // Enforce the byte budget: evict least-recently-touched entries.
+    let mut total: usize = map.values().map(|(e, _)| e.body.len()).sum();
+    while total + body_len > CACHE_MAX_BYTES {
+        let Some(victim) = map
+            .iter()
+            .min_by_key(|(_, (_, at))| *at)
+            .map(|(k, _)| k.clone())
+        else {
+            break;
+        };
+        total -= map.remove(&victim).map(|(e, _)| e.body.len()).unwrap_or(0);
+    }
+    map.insert(
+        path.to_string(),
+        (StaticCacheEntry { body, mtime }, std::time::Instant::now()),
+    );
+}
+
 pub(crate) fn serve_static_file(root: &str, suffix: &str, keep_alive: bool) -> RouteDecision {
     let Some(path) = static_path_for(root, suffix) else {
         return RouteDecision::StaticFile(
@@ -154,6 +225,19 @@ pub(crate) fn serve_static_file(root: &str, suffix: &str, keep_alive: bool) -> R
         );
     }
     let canon_root = canonical_root(root);
+    // Cache lookup costs one metadata syscall (metadata() follows symlinks,
+    // so the mtime is the REAL file's) vs the full read the miss path pays.
+    let stat = std::fs::metadata(&path).ok();
+    if let Some(m) = &stat {
+        let mtime = m.modified().unwrap_or(std::time::UNIX_EPOCH);
+        if let Some(body) = static_cache_get(&path, mtime) {
+            let ct = mime_type_of(&path);
+            return RouteDecision::StaticFile(
+                static_http_head("200 OK", ct, body.len(), keep_alive),
+                body,
+            );
+        }
+    }
     match std::fs::read(&path) {
         Ok(body) => {
             // Containment re-check on the real path (symlink escape). One
@@ -186,6 +270,10 @@ pub(crate) fn serve_static_file(root: &str, suffix: &str, keep_alive: bool) -> R
                 );
             }
             let ct = mime_type_of(&path);
+            // Hot file: remember it (byte-budgeted, LRU-evicted).
+            if let Some(m) = &stat {
+                static_cache_put(&path, body.clone(), m.modified().unwrap_or(std::time::UNIX_EPOCH));
+            }
             RouteDecision::StaticFile(static_http_head("200 OK", ct, body.len(), keep_alive), body)
         }
         Err(e) if e.kind() == std::io::ErrorKind::NotFound => RouteDecision::NotFound,
@@ -199,6 +287,9 @@ pub(crate) fn serve_static_file(root: &str, suffix: &str, keep_alive: bool) -> R
             match std::fs::read(&idx) {
                 Ok(body) => {
                     let ct = mime_type_of(&idx);
+                    if let Ok(m) = std::fs::metadata(&idx) {
+                        static_cache_put(&idx, body.clone(), m.modified().unwrap_or(std::time::UNIX_EPOCH));
+                    }
                     RouteDecision::StaticFile(
                         static_http_head("200 OK", ct, body.len(), keep_alive),
                         body,

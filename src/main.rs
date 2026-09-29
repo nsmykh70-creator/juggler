@@ -76,11 +76,13 @@ use metrics::{
     WASM_PLUGIN_SECONDS,
 };
 use wire::{
-    alt_svc_header, build_h1_request_from_parts, http_response, normalize_response_in_place,
-    patch_connection_header, title_case_header, with_alt_svc, with_security_headers,
+    alt_svc_header, build_h1_request_from_parts, header_value, http_response,
+    maybe_gzip, normalize_response_in_place, patch_connection_header, patch_len,
+    patch_or_add_header, title_case_header, with_alt_svc, with_security_headers,
 };
 use staticfiles::{
-    default_static_root, ensure_www_layout, merge_static_routes, serve_static_file,
+    clear_static_cache, default_static_root, ensure_www_layout, merge_static_routes,
+    serve_static_file,
 };
 use balancer::{
     balancer_mode, request_signature_hash, sig_predict, sig_record, BALANCER,
@@ -1860,6 +1862,8 @@ impl ControlPlane for MyControlPlane {
         WASM_MODULES_LOADED.set(wasm_registry_lock().len() as i64);
         persist_config(&new_config, &self.routes_file);
         self.shared_config.store(Arc::new(new_config));
+        // Static mapping may have changed; same rationale as the admin reload.
+        clear_static_cache();
         // Re-warm pools for any newly added upstreams so the first real
         // requests reuse sockets instead of creating them mid-burst.
         prewarm_upstream_pool(&self.shared_config, prewarm_target_cap()).await;
@@ -3640,6 +3644,9 @@ async fn apply_admin_config(new_cfg: ServerConfig) -> anyhow::Result<String> {
         .clone();
     persist_config(&new_cfg, &routes_file);
     cfg.store(Arc::new(new_cfg));
+    // Routes may have changed static_dir mappings: drop cached file bodies
+    // so a path remount is served fresh (mtime alone cannot catch remounts).
+    clear_static_cache();
     prewarm_upstream_pool(cfg, prewarm_target_cap()).await;
     panel_log(
         "info",
@@ -5765,8 +5772,21 @@ where
                 if !keep_alive {
                     head = patch_connection_header(&head, false);
                 }
-                client.write_all(&head).await?;
-                client.write_all(&file_body).await?;
+                // Negotiated compression: only when the client asked for it,
+                // only for compressible types, only when it shrinks. Also
+                // collapses head+body into ONE socket write (writev-class
+                // aggregation: halves the write syscalls per static hit).
+                let ae = req.header(&buf, b"accept-encoding");
+                let ct = header_value(&head, b"content-type").unwrap_or("");
+                let (file_body, enc) = maybe_gzip(ct, ae, &file_body, false);
+                if let Some(v) = enc {
+                    head = patch_or_add_header(&head, b"content-encoding", v);
+                    head = patch_len(&head, file_body.len());
+                    head = patch_or_add_header(&head, b"vary", "Accept-Encoding");
+                }
+                let mut out = head;
+                out.extend_from_slice(&file_body);
+                client.write_all(&out).await?;
                 record_response_class(200); // static files are pre-validated
             }
             RouteDecision::Proxy(upstreams, body, extra_headers, security_headers, strip) => {
@@ -5809,10 +5829,39 @@ where
                 let resp_t0 = Instant::now();
                 let final_status = match result {
                     Ok(outcome) => {
-                        let patched = with_alt_svc(with_security_headers(
-                            normalize_response_in_place(outcome.response, keep_alive),
-                            &security_headers,
-                        ));
+                        // Proxy-path compression: split head/body, gzip the
+                        // body only when the upstream did not encode already,
+                        // the type is compressible and the client accepts
+                        // gzip (nginx gzip_proxied + gzip_types semantics).
+                        let (head_len, body) = match parse_h1_response_head(&outcome.response) {
+                            Some((_, _, hl)) => (hl, &outcome.response[hl..]),
+                            None => (0, &outcome.response[..]),
+                        };
+                        let (ct, already_encoded) = parse_h1_response_head(&outcome.response)
+                            .map(|(_, hdrs, _)| {
+                                (
+                                    hdrs.iter()
+                                        .find(|(k, _)| k.eq_ignore_ascii_case("content-type"))
+                                        .map(|(_, v)| v.clone())
+                                        .unwrap_or_default(),
+                                    hdrs.iter()
+                                        .any(|(k, _)| k.eq_ignore_ascii_case("content-encoding")),
+                                )
+                            })
+                            .unwrap_or((String::new(), true));
+                        let ae = req.header(&buf, b"accept-encoding");
+                        let (new_body, enc) = maybe_gzip(&ct, ae, body, already_encoded);
+                        let mut head = normalize_response_in_place(
+                            outcome.response[..head_len].to_vec(),
+                            keep_alive,
+                        );
+                        if let Some(v) = enc {
+                            head = patch_or_add_header(&head, b"content-encoding", v);
+                            head = patch_or_add_header(&head, b"vary", "Accept-Encoding");
+                        }
+                        head = patch_len(&head, new_body.len());
+                        let mut patched = with_alt_svc(with_security_headers(head, &security_headers));
+                        patched.extend_from_slice(&new_body);
                         client.write_all(&patched).await?;
                         client.flush().await?;
                         record_response_class(outcome.status);
@@ -6311,13 +6360,18 @@ async fn handle_h2_request(
                         .map(|v| v.trim().to_string())
                 })
                 .unwrap_or_else(|| "application/octet-stream".to_string());
-            send_h2_response(
-                &mut respond,
-                status,
-                &[("content-type", ct.as_str())],
-                Bytes::from(file_body),
-            )
-            .await?;
+            // Same negotiated compression as the H1 static arm.
+            let ae = head
+                .headers
+                .get("accept-encoding")
+                .and_then(|v| v.to_str().ok());
+            let (file_body, enc) = maybe_gzip(&ct, ae, &file_body, false);
+            let mut hdrs: Vec<(&str, &str)> = vec![("content-type", ct.as_str())];
+            if let Some(v) = enc {
+                hdrs.push(("content-encoding", v));
+                hdrs.push(("vary", "Accept-Encoding"));
+            }
+            send_h2_response(&mut respond, status, &hdrs, Bytes::from(file_body)).await?;
             record_response_class(status);
         }
         RouteDecision::Proxy(upstreams, body, extra_headers, security_headers, strip) => {
