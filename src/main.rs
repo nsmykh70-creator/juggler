@@ -2109,7 +2109,7 @@ impl RawRequest {
 /// CRLFs, trailers) with the decoded payload bytes. Returns Err on any
 /// malformed framing (non-hex size, missing CRLF, missing terminator) —
 /// the caller must reject the request rather than forward ambiguous bytes.
-fn decode_chunked_body(body: &mut Vec<u8>, raw: &[u8]) -> Result<(), ()> {
+fn decode_chunked_body(body: &mut Vec<u8>, raw: &[u8]) -> Result<usize, ()> {
     let mut decoded: Vec<u8> = Vec::with_capacity(raw.len());
     let mut pos = 0usize;
     loop {
@@ -2129,9 +2129,13 @@ fn decode_chunked_body(body: &mut Vec<u8>, raw: &[u8]) -> Result<(), ()> {
         let size = usize::from_str_radix(size_hex, 16).map_err(|_| ())?;
         pos = line_end + 2;
         if size == 0 {
-            // trailers: consume until the blank line that ends the body
+            // trailers: consume until the blank line that ends the body.
+            // The blank line itself is part of the frame: the returned pos
+            // must span it, or the next pipelined request reparses on a
+            // leading "\r\n" and the connection dies.
             while pos + 2 <= raw.len() {
                 if &raw[pos..pos + 2] == b"\r\n" {
+                    pos += 2;
                     break;
                 }
                 if let Some(p) = raw[pos..].windows(2).position(|w| w == b"\r\n") {
@@ -2151,7 +2155,7 @@ fn decode_chunked_body(body: &mut Vec<u8>, raw: &[u8]) -> Result<(), ()> {
     // Only the parsed prefix is meaningful; trailing bytes after the
     // terminator belong to a pipelined request and stay in `buf`.
     *body = decoded;
-    Ok(())
+    Ok(pos)
 }
 
 /// Parse a complete HTTP/1.x request. Returns `None` if the data does not
@@ -5725,8 +5729,20 @@ where
         served += 1;
 
         // Body bytes live after the header block; the WASM pipeline (run
-        // inside resolve_route) may rewrite them before forwarding.
-        let mut body: Vec<u8> = buf[req.body_offset.min(buf.len())..].to_vec();
+        // inside resolve_route) may rewrite them before forwarding. For a
+        // Content-Length request the body is EXACTLY content_length bytes:
+        // slicing to the end of the buffer would swallow pipelined requests
+        // behind this one and forward them as this request's body (a
+        // depth-16 pipeline made the origin see 136 requests for 16).
+        let body_end = req
+            .body_offset
+            .saturating_add(req.content_length())
+            .min(buf.len());
+        let mut body: Vec<u8> = buf[req.body_offset.min(buf.len())..body_end].to_vec();
+        // Extra bytes the chunked framing occupies beyond the decoded body
+        // (chunk-size lines, CRLFs, trailers): consume_consumed_request must
+        // eat them too, or the next request reparses inside the framing.
+        let mut consumed_framing: usize = 0;
         // A chunked request carries its body as chunk framing, not raw bytes:
         // decode the chunk stream into the real body here. The forwarded
         // request is always re-framed with Content-Length (build_forwarded
@@ -5735,7 +5751,9 @@ where
             let raw_body_start = req.body_offset.min(buf.len());
             let raw_body = buf[raw_body_start..].to_vec();
             match decode_chunked_body(&mut body, &raw_body) {
-                Ok(()) => {}
+                Ok(chunk_framing) => {
+                    consumed_framing = chunk_framing;
+                }
                 Err(()) => {
                     // Malformed chunk framing (bad size, missing terminator):
                     // reject outright — passing it through would smuggle
@@ -5978,7 +5996,7 @@ where
             buf_pool(shard_idx).put(buf);
             return Ok(());
         }
-        consume_consumed_request(&mut buf, &req);
+        consume_consumed_request(&mut buf, &req, consumed_framing);
     }
 }
 
@@ -6076,8 +6094,12 @@ mod batch_write_tests {
 }
 /// allocation (BytesMut keeps its capacity across `split_to`), so the buffer
 /// can be returned to the shard pool when the connection closes.
-fn consume_consumed_request(buf: &mut BytesMut, req: &RawRequest) {
-    let need = req.body_offset + req.content_length();
+/// Remove exactly the consumed prefix of this request: head + body bytes
+/// for a Content-Length request, head + full chunk framing for a chunked
+/// one (`chunk_framing` from decode_chunked_body). Bytes behind the frame
+/// are the next pipelined request and MUST stay in the buffer.
+fn consume_consumed_request(buf: &mut BytesMut, req: &RawRequest, chunk_framing: usize) {
+    let need = req.body_offset + req.content_length() + chunk_framing;
     let n = need.min(buf.len());
     let _ = buf.split_to(n);
 }
@@ -8740,8 +8762,13 @@ mod chunk_decode_tests {
     fn decode_chunked_body_happy_path_and_trailers() {
         let mut body = Vec::new();
         let raw = b"3\r\nabc\r\n5\r\nhello\r\n0\r\nX-Tr: 1\r\n\r\n".to_vec();
-        decode_chunked_body(&mut body, &raw).expect("valid chunk stream must decode");
+        let consumed =
+            decode_chunked_body(&mut body, &raw).expect("valid chunk stream must decode");
         assert_eq!(body, b"abchello");
+        // The consumed length must span the WHOLE frame (incl. the final
+        // blank line): otherwise the next pipelined request reparses on a
+        // leading CRLF and the connection dies.
+        assert_eq!(consumed, raw.len());
     }
 
     #[test]

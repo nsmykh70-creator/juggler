@@ -118,7 +118,12 @@ pub fn header_value<'a>(head: &'a [u8], name: &[u8]) -> Option<&'a str> {
         let line_start_ok = start == 0 || head[start - 1] == b'\n';
         let after = start + name.len();
         if line_start_ok && head.get(after) == Some(&b':') {
-            let vstart = after + 1;
+            // Skip OWS after the colon so the returned slice starts at the
+            // value (mirrors patch_or_add_header).
+            let mut vstart = after + 1;
+            while vstart < head_end && (head[vstart] == b' ' || head[vstart] == b'\t') {
+                vstart += 1;
+            }
             let vend = vstart
                 + head[vstart..head_end]
                     .windows(2)
@@ -153,7 +158,17 @@ pub fn patch_or_add_header(head: &[u8], name: &[u8], value: &str) -> Vec<u8> {
         let line_start_ok = start == 0 || head[start - 1] == b'\n';
         let after = start + name.len();
         if line_start_ok && head.get(after) == Some(&b':') {
-            let vstart = after + 1;
+            // OWS-correct value replacement: vstart must point at the
+            // VALUE (skipping spaces/tabs after the colon) and vend at the
+            // line's CRLF. The original code pointed vstart one byte after
+            // the colon, which both GLUED the new value onto the OWS
+            // ("Content-Length: 15" -> "Content-Length:8") and, when the
+            // head had no OWS, LEFT the old value behind
+            // ("Content-Length:15" -> "Content-Length:8:15").
+            let mut vstart = after + 1;
+            while vstart < head_end && (head[vstart] == b' ' || head[vstart] == b'\t') {
+                vstart += 1;
+            }
             let vend = vstart
                 + head[vstart..head_end]
                     .windows(2)
@@ -659,8 +674,50 @@ fn crc32(data: &[u8]) -> u32 {
 }
 
 #[cfg(test)]
-mod gzip_tests {
+mod ows_header_tests {
     use super::*;
+
+    /// Regression: patch_or_add_header used to point vstart one byte after
+    /// the colon, gluing the new value onto the OWS — "Content-Length: 15"
+    /// became "Content-Length:8". Strict clients (h2 downshift, some
+    /// browsers' strict parsers) reject that; nginx never emits it.
+    #[test]
+    fn patch_len_preserves_space_after_colon() {
+        let head = b"HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: 15\r\n\r\n";
+        let out = patch_len(head, 8);
+        assert!(
+            out.windows(19).any(|w| w == b"Content-Length: 8\r\n"),
+            "CL must keep the OWS after the colon: {:?}",
+            String::from_utf8_lossy(&out)
+        );
+        assert!(!out.windows(16).any(|w| w == b"Content-Length:8"));
+    }
+
+    #[test]
+    fn patch_or_add_header_no_space_variant_still_works() {
+        // A head WITHOUT OWS must be patched in place, leaving exactly one
+        // CL line. (The old bug turned "Content-Length:15" into
+        // "Content-Length:8:15" — old value glued after the new one.)
+        let head = b"HTTP/1.1 200 OK\r\nContent-Length:15\r\n\r\n";
+        let out = patch_len(head, 8);
+        assert!(
+            out.windows(18).any(|w| w == b"Content-Length:8\r\n"),
+            "no-OWS head must keep its no-OWS form: {:?}",
+            String::from_utf8_lossy(&out)
+        );
+        assert_eq!(
+            out.windows(14).filter(|w| w == b"Content-Length").count(),
+            1
+        );
+        assert!(!out.windows(5).any(|w| w == b"8:15"));
+    }
+
+    #[test]
+    fn header_value_skips_ows_and_trims() {
+        let head = b"HTTP/1.1 200 OK\r\nContent-Type:   text/plain \r\n\r\n";
+        assert_eq!(header_value(head, b"content-type"), Some("text/plain"));
+        assert_eq!(header_value(head, b"content-length"), None);
+    }
 
     /// CRC-32 ground truth (zlib "123456789" -> 0xCBF43926).
     #[test]
