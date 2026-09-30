@@ -29,10 +29,10 @@ use anyhow::Result;
 use arc_swap::ArcSwap;
 use bytes::{BufMut, Bytes, BytesMut};
 use core_affinity::CoreId;
-use memchr::memchr;
 use h2::server::SendResponse;
 use h2::RecvStream;
 use lazy_static::lazy_static;
+use memchr::memchr;
 use prometheus::{Encoder, TextEncoder};
 use serde::{Deserialize, Serialize};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
@@ -63,11 +63,13 @@ extern "C" {
 }
 
 pub mod balancer;
+mod http3;
 pub mod metrics;
 pub mod staticfiles;
+pub mod telemetry;
 pub mod wire;
-mod http3;
-pub mod telemetry;use metrics::PROTO_H1;
+use balancer::{balancer_mode, request_signature_hash, sig_predict, sig_record, BALANCER};
+use metrics::PROTO_H1;
 use metrics::{
     register_metrics, ACTIVE_UPSTREAM_CONNECTIONS, H3_CONNECTIONS_TOTAL, HTTP_REQUESTS_TOTAL,
     HTTP_RESPONSE_SECONDS, KEEPALIVE_CONNECTIONS_TOTAL, PROTO_H2, RATE_LIMIT_REJECTED, REGISTRY,
@@ -76,26 +78,23 @@ use metrics::{
     UPSTREAM_STALE_RETRIES_TOTAL, WASM_MODULES_LOADED, WASM_PLUGIN_CALLS_TOTAL,
     WASM_PLUGIN_SECONDS,
 };
-use wire::{
-    alt_svc_header, build_h1_request_from_parts, header_value, http_response,
-    maybe_gzip, normalize_response_in_place, patch_connection_header, patch_len,
-    patch_or_add_header, title_case_header, with_alt_svc, with_security_headers,
-};
 use staticfiles::{
     clear_static_cache, default_static_root, ensure_www_layout, merge_static_routes,
     serve_static_file,
 };
-use balancer::{
-    balancer_mode, request_signature_hash, sig_predict, sig_record, BALANCER,
-};
 use telemetry::{
-    LOG_RING_CAP, FORECAST_HISTORY_CAP, STAGE_COUNT, STAGE_NAMES, NUM_SHARDS,
-    history_snapshot, init_shard_counters, panel_history_snapshot, panel_log, process_cpu_permille,
-    process_rss_kib, record_response_class, record_stage, shard_counters, shard_fc,
-    shard_stats_snapshot, stage_totals_slot, update_shard_stats, PanelSample,
-    RESP_429_COUNTER, RESP_429_TOTAL, RESP_502_503_COUNTER, RESP_5XX_TOTAL,
-    RESP_CLASS_COUNTERS, RESP_CLASS_TOTALS, STAGE_PARSE, STAGE_RESPOND, STAGE_ROUTE,
-    STAGE_UPSTREAM, now_unix_ms, log_ring_snapshot, push_panel_sample, push_history_snapshot,
+    history_snapshot, init_shard_counters, log_ring_snapshot, now_unix_ms, panel_history_snapshot,
+    panel_log, process_cpu_permille, process_rss_kib, push_history_snapshot, push_panel_sample,
+    record_response_class, record_stage, shard_counters, shard_fc, shard_stats_snapshot,
+    stage_totals_slot, update_shard_stats, PanelSample, FORECAST_HISTORY_CAP, LOG_RING_CAP,
+    NUM_SHARDS, RESP_429_COUNTER, RESP_429_TOTAL, RESP_502_503_COUNTER, RESP_5XX_TOTAL,
+    RESP_CLASS_COUNTERS, RESP_CLASS_TOTALS, STAGE_COUNT, STAGE_NAMES, STAGE_PARSE, STAGE_RESPOND,
+    STAGE_ROUTE, STAGE_UPSTREAM,
+};
+use wire::{
+    alt_svc_header, build_h1_request_from_parts, header_value, http_response, maybe_gzip,
+    normalize_response_in_place, patch_connection_header, patch_len, patch_or_add_header,
+    title_case_header, with_alt_svc, with_security_headers,
 };
 
 // ============================================================================
@@ -235,7 +234,6 @@ fn process_uptime_secs() -> u64 {
         .elapsed()
         .as_secs()
 }
-
 
 /// Global backpressure flag (see mailbox watermarks below).
 static ACCEPT_BACKPRESSURE: AtomicBool = AtomicBool::new(false);
@@ -436,7 +434,6 @@ fn load_persisted_config(path: &str) -> Option<ServerConfig> {
 // ============================================================================
 // Load balancing (Least Connections, random tie-break)
 // ============================================================================
-
 
 // ============================================================================
 // Runtime settings (fine tuning, editable from the admin panel)
@@ -3702,8 +3699,6 @@ fn spawn_admin_server(cfg: Arc<ArcSwap<ServerConfig>>, routes_file: String) {
 // Upstream response reading (HTTP/1.1, Content-Length + chunked aware)
 // ============================================================================
 
-
-
 const MAX_UPSTREAM_RESPONSE: usize = 64 * 1024 * 1024;
 fn upstream_read_timeout() -> Duration {
     static T: OnceLock<Duration> = OnceLock::new();
@@ -5569,7 +5564,11 @@ accept the exception or trust the cert.</p>
 /// 0 = unlimited (disable the cap entirely).
 fn max_keepalive_requests() -> usize {
     let v = settings().max_keepalive_requests.get() as usize;
-    if v == 0 { usize::MAX } else { v }
+    if v == 0 {
+        usize::MAX
+    } else {
+        v
+    }
 }
 
 /// Per-shard connection-buffer pool. Each worker keeps its own lock-free
@@ -5892,7 +5891,8 @@ where
                             head = patch_or_add_header(&head, b"vary", "Accept-Encoding");
                         }
                         head = patch_len(&head, new_body.len());
-                        let mut patched = with_alt_svc(with_security_headers(head, &security_headers));
+                        let mut patched =
+                            with_alt_svc(with_security_headers(head, &security_headers));
                         patched.extend_from_slice(&new_body);
                         wtr.extend_from_slice(&patched);
                         record_response_class(outcome.status);
@@ -6051,10 +6051,13 @@ mod batch_write_tests {
         flush_batch(&mut c, &mut wtr).await.unwrap();
         assert!(wtr.is_empty(), "accumulator must be drained after flush");
         drop(c); // EOF for the reader (read_to_end otherwise waits forever)
-        // Both pipelined responses arrive in one read.
+                 // Both pipelined responses arrive in one read.
         let mut got = Vec::new();
         s.read_to_end(&mut got).await.unwrap();
-        assert_eq!(got, b"HTTP/1.1 200 OK\r\n\r\nHTTP/1.1 404 Not Found\r\n\r\n");
+        assert_eq!(
+            got,
+            b"HTTP/1.1 200 OK\r\n\r\nHTTP/1.1 404 Not Found\r\n\r\n"
+        );
     }
 
     #[tokio::test]
@@ -6582,7 +6585,6 @@ async fn handle_h2_request(
     Ok(())
 }
 
-
 // ============================================================================
 // Unit tests
 // ============================================================================
@@ -6592,10 +6594,10 @@ mod tests {
     use super::*;
     use balancer::LeastConnectionsBalancer;
     use http::HeaderMap;
+    use staticfiles::{is_script_source, mime_type_of, static_path_for};
     use std::time::Duration;
     use telemetry::{holt_forecast, shard_holt_state};
     use wire::normalize_response_for_client;
-    use staticfiles::{is_script_source, mime_type_of, static_path_for};
 
     // ---- Admin credentials / sessions ----
 
@@ -8479,6 +8481,142 @@ mod tests {
         );
     }
 
+    /// Stress: many producers racing many drainers across EVERY mailbox
+    /// (all shards x all handoff kinds), hammering the global
+    /// PENDING_CONNS and per-mailbox depth accounting. CI gate: catches
+    /// counter races (underflow, loss, depth/PENDING divergence) that the
+    /// single-mailbox regression above cannot expose.
+    ///
+    /// The global PENDING_CONNS is process-shared, so this test holds
+    /// BACKPRESSURE_TEST_LOCK; sockets are cloned (try_clone) per push so
+    /// thousands of pushes cost 1 loopback listener instead of thousands
+    /// of ephemeral ports.
+    #[test]
+    fn stress_all_shard_mailboxes_accounting_never_leaks() {
+        let _g = BACKPRESSURE_TEST_LOCK.lock().unwrap();
+        let before = PENDING_CONNS.load(Ordering::Acquire);
+
+        // Real sockets: push() owns a TcpStream, so the queue must hold
+        // actual streams. One listener + try_clone per push = zero
+        // ephemeral-port pressure (the single-mailbox regression taught
+        // this the hard way). Connect BEFORE accept — accept() blocks
+        // until the first connection arrives (this order was the cause of
+        // a test-side deadlock once; producers spawn later).
+        let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+        let base = listener.local_addr().unwrap();
+        let probe = std::net::TcpStream::connect(base).expect("probe connect");
+        let _server_side = listener.accept().expect("probe accept").0;
+        drop(probe); // producers connect() their own sockets below
+
+        // Full grid: every shard x every handoff kind, as at runtime. Own
+        // LOCAL mailboxes, not the OnceLock-backed globals: sibling tests
+        // (pick_shard_*) initialize those with 2 shards, and re-init is a
+        // no-op — the stress would then cover 6 mailboxes instead of 36.
+        // The invariant under test lives in ShardMailbox::push/pop against
+        // the process-global PENDING_CONNS, which these instances share.
+        const SHARDS: usize = 12;
+        const KINDS: usize = 3;
+        const PER_MB: usize = 250;
+        let grid: Vec<Vec<std::sync::Arc<ShardMailbox>>> = (0..KINDS)
+            .map(|_| {
+                (0..SHARDS)
+                    .map(|_| std::sync::Arc::new(ShardMailbox::new()))
+                    .collect()
+            })
+            .collect();
+        let pushes_total = SHARDS * KINDS * PER_MB;
+        let pushed = std::sync::Arc::new(std::sync::atomic::AtomicUsize::new(0));
+        let popped = std::sync::Arc::new(std::sync::atomic::AtomicUsize::new(0));
+
+        // Producers: one OS thread per handoff kind (3), each round-robins
+        // its 12 mailboxes — the acceptor-side pattern. Each mailbox also
+        // gets its own drainer thread (36 drainers), racing the producers.
+        let mut handles = Vec::new();
+        for kind in &grid {
+            let pushed = pushed.clone();
+            let kind_owned = kind.clone();
+            handles.push(std::thread::spawn(move || {
+                // Register this thread's sockets with a reactor once, then
+                // push without re-entering tokio per item. Each producer
+                // opens its own loopback socket to clone from.
+                let s0 = std::net::TcpStream::connect(base).expect("connect");
+                tokio::runtime::Builder::new_current_thread()
+                    .enable_all()
+                    .build()
+                    .unwrap()
+                    .block_on(async {
+                        // Round-robin across the mailboxes (not N in a row
+                        // per one): drainers never face a long serial batch,
+                        // so the interleaving producer/pop is maximally
+                        // dense — exactly the pattern that broke the counter.
+                        for _ in 0..PER_MB {
+                            for mb in kind_owned.iter() {
+                                let s = s0.try_clone().expect("try_clone");
+                                let ts = tokio::net::TcpStream::from_std(s).expect("from_std");
+                                mb.push(ts, std::net::IpAddr::from([127u8, 0, 0, 1]));
+                                pushed.fetch_add(1, Ordering::Relaxed);
+                            }
+                        }
+                    });
+            }));
+            // One drainer per mailbox of this kind (12 per kind).
+            // Backoff when idle mirrors the real drain task (which parks
+            // on Notify): pure spin in debug builds starves the producers
+            // for minutes. Deadline panic = push/pop liveness is broken.
+            for mb in kind {
+                let popped = popped.clone();
+                let mb = mb.clone();
+                handles.push(std::thread::spawn(move || {
+                    let mut n = 0usize;
+                    let mut idle = 0u32;
+                    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(90);
+                    while n < PER_MB {
+                        if mb.pop().is_some() {
+                            n += 1;
+                            idle = 0;
+                            popped.fetch_add(1, Ordering::Relaxed);
+                        } else {
+                            idle = idle.saturating_add(1);
+                            if std::time::Instant::now() > deadline {
+                                panic!(
+                                    "drainer starved: {n}/{PER_MB} popped, mailbox depth {} — push/pop liveness broken",
+                                    mb.len_approx()
+                                );
+                            }
+                            std::thread::sleep(std::time::Duration::from_micros(
+                                50 + (idle.min(400) as u64) * 50,
+                            ));
+                        }
+                    }
+                }));
+            }
+        }
+        for h in handles {
+            h.join().unwrap();
+        }
+
+        assert_eq!(pushed.load(Ordering::Relaxed), pushes_total);
+        assert_eq!(popped.load(Ordering::Relaxed), pushes_total);
+        // Depth counters drained to zero.
+        for kind in &grid {
+            for mb in kind {
+                assert_eq!(
+                    mb.len_approx(),
+                    0,
+                    "mailbox depth must drain to 0 (per-mailbox depth vs queue race)"
+                );
+            }
+        }
+        // The global counter must be back at baseline: catches BOTH the
+        // underflow (wrapped to usize::MAX) and a lost/extra increment.
+        let after = PENDING_CONNS.load(Ordering::Acquire);
+        assert_eq!(
+            after, before,
+            "PENDING_CONNS leaked across {} pushes (underflow or lost update)",
+            pushes_total
+        );
+    }
+
     #[test]
     fn prewarm_target_cap_defaults_to_const() {
         // Without the env var the cap is the compiled-in prewarm constant.
@@ -8775,7 +8913,11 @@ mod route_table_tests {
         let mut body = Vec::new();
         // Longest prefix wins for children.
         match resolve_route(
-            "/svc1/deep/x", &mut body, "127.0.0.1".parse().unwrap(), PROTO_H1, &swap,
+            "/svc1/deep/x",
+            &mut body,
+            "127.0.0.1".parse().unwrap(),
+            PROTO_H1,
+            &swap,
         ) {
             RouteDecision::Proxy(addrs, _, _, _, strip) => {
                 assert_eq!(addrs, vec!["deep:9000".to_string()]);
@@ -8786,7 +8928,11 @@ mod route_table_tests {
         // Plain children hit the shorter prefix, path stripped.
         body.clear();
         match resolve_route(
-            "/svc7/page", &mut body, "127.0.0.1".parse().unwrap(), PROTO_H1, &swap,
+            "/svc7/page",
+            &mut body,
+            "127.0.0.1".parse().unwrap(),
+            PROTO_H1,
+            &swap,
         ) {
             RouteDecision::Proxy(_, _, _, _, strip) => assert_eq!(strip, "/svc7".len()),
             other => panic!("expected proxy, got {other:?}"),
@@ -8794,7 +8940,11 @@ mod route_table_tests {
         // Deny is case-insensitive even though the pattern is uppercase.
         body.clear();
         match resolve_route(
-            "/svc2/GET_SECRET", &mut body, "127.0.0.1".parse().unwrap(), PROTO_H1, &swap,
+            "/svc2/GET_SECRET",
+            &mut body,
+            "127.0.0.1".parse().unwrap(),
+            PROTO_H1,
+            &swap,
         ) {
             RouteDecision::Builtin(403, _) => {}
             other => panic!("expected 403, got {other:?}"),
@@ -8803,7 +8953,11 @@ mod route_table_tests {
         body.clear();
         assert!(matches!(
             resolve_route(
-                "/svc1extra", &mut body, "127.0.0.1".parse().unwrap(), PROTO_H1, &swap,
+                "/svc1extra",
+                &mut body,
+                "127.0.0.1".parse().unwrap(),
+                PROTO_H1,
+                &swap,
             ),
             RouteDecision::NotFound
         ));

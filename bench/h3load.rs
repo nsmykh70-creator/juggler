@@ -14,8 +14,8 @@
 //! Output (single JSON line):
 //!   {"mode","conns","streams","seconds","ok","err","rps","p50_ms","p99_ms"}
 
-use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 use bytes::Buf;
@@ -38,8 +38,15 @@ impl Stats {
             err: AtomicUsize::new(0),
         }))
     }
+    /// Count a success and consume one unit of the request budget. The budget
+    /// is `usize::MAX` when unlimited; worker loops stop once it hits 0.
+    #[allow(dead_code)] // symmetric with ok_budgeted; h1/h1plain use ok()
     fn ok(&self) {
         self.0.ok.fetch_add(1, Ordering::Relaxed);
+    }
+    fn ok_budgeted(&self, budget: &AtomicUsize) {
+        self.0.ok.fetch_add(1, Ordering::Relaxed);
+        budget.fetch_sub(1, Ordering::Relaxed);
     }
     fn err(&self) {
         self.0.err.fetch_add(1, Ordering::Relaxed);
@@ -139,31 +146,45 @@ async fn read_h1_response<R: tokio::io::AsyncRead + Unpin>(s: &mut R) -> Result<
     Ok(())
 }
 
-async fn run_h1(host: &str, port: u16, path: &str, conns: usize, deadline: Instant, stats: Stats) {
+async fn run_h1(
+    host: &str,
+    port: u16,
+    path: &str,
+    conns: usize,
+    deadline: Instant,
+    stats: Stats,
+    budget: Arc<AtomicUsize>,
+) {
     let tls = Arc::new(client_tls(None));
     let addr = format!("{host}:{port}");
     let host = host.to_string();
     let path = path.to_string();
     let mut handles = Vec::with_capacity(conns);
     for _ in 0..conns {
-        let (tls, host, path, addr, stats) =
-            (tls.clone(), host.clone(), path.clone(), addr.clone(), stats.clone());
+        let (tls, host, path, addr, stats, budget) = (
+            tls.clone(),
+            host.clone(),
+            path.clone(),
+            addr.clone(),
+            stats.clone(),
+            budget.clone(),
+        );
         handles.push(tokio::spawn(async move {
             let mut local = Local::default();
             use tokio::io::AsyncWriteExt;
             let mut res: Result<(), BoxErr>;
-            'conn: while Instant::now() < deadline {
+            'conn: while Instant::now() < deadline && budget.load(Ordering::Relaxed) > 0 {
                 res = async {
                     let tcp = tokio::net::TcpStream::connect(&addr).await?;
                     let connector = tokio_rustls::TlsConnector::from(tls.clone());
                     let mut s = connector.connect(server_name(&host), tcp).await?;
                     let req = format!("GET {path} HTTP/1.1\r\nHost: {host}\r\n\r\n");
-                    while Instant::now() < deadline {
+                    while Instant::now() < deadline && budget.load(Ordering::Relaxed) > 0 {
                         let t0 = Instant::now();
                         s.write_all(req.as_bytes()).await?;
                         read_h1_response(&mut s).await?;
                         local.sample(t0);
-                        stats.ok();
+                        stats.ok_budgeted(&budget);
                     }
                     Ok(())
                 }
@@ -191,27 +212,41 @@ async fn run_h1(host: &str, port: u16, path: &str, conns: usize, deadline: Insta
     }
 }
 
-async fn run_h1plain(host: &str, port: u16, path: &str, conns: usize, deadline: Instant, stats: Stats) {
+async fn run_h1plain(
+    host: &str,
+    port: u16,
+    path: &str,
+    conns: usize,
+    deadline: Instant,
+    stats: Stats,
+    budget: Arc<AtomicUsize>,
+) {
     let addr = format!("{host}:{port}");
     let host = host.to_string();
     let path = path.to_string();
     let mut handles = Vec::with_capacity(conns);
     for _ in 0..conns {
-        let (host, path, addr, stats) = (host.clone(), path.clone(), addr.clone(), stats.clone());
+        let (host, path, addr, stats, budget) = (
+            host.clone(),
+            path.clone(),
+            addr.clone(),
+            stats.clone(),
+            budget.clone(),
+        );
         handles.push(tokio::spawn(async move {
             let mut local = Local::default();
             use tokio::io::AsyncWriteExt;
             let mut res: Result<(), BoxErr>;
-            'conn: while Instant::now() < deadline {
+            'conn: while Instant::now() < deadline && budget.load(Ordering::Relaxed) > 0 {
                 res = async {
                     let mut s = tokio::net::TcpStream::connect(&addr).await?;
                     let req = format!("GET {path} HTTP/1.1\r\nHost: {host}\r\n\r\n");
-                    while Instant::now() < deadline {
+                    while Instant::now() < deadline && budget.load(Ordering::Relaxed) > 0 {
                         let t0 = Instant::now();
                         s.write_all(req.as_bytes()).await?;
                         read_h1_response(&mut s).await?;
                         local.sample(t0);
-                        stats.ok();
+                        stats.ok_budgeted(&budget);
                     }
                     Ok(())
                 }
@@ -240,6 +275,7 @@ async fn run_h1plain(host: &str, port: u16, path: &str, conns: usize, deadline: 
 }
 
 // ---------------------------------------------------------------------- H2 --
+#[allow(clippy::too_many_arguments)]
 async fn run_h2(
     host: &str,
     port: u16,
@@ -248,6 +284,7 @@ async fn run_h2(
     streams: usize,
     deadline: Instant,
     stats: Stats,
+    budget: Arc<AtomicUsize>,
 ) {
     let tls = Arc::new(client_tls(Some(b"h2")));
     let addr = format!("{host}:{port}");
@@ -255,12 +292,18 @@ async fn run_h2(
     let path = path.to_string();
     let mut handles = Vec::with_capacity(conns);
     for _ in 0..conns {
-        let (tls, host, path, addr, stats) =
-            (tls.clone(), host.clone(), path.clone(), addr.clone(), stats.clone());
+        let (tls, host, path, addr, stats, budget) = (
+            tls.clone(),
+            host.clone(),
+            path.clone(),
+            addr.clone(),
+            stats.clone(),
+            budget.clone(),
+        );
         handles.push(tokio::spawn(async move {
             let mut local = Local::default();
             let mut res: Result<(), BoxErr>;
-            'conn: while Instant::now() < deadline {
+            'conn: while Instant::now() < deadline && budget.load(Ordering::Relaxed) > 0 {
                 res = async {
                     let tcp = tokio::net::TcpStream::connect(&addr).await?;
                     let connector = tokio_rustls::TlsConnector::from(tls.clone());
@@ -271,15 +314,16 @@ async fn run_h2(
                     });
                     let mut req_tasks = Vec::with_capacity(streams);
                     for _ in 0..streams {
-                        let (mut client, path, host, stats) = (
+                        let (mut client, path, host, stats, budget) = (
                             client.clone(),
                             path.clone(),
                             host.clone(),
                             stats.clone(),
+                            budget.clone(),
                         );
                         req_tasks.push(tokio::spawn(async move {
                             let mut lat = Vec::new();
-                            while Instant::now() < deadline {
+                            while Instant::now() < deadline && budget.load(Ordering::Relaxed) > 0 {
                                 let t0 = Instant::now();
                                 let req = http::Request::builder()
                                     .uri(format!("https://{host}{path}"))
@@ -295,7 +339,7 @@ async fn run_h2(
                                     chunk?;
                                 }
                                 lat.push(t0.elapsed().as_secs_f64() * 1_000_000.0);
-                                stats.ok();
+                                stats.ok_budgeted(&budget);
                             }
                             Ok::<Vec<f64>, BoxErr>(lat)
                         }));
@@ -335,6 +379,7 @@ async fn run_h2(
 }
 
 // ---------------------------------------------------------------------- H3 --
+#[allow(clippy::too_many_arguments)]
 async fn run_h3(
     host: &str,
     port: u16,
@@ -343,15 +388,14 @@ async fn run_h3(
     streams: usize,
     deadline: Instant,
     stats: Stats,
+    budget: Arc<AtomicUsize>,
 ) {
     let mut client_cfg = quinn::ClientConfig::new(Arc::new(
         quinn::crypto::rustls::QuicClientConfig::try_from(Arc::new(client_tls(Some(b"h3"))))
             .expect("quic client crypto"),
     ));
     let mut transport = quinn::TransportConfig::default();
-    transport.max_concurrent_bidi_streams(quinn::VarInt::from_u32(
-        streams.clamp(1, 1024) as u32,
-    ));
+    transport.max_concurrent_bidi_streams(quinn::VarInt::from_u32(streams.clamp(1, 1024) as u32));
     client_cfg.transport_config(Arc::new(transport));
 
     let mut endpoint = quinn::Endpoint::client("0.0.0.0:0".parse().unwrap()).expect("client udp");
@@ -362,28 +406,34 @@ async fn run_h3(
     let path = path.to_string();
     let mut handles = Vec::with_capacity(conns);
     for _ in 0..conns {
-        let (endpoint, host, path, stats) =
-            (endpoint.clone(), host.clone(), path.clone(), stats.clone());
+        let (endpoint, host, path, stats, budget) = (
+            endpoint.clone(),
+            host.clone(),
+            path.clone(),
+            stats.clone(),
+            budget.clone(),
+        );
         handles.push(tokio::spawn(async move {
             let mut local = Local::default();
             let dbg_errors = Arc::new(AtomicUsize::new(0));
             let mut res: Result<(), BoxErr>;
-            'conn: while Instant::now() < deadline {
+            'conn: while Instant::now() < deadline && budget.load(Ordering::Relaxed) > 0 {
                 res = async {
                     let conn = endpoint.connect(addr, host.as_str())?.await?;
                     let (_driver, send_req) =
                         h3::client::new(h3_quinn::Connection::new(conn)).await?;
                     let mut req_tasks = Vec::with_capacity(streams);
                     for _ in 0..streams {
-                        let (mut send_req, path, host, stats) = (
+                        let (mut send_req, path, host, stats, budget) = (
                             send_req.clone(),
                             path.clone(),
                             host.clone(),
                             stats.clone(),
+                            budget.clone(),
                         );
                         req_tasks.push(tokio::spawn(async move {
                             let mut lat = Vec::new();
-                            while Instant::now() < deadline {
+                            while Instant::now() < deadline && budget.load(Ordering::Relaxed) > 0 {
                                 let t0 = Instant::now();
                                 let req = http::Request::builder()
                                     .uri(format!("https://{host}{path}"))
@@ -399,7 +449,7 @@ async fn run_h3(
                                     let _ = chunk.remaining();
                                 }
                                 lat.push(t0.elapsed().as_secs_f64() * 1_000_000.0);
-                                stats.ok();
+                                stats.ok_budgeted(&budget);
                             }
                             Ok::<Vec<f64>, BoxErr>(lat)
                         }));
@@ -445,7 +495,7 @@ thread_local! {
 async fn main() {
     let args: Vec<String> = std::env::args().collect();
     if args.len() < 7 {
-        eprintln!("usage: h3load <h1|h2|h3|h1plain> <host> <port> <path> <conns> <seconds> [streams]");
+        eprintln!("usage: h3load <h1|h2|h3|h1plain> <host> <port> <path> <conns> <seconds> [streams] [total_requests]");
         std::process::exit(2);
     }
     let mode = args[1].clone();
@@ -454,17 +504,86 @@ async fn main() {
     let path = args[4].clone();
     let conns: usize = args[5].parse().expect("conns");
     let seconds: f64 = args[6].parse().expect("seconds");
-    let streams: usize = if args.len() > 7 { args[7].parse().unwrap_or(1) } else { 1 };
+    let streams: usize = if args.len() > 7 {
+        args[7].parse().unwrap_or(1)
+    } else {
+        1
+    };
+    // Optional cap on total successful requests across all workers: the run
+    // ends when EITHER the duration OR the budget is exhausted (or = 0/absent
+    // keeps the pure duration behavior). A generous duration still bounds it.
+    let total_requests: usize = if args.len() > 8 {
+        args[8].parse().unwrap_or(0)
+    } else {
+        0
+    };
 
     let stats = Stats::new();
     let started = Instant::now();
-    let deadline = started + Duration::from_secs_f64(seconds);
+    let deadline = if total_requests > 0 {
+        // 10k rps floor x requested count, hard-capped at 1 hour.
+        let est = (total_requests as f64 / 10_000.0).min(3600.0);
+        started + Duration::from_secs_f64(seconds.max(est))
+    } else {
+        started + Duration::from_secs_f64(seconds)
+    };
 
+    let budget = Arc::new(AtomicUsize::new(if total_requests > 0 {
+        total_requests
+    } else {
+        usize::MAX
+    }));
     match mode.as_str() {
-        "h1" => run_h1(&host, port, &path, conns, deadline, stats.clone()).await,
-        "h1plain" => run_h1plain(&host, port, &path, conns, deadline, stats.clone()).await,
-        "h2" => run_h2(&host, port, &path, conns, streams, deadline, stats.clone()).await,
-        "h3" => run_h3(&host, port, &path, conns, streams, deadline, stats.clone()).await,
+        "h1" => {
+            run_h1(
+                &host,
+                port,
+                &path,
+                conns,
+                deadline,
+                stats.clone(),
+                budget.clone(),
+            )
+            .await
+        }
+        "h1plain" => {
+            run_h1plain(
+                &host,
+                port,
+                &path,
+                conns,
+                deadline,
+                stats.clone(),
+                budget.clone(),
+            )
+            .await
+        }
+        "h2" => {
+            run_h2(
+                &host,
+                port,
+                &path,
+                conns,
+                streams,
+                deadline,
+                stats.clone(),
+                budget.clone(),
+            )
+            .await
+        }
+        "h3" => {
+            run_h3(
+                &host,
+                port,
+                &path,
+                conns,
+                streams,
+                deadline,
+                stats.clone(),
+                budget.clone(),
+            )
+            .await
+        }
         other => {
             eprintln!("unknown mode: {other}");
             std::process::exit(2);
