@@ -182,3 +182,17 @@ Live A/B (same stand, 32 conns x 300 reqs, 3 reps, medians):
 
 0 errors across all reps. Unit tests cover `flush_batch` semantics
 (empty no-op, exact bytes, accumulator reuse); 118/118 total.
+
+### d8 vs d4 focused A/B (same day, final binary)
+
+The v4 sweep above used 300-req runs and showed d4 > d8 — a small-sample
+artifact. Rigorous protocol: 2000 reqs per run, 12 runs per depth,
+order-reversed between repetitions to cancel warm-up drift. Pooled
+medians: **d8 8 951 vs d4 8 464 RPS (+5.7%)**, p99 comparable (d8
+slightly better); distributions overlap, both sit at the machine's
+envelope (the 32-conn ceiling from the high-concurrency probe, ~8.6k).
+
+The pre-batch d8 dip below d4 is gone. That dip was the 8-writes-per-1-
+read syscall multiplication; with batching the write count is constant
+(1 per batch) regardless of depth, so deeper pipelines gain relatively
+more (d8 +76% vs pre-batch median, d4 +60%).
