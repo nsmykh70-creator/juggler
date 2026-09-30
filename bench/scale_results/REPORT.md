@@ -227,3 +227,38 @@ scales, 13-15 ms at 100k/1M under full saturation.
 Known noise: laptop-class host with Docker/browser background; the two
 passes of some Juggler legs differ up to 40% (e.g. 1M: 8 274 / 9 637),
 which is why per-scale medians — not single runs — are reported.
+
+## v6 saturation sweep: depth x concurrency on the batched binary
+
+Grid {depth 1/16/32/64} x {32/128/512 conns}, 20 000 reqs per run,
+3 interleaved reps per cell (216 000 requests total, 1 error overall —
+0.0005%, a single keep-alive race). Raw: `saturation_raw.txt`.
+
+| conns \ depth | 1 | 16 | 32 | 64 |
+|---:|---:|---:|---:|---:|
+| 32 | 8 814 | 6 015 | **8 914** | 8 100 |
+| 128 | 6 535 | 7 743 | 8 515 | 6 423 |
+| 512 | 5 370 | **8 675** | 6 719 | 5 509 |
+
+(medians, RPS; p50/p99 medians in the raw file)
+
+Findings:
+
+- **Machine envelope: ~9k RPS median, 9.4–10.4k best single runs.** No
+  configuration broke through it — the wall is shared client+server CPU
+  and the Windows loopback stack, not the response path (v5's 100k leg,
+  9 527 median, sits on the same plateau).
+- **Batching is decisive exactly where it should be: high concurrency.**
+  At 512 conns, depth 16 = 8 675 vs depth 1 = 5 370 (**+61%**) — one
+  write per 16 responses cuts IOCP completions and write syscalls ~16x
+  when connection count saturates the loop. At 32 conns the loop is not
+  saturated and depth is roughly neutral (within noise).
+- Depth beyond 16-32 adds nothing anywhere (d64 never wins a cell): the
+  accumulator cap and per-batch boundary already amortize writes; larger
+  batches only grow latency (p99 at 512/d64: 318 ms vs 112 ms at d16).
+- p99 scales with concurrency (9-12 ms at 32 conns, 60-120 ms at 512)
+  — queueing under saturation, identical across depths, not a batching
+  artifact.
+
+Practical takeaway: pipelining depth 16 + moderate concurrency is the
+sweet spot; the remaining ceiling is the test host, not the server.
