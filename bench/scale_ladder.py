@@ -12,13 +12,15 @@ import time
 
 EXE = r"C:\newwebser\target\scaleload.exe"
 OUT = r"C:\newwebser\bench\scale_results"
-SERVERS = [("juggler", 8180), ("nginx", 8181), ("apache", 8182)]
+SERVERS = [("juggler", 8180), ("nginx", 8181), ("apache", 8182), ("nginx-native", 8185)]
 SCALES = [100, 1_000, 10_000, 100_000, 1_000_000]
 PASSES = 2
 
 def run(server, port, conns, total):
+    # The slowest leg (nginx-in-Docker, 1M reqs, 32 conns) runs ~13 min;
+    # give it 50 min so a mid-run stall cannot kill the whole ladder.
     r = subprocess.run([EXE, "127.0.0.1", str(port), "/sample_sites1/bench1k.html",
-                        str(conns), str(total)], capture_output=True, text=True, timeout=1500)
+                        str(conns), str(total)], capture_output=True, text=True, timeout=3000)
     d = json.loads(r.stdout.strip())
     d["server"], d["total"], d["conns"] = server, total, conns
     return d

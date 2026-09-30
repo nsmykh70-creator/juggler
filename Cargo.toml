@@ -15,6 +15,7 @@ path = "bench/h3load.rs"
 
 [dependencies]
 mimalloc = "0.1"
+memchr = "2"
 crossbeam-queue = "0.3"
 socket2 = "0.5"
 tokio = { version = "1", features = ["rt-multi-thread", "net", "io-util", "time", "macros", "sync", "signal"] }

@@ -48,6 +48,10 @@ fn main() {
                     }
                 };
                 let _ = s.set_nodelay(true);
+                // A blocking read without a timeout can hang forever if a
+                // peer stalls mid-response (observed with nginx-in-Docker on
+                // reconnect storms). 15 s is far above any legit p99 here.
+                let _ = s.set_read_timeout(Some(std::time::Duration::from_secs(15)));
                 let mut reader = s.try_clone().expect("clone");
                 'reqs: loop {
                     // Reserve one unit of the budget BEFORE sending: a plain

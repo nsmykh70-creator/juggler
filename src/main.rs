@@ -29,6 +29,7 @@ use anyhow::Result;
 use arc_swap::ArcSwap;
 use bytes::{BufMut, Bytes, BytesMut};
 use core_affinity::CoreId;
+use memchr::memchr;
 use h2::server::SendResponse;
 use h2::RecvStream;
 use lazy_static::lazy_static;
@@ -2169,17 +2170,17 @@ pub fn parse_request(buf: &[u8]) -> Option<RawRequest> {
     // ---- request line: method SP target SP version (byte ranges) ----
     let request_line = lines.next()?;
     let rl = request_line.as_bytes();
-    let mut sp1 = 0;
-    while sp1 < rl.len() && rl[sp1] != b' ' {
-        sp1 += 1;
-    }
+    // SIMD scan for the two SP delimiters (memchr: 32 bytes/instruction).
+    let Some(sp1) = memchr(b' ', rl) else {
+        return None;
+    };
     if sp1 == 0 || sp1 == rl.len() {
         return None;
     }
-    let mut sp2 = sp1 + 1;
-    while sp2 < rl.len() && rl[sp2] != b' ' {
-        sp2 += 1;
-    }
+    let Some(sp2_rel) = memchr(b' ', &rl[sp1 + 1..]) else {
+        return None;
+    };
+    let sp2 = sp1 + 1 + sp2_rel;
     if sp2 == rl.len() {
         return None;
     }
@@ -2187,7 +2188,7 @@ pub fn parse_request(buf: &[u8]) -> Option<RawRequest> {
     // Strip query string for routing: /api?x=1 -> /api (range end before '?')
     let target = (sp1 + 1) as u32;
     let mut target_end = sp2 as u32;
-    if let Some(q) = rl[sp1 + 1..sp2].iter().position(|&b| b == b'?') {
+    if let Some(q) = memchr(b'?', &rl[sp1 + 1..sp2]) {
         target_end = (sp1 + 1 + q) as u32;
     }
     if target == target_end {
@@ -2199,13 +2200,13 @@ pub fn parse_request(buf: &[u8]) -> Option<RawRequest> {
     let raw_path = &rl[(target as usize)..(target_end as usize)];
     let mut path_offset = target;
     if raw_path.len() > 7 && raw_path[..7].eq_ignore_ascii_case(b"http://") {
-        if let Some(slash) = raw_path[7..].iter().position(|&b| b == b'/') {
+        if let Some(slash) = memchr(b'/', &raw_path[7..]) {
             path_offset = target + 7 + slash as u32;
         } else {
             path_offset = target_end; // no path part: treat as "/"-less empty -> root
         }
     } else if raw_path.len() > 8 && raw_path[..8].eq_ignore_ascii_case(b"https://") {
-        if let Some(slash) = raw_path[8..].iter().position(|&b| b == b'/') {
+        if let Some(slash) = memchr(b'/', &raw_path[8..]) {
             path_offset = target + 8 + slash as u32;
         } else {
             path_offset = target_end;
@@ -2295,19 +2296,25 @@ pub fn parse_request(buf: &[u8]) -> Option<RawRequest> {
     })
 }
 
-/// Head terminator scan: rolling compare of 4 bytes at every position.
-/// (A hand-rolled loop with a 1-byte prefilter on '\n' avoids the windows()
-/// iterator overhead of a full 4-byte compare per offset.)
+/// Head terminator scan: memchr (SIMD-accelerated: AVX2 processes 32 bytes
+/// per instruction) finds the first '\n', then a 4-byte boundary check decides
+/// terminator-vs-header-line. This replaces the old rolling 1-byte-at-a-time
+/// prefilter loop: the scan is now memory-bandwidth bound, not branch bound.
 #[inline]
-fn find_head_end(buf: &[u8]) -> Option<usize> {
+pub(crate) fn find_head_end(buf: &[u8]) -> Option<usize> {
     if buf.len() < 4 {
         return None;
     }
-    let mut i = 0usize;
-    while i + 4 <= buf.len() {
-        // Prefilter: '\n' can only be at i+3 for "\r\n\r\n" starting at i.
-        if buf[i + 3] == b'\n' && buf[i] == b'\r' && buf[i + 1] == b'\n' && buf[i + 2] == b'\r' {
-            return Some(i);
+    let mut i = 3usize; // '\n' can only sit at i+3 for a terminator at i
+    while i < buf.len() {
+        i = memchr::memchr(b'\n', &buf[i..])? + i;
+        if i >= 3
+            && buf[i] == b'\n'
+            && buf[i - 1] == b'\r'
+            && buf[i - 2] == b'\n'
+            && buf[i - 3] == b'\r'
+        {
+            return Some(i - 3);
         }
         i += 1;
     }
@@ -5559,8 +5566,10 @@ accept the exception or trust the cert.</p>
 
 /// Keep-alive safety cap per connection. Env-tunable so long-running load
 /// tests can avoid reconnect churn (default 1000 matches production).
+/// 0 = unlimited (disable the cap entirely).
 fn max_keepalive_requests() -> usize {
-    settings().max_keepalive_requests.get() as usize
+    let v = settings().max_keepalive_requests.get() as usize;
+    if v == 0 { usize::MAX } else { v }
 }
 
 /// Per-shard connection-buffer pool. Each worker keeps its own lock-free

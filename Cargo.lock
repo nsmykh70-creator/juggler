@@ -1195,6 +1195,7 @@ dependencies = [
  "h3-quinn",
  "http",
  "lazy_static",
+ "memchr",
  "mimalloc",
  "p12-keystore",
  "prometheus",
