@@ -8510,14 +8510,36 @@ mod tests {
     /// PENDING_CONNS and per-mailbox depth accounting. CI gate: catches
     /// counter races (underflow, loss, depth/PENDING divergence) that the
     /// single-mailbox regression above cannot expose.
-    ///
-    /// The global PENDING_CONNS is process-shared, so this test holds
-    /// BACKPRESSURE_TEST_LOCK; sockets are cloned (try_clone) per push so
-    /// thousands of pushes cost 1 loopback listener instead of thousands
-    /// of ephemeral ports.
     #[test]
     fn stress_all_shard_mailboxes_accounting_never_leaks() {
         let _g = BACKPRESSURE_TEST_LOCK.lock().unwrap();
+        run_mailbox_stress(false);
+    }
+
+    /// Chaos interleaving: random producer bursts + acceptor stalls and
+    /// random drainer pauses on top of the steady stress. push is three
+    /// steps (PENDING++ -> depth++ -> enqueue) and pop is three steps
+    /// (dequeue -> depth-- -> PENDING--); the phantom-backpressure
+    /// underflow lived exactly in the gap between those micro-steps, so
+    /// chaos mode stalls threads at random points to hit the gaps at
+    /// their widest. (ShardMailbox has no cancel API: a queued item is
+    /// always drained; the production cancel paths — acceptor select!
+    /// shutdown and drop-after-pop — never touch the counters.) Seeded
+    /// per-thread RNG keeps failures reproducible.
+    #[test]
+    fn stress_all_shard_mailboxes_chaos_interleaving() {
+        let _g = BACKPRESSURE_TEST_LOCK.lock().unwrap();
+        run_mailbox_stress(true);
+    }
+
+    /// Shared engine for both mailbox stress modes. Holds no lock itself:
+    /// callers serialize on BACKPRESSURE_TEST_LOCK because the global
+    /// PENDING_CONNS is process-shared. Sockets are cloned (try_clone) per
+    /// push so thousands of pushes cost 1 loopback listener instead of
+    /// thousands of ephemeral ports.
+    fn run_mailbox_stress(chaos: bool) {
+        use rand::{Rng, SeedableRng};
+
         let before = PENDING_CONNS.load(Ordering::Acquire);
 
         // Real sockets: push() owns a TcpStream, so the queue must hold
@@ -8556,7 +8578,7 @@ mod tests {
         // its 12 mailboxes — the acceptor-side pattern. Each mailbox also
         // gets its own drainer thread (36 drainers), racing the producers.
         let mut handles = Vec::new();
-        for kind in &grid {
+        for (kind_idx, kind) in grid.iter().enumerate() {
             let pushed = pushed.clone();
             let kind_owned = kind.clone();
             handles.push(std::thread::spawn(move || {
@@ -8564,21 +8586,42 @@ mod tests {
                 // push without re-entering tokio per item. Each producer
                 // opens its own loopback socket to clone from.
                 let s0 = std::net::TcpStream::connect(base).expect("connect");
+                let mut rng = rand::rngs::StdRng::seed_from_u64(0xC0FF_EE00 + kind_idx as u64);
                 tokio::runtime::Builder::new_current_thread()
                     .enable_all()
                     .build()
                     .unwrap()
                     .block_on(async {
-                        // Round-robin across the mailboxes (not N in a row
-                        // per one): drainers never face a long serial batch,
-                        // so the interleaving producer/pop is maximally
-                        // dense — exactly the pattern that broke the counter.
-                        for _ in 0..PER_MB {
-                            for mb in kind_owned.iter() {
-                                let s = s0.try_clone().expect("try_clone");
-                                let ts = tokio::net::TcpStream::from_std(s).expect("from_std");
-                                mb.push(ts, std::net::IpAddr::from([127u8, 0, 0, 1]));
-                                pushed.fetch_add(1, Ordering::Relaxed);
+                        // Per-mailbox budget consumed in bursts: steady mode
+                        // pushes one per visit (round-robin — drainers never
+                        // face a long serial batch); chaos mode pushes 1-4
+                        // back-to-back, so the three accounting steps fire
+                        // rapidly while a drainer may wake mid-burst.
+                        let mut remaining = [PER_MB; SHARDS];
+                        while remaining.iter().any(|&r| r > 0) {
+                            for (si, mb) in kind_owned.iter().enumerate() {
+                                if remaining[si] == 0 {
+                                    continue;
+                                }
+                                let burst = if chaos {
+                                    rng.gen_range(1usize..=4).min(remaining[si])
+                                } else {
+                                    1
+                                };
+                                for _ in 0..burst {
+                                    let s = s0.try_clone().expect("try_clone");
+                                    let ts = tokio::net::TcpStream::from_std(s).expect("from_std");
+                                    mb.push(ts, std::net::IpAddr::from([127u8, 0, 0, 1]));
+                                    pushed.fetch_add(1, Ordering::Relaxed);
+                                    remaining[si] -= 1;
+                                }
+                                // Chaos: real acceptors are bursty — stall
+                                // mid-feed while the kernel queue grows.
+                                if chaos && rng.gen_bool(0.05) {
+                                    std::thread::sleep(std::time::Duration::from_micros(
+                                        rng.gen_range(2_000..15_000),
+                                    ));
+                                }
                             }
                         }
                     });
@@ -8587,10 +8630,13 @@ mod tests {
             // Backoff when idle mirrors the real drain task (which parks
             // on Notify): pure spin in debug builds starves the producers
             // for minutes. Deadline panic = push/pop liveness is broken.
-            for mb in kind {
+            for (mb_idx, mb) in kind.iter().enumerate() {
                 let popped = popped.clone();
                 let mb = mb.clone();
                 handles.push(std::thread::spawn(move || {
+                    let mut rng = rand::rngs::StdRng::seed_from_u64(
+                        0xBEEF_0000 + (kind_idx * 64 + mb_idx) as u64,
+                    );
                     let mut n = 0usize;
                     let mut idle = 0u32;
                     let deadline = std::time::Instant::now() + std::time::Duration::from_secs(90);
@@ -8599,17 +8645,33 @@ mod tests {
                             n += 1;
                             idle = 0;
                             popped.fetch_add(1, Ordering::Relaxed);
+                            // Chaos: the shard thread is preempted right
+                            // after one accept (TLS handshake, scheduler) —
+                            // the next pop lands late while depth > 0.
+                            if chaos && rng.gen_bool(0.06) {
+                                std::thread::sleep(std::time::Duration::from_micros(
+                                    rng.gen_range(100..4_000),
+                                ));
+                            }
                         } else {
                             idle = idle.saturating_add(1);
                             if std::time::Instant::now() > deadline {
                                 panic!(
-                                    "drainer starved: {n}/{PER_MB} popped, mailbox depth {} — push/pop liveness broken",
+                                    "drainer starved ({}): {n}/{PER_MB} popped, mailbox depth {} — push/pop liveness broken",
+                                    if chaos { "chaos" } else { "steady" },
                                     mb.len_approx()
                                 );
                             }
                             std::thread::sleep(std::time::Duration::from_micros(
                                 50 + (idle.min(400) as u64) * 50,
                             ));
+                            // Chaos: drainer descheduled mid-idle —
+                            // producers pile up, then pops storm in.
+                            if chaos && rng.gen_bool(0.02) {
+                                std::thread::sleep(std::time::Duration::from_micros(
+                                    rng.gen_range(2_000..12_000),
+                                ));
+                            }
                         }
                     }
                 }));
@@ -8635,8 +8697,10 @@ mod tests {
         // underflow (wrapped to usize::MAX) and a lost/extra increment.
         let after = PENDING_CONNS.load(Ordering::Acquire);
         assert_eq!(
-            after, before,
-            "PENDING_CONNS leaked across {} pushes (underflow or lost update)",
+            after,
+            before,
+            "PENDING_CONNS leaked in {} mode across {} pushes (underflow or lost update)",
+            if chaos { "chaos" } else { "steady" },
             pushes_total
         );
     }
