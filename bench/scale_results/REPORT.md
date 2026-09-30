@@ -110,3 +110,46 @@ python bench/scale_ladder.py                          # full ladder, JSONL artif
 Artifacts: `bench/scale_results/scale_ladder.jsonl` (40 runs),
 `scale_ladder.json` (aggregate), `bench/srv_scale/` (bench stand),
 `bench/nginx-win/` (native nginx config).
+
+## v3 (2026-09-30): event_interval, buffer pool, pipelined loader
+
+Third-party tuning advice, checked against the code and measured live
+(final binary, bench stand :8181, 32 conns x 300 reqs x depth, 3 reps):
+
+- **`JUGGLER_EVENT_INTERVAL`** (tokio current-thread worker budget before
+  re-polling IOCP; default 61 = tokio's own default). Medians: evt61
+  d1 4.7k / d4 5.3k / d8 5.1k RPS vs evt256 d1 4.6k / d4 5.2k / d8 5.5k.
+  Within run-to-run noise (~15%) except a slight d8 win; default stays 61.
+- **Buffer pool cap 64 -> 256 per shard** (`BUF_POOL_CAP_PER_SHARD`):
+  at the observed 512-conn peak 64/shard already covered demand (no
+  off-pool allocations seen), raised anyway as cheap headroom.
+- **Pipelining in `scaleload`** (depth 1/4/8, batched writes): best
+  throughput at depth 4-8 (~5.3-7.7k RPS vs ~4.2-4.9k at depth 1 across
+  the day's runs). d8 did not beat d4 consistently - the H1 loop still
+  writes one response per `write_all`; batched response writes are the
+  next server-side reserve, not a defect.
+- **Windows TCP registry keys (MaxUserPort, TcpTimedWaitDelay)**:
+  rejected with evidence. `netsh int ipv4 show dynamicport tcp` shows the
+  modern 49152-65535 range (MaxUserPort is an XP/2003-era key), TIME_WAIT
+  sockets observed in the double digits under full load, and 0 reconnect
+  errors on 2.2M requests - the stack was never the bottleneck.
+- **`advance()` vs slice parsing**: not applicable - the parser works on
+  raw byte ranges and advances the buffer once per request via
+  `split_to` (O(1), no per-chunk shifts).
+
+Two production defects found and fixed while re-validating this pass:
+
+1. **Backpressure counter underflow (race).** `ShardMailbox::push` enqueued
+   into the SegQueue *before* incrementing `PENDING_CONNS`; a pop that
+   interleaved decremented a not-yet-incremented counter, `0usize - 1`
+   wrapped to `usize::MAX`, and the hysteresis saw a phantom full mailbox
+   (live symptom: `Backpressure ON: 18446744073709551615 connections
+   queued`, accept paused, 99% of requests failing). Fix: count before
+   enqueue. Regression test replays the interleaving with a concurrent
+   drainer thread.
+2. **`JUGGLER_MAX_KEEPALIVE_REQUESTS=0` semantics** (from the earlier
+   v2 pass, kept here for reference): 0 now means unlimited keep-alive,
+   not close-every-connection.
+
+Validation: 115/115 unit tests, clippy clean in server code
+(remaining 4 warnings live in `bench/h3load.rs`, out of server scope).

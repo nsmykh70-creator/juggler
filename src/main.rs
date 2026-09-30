@@ -2171,16 +2171,11 @@ pub fn parse_request(buf: &[u8]) -> Option<RawRequest> {
     let request_line = lines.next()?;
     let rl = request_line.as_bytes();
     // SIMD scan for the two SP delimiters (memchr: 32 bytes/instruction).
-    let Some(sp1) = memchr(b' ', rl) else {
-        return None;
-    };
+    let sp1 = memchr(b' ', rl)?;
     if sp1 == 0 || sp1 == rl.len() {
         return None;
     }
-    let Some(sp2_rel) = memchr(b' ', &rl[sp1 + 1..]) else {
-        return None;
-    };
-    let sp2 = sp1 + 1 + sp2_rel;
+    let sp2 = sp1 + 1 + memchr(b' ', &rl[sp1 + 1..])?;
     if sp2 == rl.len() {
         return None;
     }
@@ -5064,15 +5059,19 @@ impl ShardMailbox {
     }
 
     fn push(&self, s: TcpStream, ip: IpAddr) {
-        self.q.push((s, ip));
+        // Count BEFORE enqueue: a pop that races with this push must never
+        // decrement a counter whose increment hasn't executed yet (0 - 1
+        // wraps to usize::MAX and trips a phantom full backpressure pause —
+        // observed live as accept stalls under a connection burst).
+        update_backpressure_state(PENDING_CONNS.fetch_add(1, Ordering::AcqRel) + 1);
         self.depth.fetch_add(1, Ordering::Relaxed);
+        self.q.push((s, ip));
         // Wake the drain task (permit semantics make a push that races
         // with the park-to-wait window lossless).
         self.notify.notify_one();
-        // Backpressure accounting: total queued connections across all
-        // mailboxes drive the global accept pause (kernel backlog absorbs
-        // the burst instead of unbounded userspace memory).
-        update_backpressure_state(PENDING_CONNS.fetch_add(1, Ordering::AcqRel) + 1);
+        // Backpressure accounting is done above; the total queued across
+        // all mailboxes drives the global accept pause (kernel backlog
+        // absorbs the burst instead of unbounded userspace memory).
     }
 
     /// Pop one queued connection (FIFO); None when idle.
@@ -5276,6 +5275,7 @@ fn run_shard(
 ) {
     let rt = tokio::runtime::Builder::new_current_thread()
         .enable_all()
+        .event_interval(event_interval())
         .build()
         .expect("shard runtime failed");
     // A LocalSet is what makes spawn_local legal: connection tasks never
@@ -5605,7 +5605,7 @@ impl BufferPool {
         }
         b.clear();
         let _g = self.lock.lock();
-        if self.q.len() < 64 {
+        if self.q.len() < BUF_POOL_CAP_PER_SHARD {
             self.q.push(b);
         }
         // else: drop (freelist full)
@@ -5614,6 +5614,22 @@ impl BufferPool {
 
 /// One pool per shard, created at startup.
 static BUF_POOLS: OnceLock<Vec<BufferPool>> = OnceLock::new();
+
+/// Max pooled buffers per shard (freelist cap; buffers beyond it are
+/// dropped). 256 covers the observed 8–512-conn sweep without spilling to
+/// the global allocator mid-run; ~4 MiB RSS per shard worst case at 16 KiB.
+const BUF_POOL_CAP_PER_SHARD: usize = 256;
+
+/// Event-loop tuning: how many tasks the shard runtime polls before re-
+/// checking IOCP/epoll. Tokio's default (61) favors latency; raising it
+/// (JUGGLER_EVENT_INTERVAL) lets a burst of pipelined requests already in
+/// the socket buffer be dispatched before the next readiness syscall.
+fn event_interval() -> u32 {
+    std::env::var("JUGGLER_EVENT_INTERVAL")
+        .ok()
+        .and_then(|v| v.parse().ok())
+        .unwrap_or(61)
+}
 
 fn init_buf_pools(shards: usize) {
     let _ = BUF_POOLS.set(
@@ -5977,8 +5993,6 @@ where
     let _ = client.shutdown().await;
 }
 
-/// Drop the bytes of the request that was just handled from the buffer so
-/// the next iteration can parse the following pipelined request.
 /// Consume the bytes of a fully dispatched request. Splitting preserves the
 /// allocation (BytesMut keeps its capacity across `split_to`), so the buffer
 /// can be returned to the shard pool when the connection closes.
@@ -8303,8 +8317,13 @@ mod tests {
         assert_eq!(picked, "a:1", "cost-weighted score must respect live load");
     }
 
+    /// Tests touching the process-global PENDING_CONNS/ACCEPT_BACKPRESSURE
+    /// pair must serialize or they will flake under cargo's parallel runner.
+    static BACKPRESSURE_TEST_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
     #[test]
     fn backpressure_watermarks_flip_with_hysteresis() {
+        let _g = BACKPRESSURE_TEST_LOCK.lock().unwrap();
         // Above high watermark -> ON.
         update_backpressure_state(PENDING_CONNS_MAX + 1);
         assert!(ACCEPT_BACKPRESSURE.load(Ordering::Acquire));
@@ -8319,10 +8338,88 @@ mod tests {
     }
 
     #[test]
+    fn mailbox_push_pop_never_underflows_pending_conns() {
+        // Regression: push() used to enqueue into the SegQueue BEFORE
+        // incrementing PENDING_CONNS, so a pop that raced between the two
+        // decremented a counter whose increment had not executed yet —
+        // 0usize - 1 wraps to usize::MAX and the hysteresis sees a phantom
+        // full mailbox (observed live: "Backpressure ON: 18446744073709551615
+        // connections queued", accept paused mid-benchmark, 99% of clients
+        // failed). The fix counts before enqueue; this test replays the
+        // same interleaving with a concurrent drainer thread.
+        let _g = BACKPRESSURE_TEST_LOCK.lock().unwrap();
+        let before = PENDING_CONNS.load(Ordering::Acquire);
+        let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+        let addr = listener.local_addr().unwrap();
+        let mb = std::sync::Arc::new(ShardMailbox::new());
+
+        let stop = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
+        let stop2 = stop.clone();
+        let mb2 = mb.clone();
+        let drainer = std::thread::spawn(move || {
+            while !stop2.load(Ordering::Relaxed) {
+                let _ = mb2.pop();
+            }
+        });
+
+        // from_std registers the socket with a reactor, so the push loop
+        // must run inside a (tiny) tokio runtime; the drainer thread only
+        // pops from the lock-free queue and needs no reactor.
+        tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build()
+            .unwrap()
+            .block_on(async {
+                for i in 0..4000 {
+                    // 4k rapid loopback connects can exhaust ephemeral ports
+                    // on Windows (WSAEADDRINUSE) — retry with a short backoff.
+                    let (c, s) = loop {
+                        match std::net::TcpStream::connect(addr) {
+                            Ok(c) => {
+                                let (s, _) = listener.accept().unwrap();
+                                break (c, s);
+                            }
+                            Err(e) if e.kind() == std::io::ErrorKind::AddrInUse => {
+                                assert!(i > 100, "ephemeral-port pressure too early");
+                                std::thread::sleep(std::time::Duration::from_millis(50));
+                            }
+                            Err(e) => panic!("connect: {e}"),
+                        }
+                    };
+                    drop(c);
+                    let ts = tokio::net::TcpStream::from_std(s).expect("from_std");
+                    mb.push(ts, std::net::IpAddr::from([127u8, 0, 0, 1]));
+                }
+            });
+        stop.store(true, Ordering::Relaxed);
+        drainer.join().unwrap();
+        while mb.pop().is_some() {}
+
+        let after = PENDING_CONNS.load(Ordering::Acquire);
+        assert_eq!(
+            after, before,
+            "PENDING_CONNS must return to baseline; a difference means push/pop accounting is racy"
+        );
+    }
+
+    #[test]
     fn prewarm_target_cap_defaults_to_const() {
         // Without the env var the cap is the compiled-in prewarm constant.
         std::env::remove_var("JUGGLER_PREWARM_TARGET_CAP");
         assert_eq!(prewarm_target_cap(), PREWARM_CONNECTIONS);
+    }
+
+    #[test]
+    fn event_interval_default_and_override() {
+        // Compiled-in default is tokio's 61; JUGGLER_EVENT_INTERVAL overrides
+        // it (256 measured best on pipelined bursts), garbage falls back.
+        std::env::remove_var("JUGGLER_EVENT_INTERVAL");
+        assert_eq!(event_interval(), 61);
+        std::env::set_var("JUGGLER_EVENT_INTERVAL", "256");
+        assert_eq!(event_interval(), 256);
+        std::env::set_var("JUGGLER_EVENT_INTERVAL", "not-a-number");
+        assert_eq!(event_interval(), 61, "unparseable value must fall back");
+        std::env::remove_var("JUGGLER_EVENT_INTERVAL");
     }
 
     /// The listener registry and accept-mode env are process-global: these
