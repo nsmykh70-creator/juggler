@@ -4493,7 +4493,9 @@ fn resolve_route(
     // Rate limiting comes first: even built-in endpoints consume real work
     // (TLS, header parsing), and /metrics scraping at normal rates (5s
     // interval) never approaches the 5 req/s refill.
-    if !RATE_LIMITER.check_limit(peer_ip) {
+    // rate_limit_tokens == 0 disables the limiter entirely (documented
+    // escape hatch; a zero-capacity bucket would otherwise 429 everything).
+    if settings().rate_limit_tokens.get() > 0 && !RATE_LIMITER.check_limit(peer_ip) {
         RATE_LIMIT_REJECTED
             .with_label_values(&["token_bucket"])
             .inc();

@@ -29,6 +29,7 @@ Run:  python integration_tests.py
 """
 import concurrent.futures
 import json
+import os
 import re
 import urllib.error
 import sys
@@ -45,6 +46,14 @@ urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 BASE = "https://127.0.0.1:8443"
 GRPC_ADDR = "127.0.0.1:50051"
+
+# Admin auth: when the server under test runs with JUGGLER_ADMIN_TOKEN set
+# (fail-closed surface, as in CI), every /api call must present the Bearer.
+# Local token-less dev servers keep the old open behavior.
+# Test-side token mirrors the server's JUGGLER_ADMIN_TOKEN (set in CI and
+# locally); JUGGLER_CI_ADMIN_TOKEN kept as an explicit override.
+ADMIN_TOKEN = os.environ.get("JUGGLER_CI_ADMIN_TOKEN") or os.environ.get("JUGGLER_ADMIN_TOKEN", "")
+ADMIN_HDRS = {"Authorization": f"Bearer {ADMIN_TOKEN}"} if ADMIN_TOKEN else {}
 
 def _retry_get(url: str, attempts: int = 3, **kw):
     """GET with short retries: absorbs cold-burst 429/timeouts on CI, where
@@ -69,7 +78,9 @@ def test_admin_settings():
     admin = "http://127.0.0.1:9090"
 
     # 1) GET: all knobs present with bounds.
-    with urllib.request.urlopen(f"{admin}/api/settings", timeout=5) as r:
+    with urllib.request.urlopen(
+        urllib.request.Request(f"{admin}/api/settings", headers=ADMIN_HDRS), timeout=5
+    ) as r:
         assert r.status == 200
         d = json.loads(r.read())
     names = {s["name"] for s in d["settings"]}
@@ -85,14 +96,16 @@ def test_admin_settings():
 
     # 2) POST: switch balancer to predictive, verify live.
     req = urllib.request.Request(
-        f"{admin}/api/settings", method="POST",
+        f"{admin}/api/settings", method="POST", headers={"Content-Type": "application/json", **ADMIN_HDRS},
         data=json.dumps({"balancer": "predictive"}).encode(),
-        headers={"Content-Type": "application/json"},
+        
     )
     with urllib.request.urlopen(req, timeout=5) as r:
         assert r.status == 200
         assert json.loads(r.read())["success"] is True
-    with urllib.request.urlopen(f"{admin}/api/settings", timeout=5) as r:
+    with urllib.request.urlopen(
+        urllib.request.Request(f"{admin}/api/settings", headers=ADMIN_HDRS), timeout=5
+    ) as r:
         d2 = json.loads(r.read())
     bal_now = next(s for s in d2["settings"] if s["name"] == "balancer")
     assert bal_now["value"] == 1, f"predictive not applied: {bal_now}"
@@ -100,22 +113,24 @@ def test_admin_settings():
     # 3) POST: out-of-range value is clamped, not rejected.
     cap = knob("pool_cap_per_upstream")
     req = urllib.request.Request(
-        f"{admin}/api/settings", method="POST",
+        f"{admin}/api/settings", method="POST", headers={"Content-Type": "application/json", **ADMIN_HDRS},
         data=json.dumps({"pool_cap_per_upstream": cap["max"] + 12345}).encode(),
-        headers={"Content-Type": "application/json"},
+        
     )
     with urllib.request.urlopen(req, timeout=5) as r:
         assert r.status == 200
-    with urllib.request.urlopen(f"{admin}/api/settings", timeout=5) as r:
+    with urllib.request.urlopen(
+        urllib.request.Request(f"{admin}/api/settings", headers=ADMIN_HDRS), timeout=5
+    ) as r:
         d3 = json.loads(r.read())
     got = next(s for s in d3["settings"] if s["name"] == "pool_cap_per_upstream")
     assert got["value"] == cap["max"], "out-of-range value must clamp to max"
 
     # 4) POST: unknown knob -> 400.
     req = urllib.request.Request(
-        f"{admin}/api/settings", method="POST",
+        f"{admin}/api/settings", method="POST", headers={"Content-Type": "application/json", **ADMIN_HDRS},
         data=json.dumps({"nope": 1}).encode(),
-        headers={"Content-Type": "application/json"},
+        
     )
     try:
         urllib.request.urlopen(req, timeout=5)
@@ -131,9 +146,9 @@ def test_admin_settings():
     restore = {s["name"]: s["value"] for s in d["settings"]}
     restore["pool_cap_per_upstream"] = cap["value"]
     req = urllib.request.Request(
-        f"{admin}/api/settings", method="POST",
+        f"{admin}/api/settings", method="POST", headers={"Content-Type": "application/json", **ADMIN_HDRS},
         data=json.dumps(restore).encode(),
-        headers={"Content-Type": "application/json"},
+        
     )
     urllib.request.urlopen(req, timeout=5)
 
@@ -144,11 +159,14 @@ def test_admin_api():
     import urllib.error
 
     admin = "http://127.0.0.1:9090"
-    # Server under test must be started with JUGGLER_ADMIN_ADDR=127.0.0.1:9090
-    # (and without JUGGLER_ADMIN_TOKEN so the API is open for this test).
+    # Server under test must be started with JUGGLER_ADMIN_ADDR=127.0.0.1:9090.
+    # When it runs with JUGGLER_ADMIN_TOKEN (CI), the token is passed via
+    # JUGGLER_CI_ADMIN_TOKEN; token-less dev servers stay open.
 
     # 1) stats JSON: valid, has shards/routes/pool arrays.
-    with urllib.request.urlopen(f"{admin}/api/stats", timeout=5) as r:
+    with urllib.request.urlopen(
+        urllib.request.Request(f"{admin}/api/stats", headers=ADMIN_HDRS), timeout=5
+    ) as r:
         assert r.status == 200, f"stats status {r.status}"
         stats = json.loads(r.read())
     assert "shards" in stats and len(stats["shards"]) > 0, "no shard telemetry"
@@ -165,14 +183,16 @@ def test_admin_api():
     payload = json.dumps({"routes": {"/admintest": {"upstream_addrs": ["127.0.0.1:7001"]}}}).encode()
     req = urllib.request.Request(
         f"{admin}/api/routes", data=payload, method="POST",
-        headers={"Content-Type": "application/json"},
+        headers={"Content-Type": "application/json", **ADMIN_HDRS},
     )
     with urllib.request.urlopen(req, timeout=10) as r:
         assert r.status == 200
         resp = json.loads(r.read())
     assert resp.get("success") is True, f"POST failed: {resp}"
 
-    with urllib.request.urlopen(f"{admin}/api/routes", timeout=5) as r:
+    with urllib.request.urlopen(
+        urllib.request.Request(f"{admin}/api/routes", headers=ADMIN_HDRS), timeout=5
+    ) as r:
         routes = json.loads(r.read())
     assert "/admintest" in routes["routes"], "POSTed route missing from GET"
 
@@ -180,7 +200,7 @@ def test_admin_api():
     payload = json.dumps({"routes": {"/api": {"upstream_addrs": ["127.0.0.1:7001", "127.0.0.1:7002"]}}}).encode()
     req = urllib.request.Request(
         f"{admin}/api/routes", data=payload, method="POST",
-        headers={"Content-Type": "application/json"},
+        headers={"Content-Type": "application/json", **ADMIN_HDRS},
     )
     with urllib.request.urlopen(req, timeout=10) as r:
         assert r.status == 200
@@ -225,6 +245,11 @@ def compile_proto():
     return import_module("control_plane_pb2"), import_module("control_plane_pb2_grpc")
 
 
+def grpc_metadata():
+    """Auth metadata for mutating control-plane RPCs (CI token mode)."""
+    return (("authorization", f"Bearer {ADMIN_TOKEN}"),) if ADMIN_TOKEN else ()
+
+
 def test_grpc_hot_reload_and_proxy():
     import grpc
 
@@ -234,7 +259,10 @@ def test_grpc_hot_reload_and_proxy():
     routes = {"/api": pb2.RouteConfig(upstream_addrs=["127.0.0.1:7001"])}
     with grpc.insecure_channel(GRPC_ADDR) as channel:
         stub = pb2_grpc.ControlPlaneStub(channel)
-        resp = stub.UpdateConfig(pb2.UpdateConfigRequest(routes=routes), timeout=5)
+        resp = stub.UpdateConfig(
+            pb2.UpdateConfigRequest(routes=routes), timeout=5,
+            metadata=grpc_metadata(),
+        )
         assert resp.success, f"server rejected config: {resp.message}"
 
     # Hot reload must be visible to the Data Plane immediately.
@@ -262,7 +290,10 @@ def test_least_connections():
     }
     with grpc.insecure_channel(GRPC_ADDR) as channel:
         stub = pb2_grpc.ControlPlaneStub(channel)
-        resp = stub.UpdateConfig(pb2.UpdateConfigRequest(routes=routes), timeout=5)
+        resp = stub.UpdateConfig(
+            pb2.UpdateConfigRequest(routes=routes), timeout=5,
+            metadata=grpc_metadata(),
+        )
         assert resp.success
 
     # 8 concurrent requests: the slow backend pins its connections for 1.5s,
@@ -340,7 +371,10 @@ def test_failover():
     }
     with grpc.insecure_channel(GRPC_ADDR) as channel:
         stub = pb2_grpc.ControlPlaneStub(channel)
-        resp = stub.UpdateConfig(pb2.UpdateConfigRequest(routes=routes), timeout=5)
+        resp = stub.UpdateConfig(
+            pb2.UpdateConfigRequest(routes=routes), timeout=5,
+            metadata=grpc_metadata(),
+        )
         assert resp.success
 
     time.sleep(0.2)
@@ -357,7 +391,10 @@ def test_failover():
     }
     with grpc.insecure_channel(GRPC_ADDR) as channel:
         stub = pb2_grpc.ControlPlaneStub(channel)
-        stub.UpdateConfig(pb2.UpdateConfigRequest(routes=routes), timeout=5)
+        stub.UpdateConfig(
+            pb2.UpdateConfigRequest(routes=routes), timeout=5,
+            metadata=grpc_metadata(),
+        )
 
 
 # ---------------------------------------------------------------- test 9
@@ -368,7 +405,10 @@ def test_http1_proxying():
     # (failover test above leaves /api pointed at both backends).
     _apply_routes({"/api": {"upstream_addrs": ["127.0.0.1:7001"]}})
 
-    with httpx.Client(verify=False, http2=False, timeout=5) as client:
+    # follow_redirects: exact-match proxy routes answer 301 -> /api/ (nginx
+    # location-directory semantics), the proxy assertion is about the final
+    # response, not the redirect hop.
+    with httpx.Client(verify=False, http2=False, timeout=5, follow_redirects=True) as client:
         r = client.get(f"{BASE}/api")
         assert r.status_code == 200, f"status {r.status_code}"
         assert r.http_version == "HTTP/1.1", f"negotiated {r.http_version}"
@@ -384,7 +424,7 @@ def test_http2_proxying():
     # (earlier tests may have left it pointed at both backends).
     _apply_routes({"/api": {"upstream_addrs": ["127.0.0.1:7001"]}})
 
-    with httpx.Client(verify=False, http2=True, timeout=5) as client:
+    with httpx.Client(verify=False, http2=True, timeout=5, follow_redirects=True) as client:
         # ALPN must negotiate h2 and the request must be proxied.
         r = client.get(f"{BASE}/api")
         assert r.status_code == 200, f"status {r.status_code}"
@@ -394,8 +434,8 @@ def test_http2_proxying():
     # Multiplexing: several concurrent streams over h2 connections.
     import concurrent.futures
 
-    paths = ["/api", "/healthz"]
-    with httpx.Client(verify=False, http2=True, timeout=10) as mux:
+    paths = ["/api/", "/healthz"]  # /api/ = after the exact-match 301
+    with httpx.Client(verify=False, http2=True, timeout=10, follow_redirects=True) as mux:
         def hit(p):
             return mux.get(f"{BASE}{p}").status_code
 
@@ -429,11 +469,15 @@ def _apply_routes(routes: dict) -> None:
 
     with grpc.insecure_channel(GRPC_ADDR) as channel:
         stub = pb2_grpc.ControlPlaneStub(channel)
+        # When the server runs with an admin token (CI), control-plane
+        # mutations mirror that token as their Bearer credential.
+        md = (("authorization", f"Bearer {ADMIN_TOKEN}"),) if ADMIN_TOKEN else ()
         resp = stub.UpdateConfig(
             pb2.UpdateConfigRequest(routes={
                 path: _route(cfg) for path, cfg in routes.items()
             }),
             timeout=5,
+            metadata=md,
         )
         assert resp.success, f"config rejected: {resp.message}"
 
@@ -460,6 +504,8 @@ def test_wasm_header_plugin():
 def test_wasm_body_plugin():
     # /up -> echo backend with the upper_body plugin: the upstream must
     # receive the request body rewritten to upper case inside WASM.
+    # POST /up/ directly: POST /up would 301 (exact-match directory
+    # redirect) and requests would re-send it as a body-less GET.
     _apply_routes({
         "/up": {
             "upstream_addrs": ["127.0.0.1:7003"],
@@ -469,7 +515,7 @@ def test_wasm_body_plugin():
     time.sleep(0.2)
     payload = "juggle me please"
     r = requests.post(
-        f"{BASE}/up", data=payload.encode(),
+        f"{BASE}/up/", data=payload.encode(),
         headers={"Content-Type": "text/plain"}, verify=False, timeout=10,
     )
     assert r.status_code == 200, f"status {r.status_code}"
@@ -742,6 +788,9 @@ if __name__ == "__main__":
     time.sleep(2)
     check("9. HTTP/1.1 proxying (explicit)", test_http1_proxying)
     check("10. HTTP/2 (ALPN + multiplexing + proxying)", test_http2_proxying)
+    # 9/10 push a request burst: drain the token bucket. Without a refill
+    # pause the WASM probes below land in the 429 tail and false-fail.
+    time.sleep(2)
     check("11. WASM plugin: header injection", test_wasm_header_plugin)
     check("12. WASM plugin: body rewrite", test_wasm_body_plugin)
     check("13. WASM plugin: missing file (fail-open)", test_wasm_missing_plugin_fail_open)
@@ -752,6 +801,9 @@ if __name__ == "__main__":
     check("18. Cleanup after security test", test_security_layer_cleanup)
     check("19. Admin API (stats, dashboard, hot-reload POST)", test_admin_api)
     check("20. Admin settings API (GET + POST live knobs)", test_admin_settings)
+    # 19/20 burst the admin API: give the token bucket a refill beat so
+    # static probes below do not land in the 429 tail.
+    time.sleep(2)
     check("21. Static files (www/ docroot, MIME, traversal)", test_static_files)
 
     # Leave the standard balanced demo config for manual use.

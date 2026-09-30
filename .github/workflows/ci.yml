@@ -53,20 +53,35 @@ jobs:
 
       - name: Start server
         run: |
+          # CI proxies to loopback mock backends and exercises the admin API:
+          # opt out of the egress guard and give the fail-closed admin a token.
+          JUGGLER_ALLOW_PRIVATE_UPSTREAMS=1 \
+          JUGGLER_ADMIN_TOKEN=ci-admin-token \
           ./target/release/juggler > server.log 2>&1 &
           sleep 2
 
       - name: Run integration tests
         run: python integration_tests.py
+        env:
+          # Env-prefix on the server step applies only to that command; the
+          # test process needs the token too (admin API + gRPC mutations).
+          JUGGLER_CI_ADMIN_TOKEN: ci-admin-token
 
       - name: Verify route persistence across restart
         run: |
           pkill -TERM juggler || true
           sleep 1
+          # Same env as the start-server step: the restored /api route proxies
+          # to loopback mocks, which the egress guard would otherwise reject.
+          JUGGLER_ALLOW_PRIVATE_UPSTREAMS=1 \
+          JUGGLER_ADMIN_TOKEN=ci-admin-token \
           ./target/release/juggler > server2.log 2>&1 &
           sleep 2
           grep -q "Restored" server2.log
-          code=$(curl -sk https://127.0.0.1:8443/api -o /dev/null -w "%{http_code}")
+          # -L: exact-match proxy routes answer 301 -> /api/ (nginx
+          # directory-location semantics); the persistence assertion is that
+          # the restored route serves traffic after a restart.
+          code=$(curl -skL https://127.0.0.1:8443/api -o /dev/null -w "%{http_code}")
           test "$code" = "200"
 
       - name: Upload logs on failure
