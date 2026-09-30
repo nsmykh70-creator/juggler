@@ -1,4 +1,4 @@
-# Scale ladder v2: Juggler vs nginx (Docker) vs Apache (Docker) vs nginx (native Windows) — 2026-09-30
+# Scale ladder v5: Juggler (batched writes) vs nginx (Docker) vs Apache (Docker) vs nginx (native Windows) — 2026-09-30
 
 Same machine (Windows host), same load generator (`bench/scaleload.exe`,
 HTTP/1.1 keep-alive, fixed request budget, 8 conns ≤10k / 32 conns ≥100k),
@@ -196,3 +196,34 @@ The pre-batch d8 dip below d4 is gone. That dip was the 8-writes-per-1-
 read syscall multiplication; with batching the write count is constant
 (1 per batch) regardless of depth, so deeper pipelines gain relatively
 more (d8 +76% vs pre-batch median, d4 +60%).
+
+## v5 full ladder re-run (batched-writes binary)
+
+All 40 runs re-measured on the final binary (5 scales x 4 servers x 2
+passes, rotated order, 8 conns up to 10k / 32 conns above; Juggler plain
+plane :8180, unlimited keep-alive). Prior artifacts kept as
+`scale_ladder_v2_batchless.{jsonl,json}`.
+
+| Requests | Juggler | nginx-Docker | nginx-native | Apache | J/ngxn | J/ngx | J/ap |
+|---:|---:|---:|---:|---:|---:|---:|---:|
+| 100 | 4 609 | 499 | 1 849 | 1 121 | 2.5× | 9.2× | 4.1× |
+| 1 000 | 7 303 | 742 | 1 912 | 1 284 | 3.8× | 9.8× | 5.7× |
+| 10 000 | 6 314 | 736 | 2 174 | 1 151 | 2.9× | 8.6× | 5.5× |
+| 100 000 | **9 527** | 884 | 2 184 | 1 884 | 4.4× | 10.8× | 5.1× |
+| 1 000 000 | **8 955** | 892 | 2 122 | 1 850 | 4.2× | 10.0× | 4.8× |
+
+**8 888 800 total requests, 0 errors across all 40 runs** (both passes
+aggregated; the ladder's reconnect issue stays at zero with unlimited
+keep-alive).
+
+Juggler vs its own v2 (pre-batch) medians: 100 +10%, 1k +39%, 10k +5%,
+100k +59%, 1M +77%. The gain grows with scale — longer keep-alive
+sessions amortize the batch accumulator and the single-write drain, and
+the 100k/1M legs (32 conns) additionally benefit from the unlimited
+keep-alive semantics fixed in v2. The edge over native nginx widened
+from 2.4-3.0× (v2) to 2.5-4.4× (v5). p99 medians: 1.6-2.3 ms at short
+scales, 13-15 ms at 100k/1M under full saturation.
+
+Known noise: laptop-class host with Docker/browser background; the two
+passes of some Juggler legs differ up to 40% (e.g. 1M: 8 274 / 9 637),
+which is why per-scale medians — not single runs — are reported.
