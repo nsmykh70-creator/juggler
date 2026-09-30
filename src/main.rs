@@ -5660,11 +5660,16 @@ where
 {
     let mut served: usize = 0;
     let mut buf = buf_pool(shard_idx).get();
+    // Response accumulator: pipelined responses share ONE socket write per
+    // batch. Flush points: before each blocking read (the pipeline batch
+    // boundary), at BATCH_FLUSH_CAP, and before every close path. Reused
+    // across requests, so steady-state batching allocates nothing.
     // Watchdog: slow-request detector. If the whole request exceeds 1 s,
     // log shard+path — this is the ground truth for "which plane stalls"
     // (a conn that never reaches here is stuck in hand-off/accept, not in
     // the pipeline).
     let conn_t0 = Instant::now();
+    let mut wtr: Vec<u8> = Vec::with_capacity(16 * 1024);
 
     loop {
         // ---- read one full request ----
@@ -5675,13 +5680,12 @@ where
                 // scoped drain (shutdown write half, short read drain, then
                 // drop) makes the status actually reach the client instead
                 // of racing RST with the attacker's unread overflow bytes.
-                client
-                    .write_all(&http_response(
-                        "431 Request Header Fields Too Large",
-                        "header too large",
-                        false,
-                    ))
-                    .await?;
+                wtr.extend_from_slice(&http_response(
+                    "431 Request Header Fields Too Large",
+                    "header too large",
+                    false,
+                ));
+                flush_batch(&mut client, &mut wtr).await?;
                 record_response_class(431);
                 drain_and_close(&mut client).await;
                 buf_pool(shard_idx).put(buf);
@@ -5700,11 +5704,15 @@ where
                     break req;
                 }
             }
+            // Pipeline batch boundary: everything dispatched so far goes
+            // out in ONE write before we block on the socket again.
+            flush_batch(&mut client, &mut wtr).await?;
             let chunk = client.read_buf(&mut buf).await?;
             if chunk == 0 {
                 if served > 1 {
                     KEEPALIVE_CONNECTIONS_TOTAL.inc();
                 }
+                let _ = flush_batch(&mut client, &mut wtr).await;
                 buf_pool(shard_idx).put(buf);
                 return Ok(()); // client closed the connection
             }
@@ -5733,13 +5741,12 @@ where
                     // Malformed chunk framing (bad size, missing terminator):
                     // reject outright — passing it through would smuggle
                     // attacker-controlled bytes into the upstream body.
-                    client
-                        .write_all(&http_response(
-                            "400 Bad Request",
-                            "malformed chunked encoding",
-                            false,
-                        ))
-                        .await?;
+                    wtr.extend_from_slice(&http_response(
+                        "400 Bad Request",
+                        "malformed chunked encoding",
+                        false,
+                    ));
+                    flush_batch(&mut client, &mut wtr).await?;
                     record_response_class(400);
                     drain_and_close(&mut client).await;
                     buf_pool(shard_idx).put(buf);
@@ -5752,13 +5759,12 @@ where
 
         match resolve_route(path, &mut body, peer_ip, PROTO_H1, &config) {
             RouteDecision::RateLimited => {
-                client
-                    .write_all(&http_response(
-                        "429 Too Many Requests",
-                        "Rate limit exceeded. Slow down.",
-                        false,
-                    ))
-                    .await?;
+                wtr.extend_from_slice(&http_response(
+                    "429 Too Many Requests",
+                    "Rate limit exceeded. Slow down.",
+                    false,
+                ));
+                flush_batch(&mut client, &mut wtr).await?;
                 record_response_class(429);
                 buf_pool(shard_idx).put(buf);
                 return Ok(());
@@ -5770,17 +5776,15 @@ where
                 } else {
                     http_response(&status_line, &body, keep_alive)
                 };
-                client.write_all(&response).await?;
+                wtr.extend_from_slice(&response);
                 record_response_class(status);
             }
             RouteDecision::NotFound => {
-                client
-                    .write_all(&http_response(
-                        "404 Not Found",
-                        "route not found",
-                        keep_alive,
-                    ))
-                    .await?;
+                wtr.extend_from_slice(&http_response(
+                    "404 Not Found",
+                    "route not found",
+                    keep_alive,
+                ));
                 record_response_class(404);
             }
             RouteDecision::Redirect301(loc) => {
@@ -5788,7 +5792,7 @@ where
                     "HTTP/1.1 301 Moved Permanently\r\nLocation: {loc}\r\nContent-Length: 0\r\nConnection: {conn}\r\n\r\n",
                     conn = if keep_alive { "keep-alive" } else { "close" }
                 );
-                client.write_all(head.as_bytes()).await?;
+                wtr.extend_from_slice(head.as_bytes());
                 record_response_class(301);
             }
             RouteDecision::StaticFile(mut head, file_body) => {
@@ -5809,9 +5813,8 @@ where
                     head = patch_len(&head, file_body.len());
                     head = patch_or_add_header(&head, b"vary", "Accept-Encoding");
                 }
-                let mut out = head;
-                out.extend_from_slice(&file_body);
-                client.write_all(&out).await?;
+                wtr.extend_from_slice(&head);
+                wtr.extend_from_slice(&file_body);
                 record_response_class(200); // static files are pre-validated
             }
             RouteDecision::Proxy(upstreams, body, extra_headers, security_headers, strip) => {
@@ -5843,6 +5846,10 @@ where
                 // prediction is available to the balancer and the observed
                 // cost is fed back after dispatch.
                 let sig = request_signature_hash(req.method(&buf).as_bytes(), path, body.len());
+                // Ship earlier pipelined responses BEFORE blocking on the
+                // upstream: a slow origin must not delay bytes we owe. The
+                // proxy response itself rides to the next batch boundary.
+                flush_batch(&mut client, &mut wtr).await?;
                 let (result, _used_upstream) =
                     dispatch_to_upstreams(&forwarded, &upstreams, sig).await;
                 record_stage(shard_idx, STAGE_UPSTREAM, started);
@@ -5887,19 +5894,16 @@ where
                         head = patch_len(&head, new_body.len());
                         let mut patched = with_alt_svc(with_security_headers(head, &security_headers));
                         patched.extend_from_slice(&new_body);
-                        client.write_all(&patched).await?;
-                        client.flush().await?;
+                        wtr.extend_from_slice(&patched);
                         record_response_class(outcome.status);
                         status_label(outcome.status)
                     }
                     Err(DispatchError::NoUpstreams) => {
-                        client
-                            .write_all(&http_response(
-                                "503 Service Unavailable",
-                                "no upstreams available",
-                                keep_alive,
-                            ))
-                            .await?;
+                        wtr.extend_from_slice(&http_response(
+                            "503 Service Unavailable",
+                            "no upstreams available",
+                            keep_alive,
+                        ));
                         record_response_class(503);
                         "503"
                     }
@@ -5910,13 +5914,11 @@ where
                             "upstream",
                             format!("all upstreams failed for {path}: {e}"),
                         );
-                        client
-                            .write_all(&http_response(
-                                "502 Bad Gateway",
-                                "upstream unreachable",
-                                keep_alive,
-                            ))
-                            .await?;
+                        wtr.extend_from_slice(&http_response(
+                            "502 Bad Gateway",
+                            "upstream unreachable",
+                            keep_alive,
+                        ));
                         record_response_class(502);
                         "502"
                     }
@@ -5926,6 +5928,12 @@ where
                     .inc();
                 record_stage(shard_idx, STAGE_RESPOND, resp_t0);
             }
+        }
+
+        // Bound per-connection batching: giant proxy bodies flush as they
+        // land instead of growing the accumulator unboundedly.
+        if wtr.len() >= BATCH_FLUSH_CAP {
+            flush_batch(&mut client, &mut wtr).await?;
         }
 
         // Slow-request watchdog: >1 s wall time for the whole request.
@@ -5965,6 +5973,7 @@ where
             if served > 1 {
                 KEEPALIVE_CONNECTIONS_TOTAL.inc();
             }
+            flush_batch(&mut client, &mut wtr).await?;
             drain_and_close(&mut client).await;
             buf_pool(shard_idx).put(buf);
             return Ok(());
@@ -5993,7 +6002,75 @@ where
     let _ = client.shutdown().await;
 }
 
-/// Consume the bytes of a fully dispatched request. Splitting preserves the
+/// Cap for the per-connection response accumulator: pipelined responses
+/// share one write, but a giant proxy body flushes as it lands instead of
+/// growing the buffer unboundedly.
+const BATCH_FLUSH_CAP: usize = 256 * 1024;
+
+/// Ship every accumulated response in ONE socket write (writev-class batch:
+/// a depth-8 pipeline costs 1 write syscall instead of 8). No-op on an
+/// empty accumulator.
+async fn flush_batch<S>(client: &mut S, wtr: &mut Vec<u8>) -> Result<()>
+where
+    S: tokio::io::AsyncWrite + Unpin + Send,
+{
+    if wtr.is_empty() {
+        return Ok(());
+    }
+    client.write_all(wtr).await?;
+    wtr.clear();
+    Ok(())
+}
+
+#[cfg(test)]
+mod batch_write_tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn flush_batch_empty_is_noop() {
+        let (mut c, mut s) = tokio::io::duplex(64);
+        let mut wtr = Vec::new();
+        flush_batch(&mut c, &mut wtr).await.unwrap();
+        assert!(wtr.is_empty(), "accumulator must stay empty");
+        // The peer must see zero bytes (no spurious empty writes).
+        let mut buf = [0u8; 8];
+        assert!(
+            tokio::time::timeout(std::time::Duration::from_millis(50), s.read(&mut buf))
+                .await
+                .is_err(),
+            "empty flush must not write anything"
+        );
+    }
+
+    #[tokio::test]
+    async fn flush_batch_ships_exactly_once_and_clears() {
+        let (mut c, mut s) = tokio::io::duplex(64);
+        let mut wtr: Vec<u8> = Vec::new();
+        wtr.extend_from_slice(b"HTTP/1.1 200 OK\r\n\r\n");
+        wtr.extend_from_slice(b"HTTP/1.1 404 Not Found\r\n\r\n");
+        flush_batch(&mut c, &mut wtr).await.unwrap();
+        assert!(wtr.is_empty(), "accumulator must be drained after flush");
+        drop(c); // EOF for the reader (read_to_end otherwise waits forever)
+        // Both pipelined responses arrive in one read.
+        let mut got = Vec::new();
+        s.read_to_end(&mut got).await.unwrap();
+        assert_eq!(got, b"HTTP/1.1 200 OK\r\n\r\nHTTP/1.1 404 Not Found\r\n\r\n");
+    }
+
+    #[tokio::test]
+    async fn flush_batch_second_flush_after_reuse_writes_only_new_bytes() {
+        let (mut c, mut s) = tokio::io::duplex(64);
+        let mut wtr: Vec<u8> = Vec::new();
+        wtr.extend_from_slice(b"A\r\n\r\n");
+        flush_batch(&mut c, &mut wtr).await.unwrap();
+        wtr.extend_from_slice(b"B\r\n\r\n");
+        flush_batch(&mut c, &mut wtr).await.unwrap();
+        drop(c);
+        let mut got = Vec::new();
+        s.read_to_end(&mut got).await.unwrap();
+        assert_eq!(got, b"A\r\n\r\nB\r\n\r\n");
+    }
+}
 /// allocation (BytesMut keeps its capacity across `split_to`), so the buffer
 /// can be returned to the shard pool when the connection closes.
 fn consume_consumed_request(buf: &mut BytesMut, req: &RawRequest) {

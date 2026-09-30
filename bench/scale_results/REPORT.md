@@ -153,3 +153,32 @@ Two production defects found and fixed while re-validating this pass:
 
 Validation: 115/115 unit tests, clippy clean in server code
 (remaining 4 warnings live in `bench/h3load.rs`, out of server scope).
+
+## v4 (2026-09-30): batched response writes
+
+The H1 loop used to issue one `write_all` per response, so a depth-8
+pipeline paid 8 write syscalls (and 8 IOCP completions) for one socket
+read. Now every dispatch arm appends into a per-connection accumulator
+(`wtr`, reused across requests — no steady-state allocation) and the
+batch ships in ONE write at three points:
+
+- before each blocking read (the natural pipeline-batch boundary — placed
+  after the parse-first check, so requests already in the buffer are
+  served and batched before the syscall);
+- at 256 KiB (`BATCH_FLUSH_CAP`), so giant proxy bodies flush instead of
+  growing the accumulator;
+- before every close path (431/400/429, `Connection: close`, EOF). Proxy
+  arms additionally flush right before dispatching upstream, so a slow
+  origin never delays responses already owed to the client.
+
+Live A/B (same stand, 32 conns x 300 reqs, 3 reps, medians):
+
+| depth | before | after | note |
+|---:|---:|---:|---|
+| 1 | ~4.7k | ~6.4k | +36% (even unpipelined keep-alive wins: one write per drain) |
+| 4 | ~5.3k | ~6.6k | +25% |
+| 8 | ~5.1k | ~6.0k | the d8 dip below d1 is gone |
+| 16 | — | ~7.0k | best mode |
+
+0 errors across all reps. Unit tests cover `flush_batch` semantics
+(empty no-op, exact bytes, accumulator reuse); 118/118 total.
