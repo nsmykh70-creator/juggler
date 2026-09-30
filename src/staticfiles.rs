@@ -132,7 +132,9 @@ pub(crate) fn canonical_root(root: &str) -> Option<std::path::PathBuf> {
     if map.len() > 64 {
         map.clear();
     }
-    map.entry(root.to_string()).or_insert_with(|| std::fs::canonicalize(root).ok()).clone()
+    map.entry(root.to_string())
+        .or_insert_with(|| std::fs::canonicalize(root).ok())
+        .clone()
 }
 
 /// In-memory cache of hot static files (nginx `open_file_cache` analogy).
@@ -149,8 +151,8 @@ pub(crate) struct StaticCacheEntry {
 const CACHE_MAX_FILE: u64 = 1024 * 1024; // files >1MB are not cached
 const CACHE_MAX_BYTES: usize = 64 * 1024 * 1024; // total budget
 
-fn static_cache()
--> &'static std::sync::Mutex<HashMap<String, (StaticCacheEntry, std::time::Instant)>> {
+fn static_cache(
+) -> &'static std::sync::Mutex<HashMap<String, (StaticCacheEntry, std::time::Instant)>> {
     use std::sync::{Mutex, OnceLock};
     static CACHE: OnceLock<Mutex<HashMap<String, (StaticCacheEntry, std::time::Instant)>>> =
         OnceLock::new();
@@ -159,7 +161,10 @@ fn static_cache()
 
 /// Drop every cached file (config reload, admin action).
 pub(crate) fn clear_static_cache() {
-    static_cache().lock().unwrap_or_else(|p| p.into_inner()).clear();
+    static_cache()
+        .lock()
+        .unwrap_or_else(|p| p.into_inner())
+        .clear();
 }
 
 /// Total bytes currently cached (admin panel visibility).
@@ -249,7 +254,9 @@ pub(crate) fn serve_static_file(root: &str, suffix: &str, keep_alive: bool) -> R
                 .as_ref()
                 .and_then(|r| std::fs::canonicalize(&path).ok().map(|p| (p, r.clone())))
                 .map(|(p, r)| {
-                    p.as_os_str().as_encoded_bytes().starts_with(r.as_os_str().as_encoded_bytes())
+                    p.as_os_str()
+                        .as_encoded_bytes()
+                        .starts_with(r.as_os_str().as_encoded_bytes())
                 })
                 .unwrap_or(false);
             if !contained {
@@ -272,7 +279,11 @@ pub(crate) fn serve_static_file(root: &str, suffix: &str, keep_alive: bool) -> R
             let ct = mime_type_of(&path);
             // Hot file: remember it (byte-budgeted, LRU-evicted).
             if let Some(m) = &stat {
-                static_cache_put(&path, body.clone(), m.modified().unwrap_or(std::time::UNIX_EPOCH));
+                static_cache_put(
+                    &path,
+                    body.clone(),
+                    m.modified().unwrap_or(std::time::UNIX_EPOCH),
+                );
             }
             RouteDecision::StaticFile(static_http_head("200 OK", ct, body.len(), keep_alive), body)
         }
@@ -288,7 +299,11 @@ pub(crate) fn serve_static_file(root: &str, suffix: &str, keep_alive: bool) -> R
                 Ok(body) => {
                     let ct = mime_type_of(&idx);
                     if let Ok(m) = std::fs::metadata(&idx) {
-                        static_cache_put(&idx, body.clone(), m.modified().unwrap_or(std::time::UNIX_EPOCH));
+                        static_cache_put(
+                            &idx,
+                            body.clone(),
+                            m.modified().unwrap_or(std::time::UNIX_EPOCH),
+                        );
                     }
                     RouteDecision::StaticFile(
                         static_http_head("200 OK", ct, body.len(), keep_alive),
@@ -376,4 +391,3 @@ pub(crate) fn merge_static_routes(
     }
     routes
 }
-

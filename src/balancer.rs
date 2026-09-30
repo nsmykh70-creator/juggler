@@ -101,7 +101,7 @@ impl LeastConnectionsBalancer {
             1 => candidates[0],
             _ => {
                 // Random tie-break avoids thundering herd on the first upstream.
-                                candidates.choose(&mut rand::thread_rng()).copied().unwrap()
+                candidates.choose(&mut rand::thread_rng()).copied().unwrap()
             }
         };
         let addr = picked.clone();
@@ -200,7 +200,7 @@ impl LeastConnectionsBalancer {
             }
         }
         let picked = if tied.len() > 1 {
-                        *tied.choose(&mut rand::thread_rng()).unwrap()
+            *tied.choose(&mut rand::thread_rng()).unwrap()
         } else {
             best.as_ref().map(|(_, a, _)| *a)?
         };
@@ -277,7 +277,7 @@ impl LeastConnectionsBalancer {
             }
         }
         let picked = if tied.len() > 1 {
-                        *tied.choose(&mut rand::thread_rng()).unwrap()
+            *tied.choose(&mut rand::thread_rng()).unwrap()
         } else {
             best.as_ref().map(|(_, a, _)| *a)?
         };
@@ -310,7 +310,6 @@ pub(crate) fn balancer_mode() -> &'static str {
     })
     .as_str()
 }
-
 
 // ============================================================================
 // Signature oracle: per-request-pattern cost prediction (EMA)
@@ -434,4 +433,3 @@ pub(crate) fn sig_predict(sig: u64) -> u64 {
         v
     }
 }
-

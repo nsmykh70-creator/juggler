@@ -205,9 +205,7 @@ pub fn register_metrics() {
     REGISTRY
         .register(Box::new(UPSTREAM_STALE_RETRIES_TOTAL.clone()))
         .ok();
-    REGISTRY
-        .register(Box::new(UPSTREAM_POOL_SIZE.clone()))
-        .ok();
+    REGISTRY.register(Box::new(UPSTREAM_POOL_SIZE.clone())).ok();
     REGISTRY
         .register(Box::new(WASM_PLUGIN_CALLS_TOTAL.clone()))
         .ok();
@@ -220,9 +218,7 @@ pub fn register_metrics() {
     REGISTRY
         .register(Box::new(UPSTREAM_HEALTH_STATE.clone()))
         .ok();
-    REGISTRY
-        .register(Box::new(SHARD_ACTIVE_CONNS.clone()))
-        .ok();
+    REGISTRY.register(Box::new(SHARD_ACTIVE_CONNS.clone())).ok();
     REGISTRY
         .register(Box::new(SHARD_FORECAST_CONNS.clone()))
         .ok();
@@ -272,7 +268,10 @@ mod tests {
             ("upstream_pool_reuses_total", "upstream_pool_reuses_total"),
             ("upstream_pool_size", "upstream_pool_size"),
             ("upstream_requests_total", "upstream_requests_total"),
-            ("upstream_stale_retries_total", "upstream_stale_retries_total"),
+            (
+                "upstream_stale_retries_total",
+                "upstream_stale_retries_total",
+            ),
             ("h3_connections_total", "h3_connections_total"),
         ] {
             let (family, referenced_as) = required;
@@ -311,9 +310,9 @@ mod tests {
                 .unwrap_or(0) // series absent before the first request == 0
         };
 
-        let config = std::sync::Arc::new(
-            arc_swap::ArcSwap::from_pointee(crate::ServerConfig::default()),
-        );
+        let config = std::sync::Arc::new(arc_swap::ArcSwap::from_pointee(
+            crate::ServerConfig::default(),
+        ));
         let ip: std::net::IpAddr = "192.0.2.10".parse().unwrap();
         let mut body = Vec::new();
         let before = read_counter(("/healthz", "200", PROTO_H1));
@@ -348,10 +347,8 @@ mod tests {
     fn monitoring_artifacts_reference_existing_metrics_only() {
         register_metrics();
         let repo = env!("CARGO_MANIFEST_DIR");
-        let dash = std::fs::read_to_string(format!(
-            "{repo}/monitoring/dashboards/juggler.json"
-        ))
-        .expect("provisioned dashboard present");
+        let dash = std::fs::read_to_string(format!("{repo}/monitoring/dashboards/juggler.json"))
+            .expect("provisioned dashboard present");
         let dash = format!(
             "{dash}\n{}",
             std::fs::read_to_string(format!(
@@ -359,9 +356,8 @@ mod tests {
             ))
             .expect("A/B dashboard present")
         );
-        let alerts =
-            std::fs::read_to_string(format!("{repo}/monitoring/alerts.yml"))
-                .expect("alert rules present");
+        let alerts = std::fs::read_to_string(format!("{repo}/monitoring/alerts.yml"))
+            .expect("alert rules present");
 
         // Extract metric names: identifiers followed by [ (range selector)
         // or { (label matcher). For the dashboard JSON this runs per-expr
@@ -391,7 +387,10 @@ mod tests {
         let mut idx = 0;
         while let Some(p) = dash[idx..].find("\"expr\": \"") {
             let start = idx + p + 9;
-            let end = dash[start..].find('"').map(|e| start + e).unwrap_or(start + 1);
+            let end = dash[start..]
+                .find('"')
+                .map(|e| start + e)
+                .unwrap_or(start + 1);
             collect(&dash[start..end], &mut referenced);
             idx = end;
         }
@@ -428,4 +427,3 @@ mod tests {
         }
     }
 }
-

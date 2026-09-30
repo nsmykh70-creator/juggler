@@ -10,7 +10,6 @@ use std::time::Instant;
 
 use serde::Serialize;
 
-
 // ============================================================================
 // Shard telemetry: per-shard load tracking with an EMA + Holt-forecast
 // ============================================================================
@@ -540,7 +539,11 @@ pub(crate) fn panel_log(level: &'static str, scope: &str, message: String) {
     });
 }
 
-pub(crate) fn log_ring_snapshot(limit: usize, level: Option<&str>, scope: Option<&str>) -> Vec<LogEntry> {
+pub(crate) fn log_ring_snapshot(
+    limit: usize,
+    level: Option<&str>,
+    scope: Option<&str>,
+) -> Vec<LogEntry> {
     let ring = log_ring().lock().unwrap();
     ring.iter()
         .rev() // newest first
@@ -624,5 +627,3 @@ pub(crate) fn process_cpu_permille() -> u32 {
         0
     }
 }
-
-

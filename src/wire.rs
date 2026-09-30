@@ -99,8 +99,13 @@ pub fn patch_connection_header(raw: &[u8], keep_alive: bool) -> Vec<u8> {
 /// to the copying path when the buffer is not a valid HTTP response head.
 /// Case-insensitive single-header lookup in a raw H1 head.
 pub fn header_value<'a>(head: &'a [u8], name: &[u8]) -> Option<&'a str> {
-    let head_end = head.windows(4).position(|w| w == b"\r\n\r
-").unwrap_or(head.len());
+    let head_end = head
+        .windows(4)
+        .position(|w| {
+            w == b"\r\n\r
+"
+        })
+        .unwrap_or(head.len());
     let mut pos = 0;
     while pos < head_end {
         let Some(rel) = head[pos..head_end]
@@ -132,7 +137,10 @@ pub fn header_value<'a>(head: &'a [u8], name: &[u8]) -> Option<&'a str> {
 /// line. Used for Content-Encoding / Vary on the gzip path.
 pub fn patch_or_add_header(head: &[u8], name: &[u8], value: &str) -> Vec<u8> {
     // Fast path: header already present (line-aligned) -> replace its value.
-    let head_end = head.windows(4).position(|w| w == b"\r\n\r\n").unwrap_or(head.len());
+    let head_end = head
+        .windows(4)
+        .position(|w| w == b"\r\n\r\n")
+        .unwrap_or(head.len());
     let mut pos = 0;
     while pos < head_end {
         let Some(rel) = head[pos..head_end]
@@ -235,11 +243,18 @@ pub fn normalize_response_in_place(mut raw: Vec<u8>, keep_alive: bool) -> Vec<u8
         (true, None) => {
             // Same insertion point as the close branch: before the head
             // terminator, after the LAST header's own CRLF.
-            if let Some(p) = raw.windows(4).position(|w| w == b"
+            if let Some(p) = raw.windows(4).position(|w| {
+                w == b"
 
-") {
-                raw.splice(p + 2..p + 2, b"Connection: keep-alive
-".iter().copied());
+"
+            }) {
+                raw.splice(
+                    p + 2..p + 2,
+                    b"Connection: keep-alive
+"
+                    .iter()
+                    .copied(),
+                );
             }
         }
     }
@@ -322,7 +337,6 @@ pub fn title_case_header(name: &str) -> String {
         .collect::<Vec<_>>()
         .join("-")
 }
-
 
 /// Encode an HTTP/2 request (already parsed by the h2 crate) as a complete
 /// HTTP/1.1 request for the upstream. Hop-by-hop headers are stripped,
@@ -416,7 +430,9 @@ fn gzip_worth_it(content_type: &str) -> bool {
 /// Does the client's Accept-Encoding include gzip? Tolerates q-values and
 /// case differences; `gzip;q=0` means "do not send gzip".
 fn client_wants_gzip(accept_encoding: Option<&str>) -> bool {
-    let Some(ae) = accept_encoding else { return false };
+    let Some(ae) = accept_encoding else {
+        return false;
+    };
     for part in ae.split(',') {
         let mut seg = part.trim().split(';');
         if seg.next().map(|s| s.trim().eq_ignore_ascii_case("gzip")) == Some(true) {
@@ -468,14 +484,29 @@ pub fn gzip_compress(data: &[u8]) -> Vec<u8> {
         }
     }
 
-    let mut bw = BitWriter { out: Vec::with_capacity(data.len() / 2 + 64), acc: 0, nbits: 0 };
+    let mut bw = BitWriter {
+        out: Vec::with_capacity(data.len() / 2 + 64),
+        acc: 0,
+        nbits: 0,
+    };
     bw.push(1, 1); // BFINAL
     bw.push(1, 2); // BTYPE = 01 (fixed Huffman)
 
-    const LEN_BASE: [u16; 29] = [3,4,5,6,7,8,9,10,11,13,15,17,19,23,27,31,35,43,51,59,67,83,99,115,131,163,195,227,258];
-    const LEN_EXTRA: [u8; 29]  = [0,0,0,0,0,0,0,0,1,1,1,1,2,2,2,2,3,3,3,3,4,4,4,4,5,5,5,5,0];
-    const DIST_BASE: [u16; 30] = [1,2,3,4,5,7,9,13,17,25,33,49,65,97,129,193,257,385,513,769,1025,1537,2049,3073,4097,6145,8193,12289,16385,24577];
-    const DIST_EXTRA: [u8; 30] = [0,0,0,0,1,1,2,2,3,3,4,4,5,5,6,6,7,7,8,8,9,9,10,10,11,11,12,12,13,13];
+    const LEN_BASE: [u16; 29] = [
+        3, 4, 5, 6, 7, 8, 9, 10, 11, 13, 15, 17, 19, 23, 27, 31, 35, 43, 51, 59, 67, 83, 99, 115,
+        131, 163, 195, 227, 258,
+    ];
+    const LEN_EXTRA: [u8; 29] = [
+        0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 2, 2, 2, 2, 3, 3, 3, 3, 4, 4, 4, 4, 5, 5, 5, 5, 0,
+    ];
+    const DIST_BASE: [u16; 30] = [
+        1, 2, 3, 4, 5, 7, 9, 13, 17, 25, 33, 49, 65, 97, 129, 193, 257, 385, 513, 769, 1025, 1537,
+        2049, 3073, 4097, 6145, 8193, 12289, 16385, 24577,
+    ];
+    const DIST_EXTRA: [u8; 30] = [
+        0, 0, 0, 0, 1, 1, 2, 2, 3, 3, 4, 4, 5, 5, 6, 6, 7, 7, 8, 8, 9, 9, 10, 10, 11, 11, 12, 12,
+        13, 13,
+    ];
 
     fn len_code(l: u16) -> usize {
         let mut i = 28;
@@ -682,7 +713,7 @@ mod gzip_tests {
     #[test]
     fn gzip_policy_matrix() {
         let body = b"<html>some page body</html>".repeat(100); // 2900 bytes
-        // Compressible type + gzip accepted -> compressed.
+                                                               // Compressible type + gzip accepted -> compressed.
         let (out, enc) = maybe_gzip("text/html", Some("gzip, br"), &body, false);
         assert_eq!(enc, Some("gzip"));
         assert!(out.len() < body.len());
@@ -704,7 +735,9 @@ mod gzip_tests {
         let (_, enc) = maybe_gzip("text/html", Some("gzip"), &small, false);
         assert_eq!(enc, None);
         // Random data (would grow) -> passthrough via shrink valve.
-        let rnd: Vec<u8> = (0..4096u32).map(|i| (i.wrapping_mul(2654435761) >> 16) as u8).collect();
+        let rnd: Vec<u8> = (0..4096u32)
+            .map(|i| (i.wrapping_mul(2654435761) >> 16) as u8)
+            .collect();
         let (out, enc) = maybe_gzip("application/json", Some("gzip"), &rnd, false);
         if enc.is_some() {
             assert!(out.len() < rnd.len());
@@ -742,13 +775,29 @@ mod gzip_tests {
                 v
             }
         }
-        let mut br = BitReader { data: raw, pos: 0, acc: 0, nbits: 0 };
+        let mut br = BitReader {
+            data: raw,
+            pos: 0,
+            acc: 0,
+            nbits: 0,
+        };
         let bfinal = br.get(1);
         assert_eq!(br.get(2), 1, "expected fixed block");
-        const LEN_BASE: [u16; 29] = [3,4,5,6,7,8,9,10,11,13,15,17,19,23,27,31,35,43,51,59,67,83,99,115,131,163,195,227,258];
-        const LEN_EXTRA: [u8; 29]  = [0,0,0,0,0,0,0,0,1,1,1,1,2,2,2,2,3,3,3,3,4,4,4,4,5,5,5,5,0];
-        const DIST_BASE: [u16; 30] = [1,2,3,4,5,7,9,13,17,25,33,49,65,97,129,193,257,385,513,769,1025,1537,2049,3073,4097,6145,8193,12289,16385,24577];
-        const DIST_EXTRA: [u8; 30] = [0,0,0,0,1,1,2,2,3,3,4,4,5,5,6,6,7,7,8,8,9,9,10,10,11,11,12,12,13,13];
+        const LEN_BASE: [u16; 29] = [
+            3, 4, 5, 6, 7, 8, 9, 10, 11, 13, 15, 17, 19, 23, 27, 31, 35, 43, 51, 59, 67, 83, 99,
+            115, 131, 163, 195, 227, 258,
+        ];
+        const LEN_EXTRA: [u8; 29] = [
+            0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 2, 2, 2, 2, 3, 3, 3, 3, 4, 4, 4, 4, 5, 5, 5, 5, 0,
+        ];
+        const DIST_BASE: [u16; 30] = [
+            1, 2, 3, 4, 5, 7, 9, 13, 17, 25, 33, 49, 65, 97, 129, 193, 257, 385, 513, 769, 1025,
+            1537, 2049, 3073, 4097, 6145, 8193, 12289, 16385, 24577,
+        ];
+        const DIST_EXTRA: [u8; 30] = [
+            0, 0, 0, 0, 1, 1, 2, 2, 3, 3, 4, 4, 5, 5, 6, 6, 7, 7, 8, 8, 9, 9, 10, 10, 11, 11, 12,
+            12, 13, 13,
+        ];
         let mut out = Vec::new();
         loop {
             // Read a Huffman symbol MSB-first, canonical fixed-code table.
@@ -801,4 +850,3 @@ mod gzip_tests {
         out
     }
 }
-

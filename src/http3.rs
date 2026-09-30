@@ -89,11 +89,9 @@ pub fn spawn_http3_server(
                             Ok(conn) => {
                                 H3_CONNECTIONS_TOTAL.inc();
                                 let peer = conn.remote_address();
-                                if let Err(
-                                    HandleError::Connection(
-                                        h3::error::ConnectionError::Local { error, .. },
-                                    ),
-                                ) = handle_quic_connection(conn, peer, cfg).await
+                                if let Err(HandleError::Connection(
+                                    h3::error::ConnectionError::Local { error, .. },
+                                )) = handle_quic_connection(conn, peer, cfg).await
                                 {
                                     // Client-side closes/aborts are routine noise;
                                     // only local failures deserve a log line.
