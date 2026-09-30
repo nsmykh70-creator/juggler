@@ -74,6 +74,30 @@ Errors: **0 for all four servers across 2.22M requests each.**
 | gzip | already on | hand-rolled DEFLATE (fixed-Huffman + LZ77) |
 | TLS resumption | already on | rustls default session tickets |
 
+## High-concurrency probe (2026-09-30)
+
+The v2 ladder uses 8 conns (32 for >=100k). To answer "is the ~5-8k RPS a
+loader-side ceiling?", a dedicated concurrency sweep was run against Juggler
+(single scaleload process unless noted; budget-fixed, keep-alive):
+
+| Conns | RPS | p50 ms | p99 ms |
+|------:|----:|-------:|-------:|
+| 8 | 7 323 | 1.07 | 3.2 |
+| 32 | **8 616** | 2.43 | 15.6 |
+| 64 | 7 033 | 5.25 | 42.4 |
+| 128 | 6 265 | 6.10 | 113 |
+| 512 | 6 198 | 80.7 | 245 |
+| 4 procs x 512 | 5 471 | 85-95 | 263-292 |
+
+Reading: RPS *rises* from 8 to 32 conns, then decays as loopback+scheduler
+saturation dominates; at 512 conns Juggler still delivers 6.2k RPS with zero
+errors, 3x the native-nginx figure at 128 conns (2 060 RPS). Native nginx at
+its own sweet spot (32 conns): 2 022 RPS; Apache: 1 660 RPS. Multi-process
+loading (512 conns) does not unlock a hidden Juggler ceiling - the ~6-8.6k
+RPS plateau on this laptop is the shared loopback/CPU envelope, not an
+8-connection artifact. The v2 ladder's 8-conn numbers understate Juggler by
+~20% at the sweet spot, overstate nothing.
+
 ## Reproduce
 
 ```
