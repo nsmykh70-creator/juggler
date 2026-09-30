@@ -9,15 +9,18 @@ RUN apt-get update \
     && apt-get install -y --no-install-recommends protobuf-compiler \
     && rm -rf /var/lib/apt/lists/*
 
-# Cache dependencies between builds.
+# Cache dependencies between builds. The dummy source only needs to satisfy
+# the juggler bin (src/main.rs); h3load (bench/h3load.rs) is declared in
+# Cargo.toml and is built in the next stage, so --bin juggler here keeps the
+# dependency-cache layer from failing on the missing bench source.
 COPY Cargo.toml build.rs ./
 COPY proto ./proto
-RUN mkdir -p src && echo "fn main() {}" > src/main.rs && cargo build --release && rm -rf src
+RUN mkdir -p src && echo "fn main() {}" > src/main.rs && cargo build --release --bin juggler && rm -rf src
 
 # Build the real binary.
 COPY src ./src
 COPY assets ./assets
-RUN touch src/main.rs && cargo build --release
+RUN touch src/main.rs && cargo build --release --bin juggler
 
 FROM debian:bookworm-slim
 WORKDIR /app
